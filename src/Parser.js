@@ -193,7 +193,9 @@ class Parser {
   parseImportDeclaration() {
     const params = [];
     if (this.match("String")) {
-      return new ImportDeclaration([new Parameters(this.peek())]);
+      return new ImportDeclaration([
+        new Parameters(new StringLiteral(this.peek().value)),
+      ]);
     }
     this.expect("Operator", "(");
     while (!this.match("Operator", ")")) {

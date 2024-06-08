@@ -1,5 +1,3 @@
-const { CallExpression } = require("../CallExpression");
-
 class MethodCall {
   constructor(path, children) {
     this.name = "MethodCall";

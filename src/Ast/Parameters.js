@@ -5,6 +5,9 @@ class Parameters {
   }
 
   evaluate(node, body) {
+    if (!Array.isArray(node.children)) {
+      return [body.visit(node.children)];
+    }
     return node.children.map((arg) => body.visit(arg));
   }
 }
