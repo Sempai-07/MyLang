@@ -124,6 +124,8 @@ class Parser {
         return new StringLiteral(token.value);
       case "Boolean":
         return new BooleanLiteral(token.value);
+      case "Undefined":
+        return new UndefinedLiteral(token.value);
       case "Identifier":
         if (this.match("Operator", "(")) {
           return this.parseFunctionCall(token);
@@ -242,8 +244,14 @@ class Parser {
   }
 
   parseMethodCall(identifierToken) {
-    this.expect("Operator", ".");
-    const method = this.expect("Identifier");
+    const path = [identifierToken.value];
+
+    while (this.match("Operator", ".")) {
+      this.expect("Operator", ".");
+      const nextIdentifier = this.expect("Identifier");
+      path.push(nextIdentifier.value);
+    }
+
     if (this.match("Operator", "(")) {
       this.expect("Operator", "(");
       const args = [];
@@ -254,9 +262,9 @@ class Parser {
         }
       }
       this.expect("Operator", ")");
-      return new MethodCall([identifierToken.value, method.value], args);
+      return new MethodCall(path, args);
     } else {
-      return new MethodCall([identifierToken.value, method.value], null);
+      return new MethodCall(path, null);
     }
   }
 

@@ -1,23 +1,35 @@
 class MethodCall {
-  constructor(value, children) {
+  constructor(path, children) {
     this.name = "MethodCall";
-    this.value = value;
+    this.path = path;
     this.children = children;
   }
 
   isAssign(body) {
-    return this.variable.value in body.globalScope;
+    return this.variable.path in body.globalScope;
   }
 
   evaluate(node, body) {
-    const [lib, method] = node.value;
-    if (node.children?.length > 0) {
-      const func = body.globalScope[lib][method];
-      if (typeof func === "function") {
-        return func(node, body);
-      } else throw new Error(`Undefined function: ${method}`);
+    let current = body.globalScope;
+    for (let i = 0; i < this.path.length; i++) {
+      if (current[this.path[i]] === undefined) {
+        throw new Error(`Undefined property: ${this.path[i]}`);
+      }
+      current = current[this.path[i]];
     }
-    return body.globalScope[lib][method];
+    if (
+      typeof current !== "function" &&
+      node.children?.length > 0 &&
+      !("params" in body.globalScope[current])
+    ) {
+      throw new Error(`${this.path[this.path.length - 1]} is not a function`);
+    }
+    if (node.children?.length > 0) {
+      if (typeof current === "string") {
+        const func = body.globalScope[current];
+        return func.toString();
+      } else return current.call(this.globalScope, node, body);
+    } else return current;
   }
 }
 

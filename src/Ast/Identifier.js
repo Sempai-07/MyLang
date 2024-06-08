@@ -6,8 +6,8 @@ class Identifier {
 
   evaluate(node, body) {
     if (node.value in body.globalScope) {
-      if (body.globalScope[node.value].body) {
-        return Function;
+      if (body.globalScope[node.value].params) {
+        return body.globalScope[node.value].toString();
       }
       return body.globalScope[node.value];
     }
