@@ -14,6 +14,7 @@ class FunctionDeclaration {
     body.globalScope[name.value] = {
       params: params.children.map((param) => param.value),
       body: parse,
+      getToken: () => name,
       toString: () => name.value,
     };
   }

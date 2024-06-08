@@ -1,3 +1,5 @@
+const { CallExpression } = require("../CallExpression");
+
 class MethodCall {
   constructor(path, children) {
     this.name = "MethodCall";
@@ -27,7 +29,18 @@ class MethodCall {
     if (node.children?.length > 0) {
       if (typeof current === "string") {
         const func = body.globalScope[current];
-        return func.toString();
+        const args = node.children.map((arg) => body.visit(arg));
+        const localScope = {};
+
+        for (let i = 0; i < func.params.length; i++) {
+          localScope[func.params[i]] = args[i];
+        }
+
+        const previousScope = body.globalScope;
+        body.globalScope = { ...body.globalScope, ...localScope };
+        const result = body.visit(func.body);
+        body.globalScope = previousScope;
+        return result;
       } else return current.call(this.globalScope, node, body);
     } else return current;
   }
