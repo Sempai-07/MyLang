@@ -78,7 +78,7 @@ import "coreio";
 
 var object_1 = {
   coreio,
-  how: "Yes"
+  how: "Yes",
 };
 
 var object_2 = {
@@ -91,9 +91,9 @@ var object_3 = {
   how: "No",
 };
 
-object_1 == object_2 // true
-object_1 == object_3 // false
-object_2 == object_3 // false
+object_1 == object_2; // true
+object_1 == object_3; // false
+object_2 == object_3; // false
 ```
 
 ## Functions
@@ -141,14 +141,14 @@ var left_number = 5;
 var right_number = 50;
 
 coreio.print(
-  left_number, 
+  left_number,
   right_number,
   left_number != right_number,
   left_number == right_number,
-  left_number > right_number, 
+  left_number > right_number,
   left_number < right_number,
-  left_number >= right_number, 
-  left_number <= right_number
+  left_number >= right_number,
+  left_number <= right_number,
 );
 ```
 
@@ -159,8 +159,8 @@ This line prints the values of `left_number` and `right_number`, as well as the 
 MyLang allows complex expressions and nested function calls. Here are some examples:
 
 ```js
-std.print(((5 * 7) + ("str" + "str2")) + (6 / 80000000), axios("7"));
-coreio.print(((5 * 7) + ("str" + "str2")) + (6 / 80000000));
+std.print(5 * 7 + ("str" + "str2") + 6 / 80000000, axios("7"));
+coreio.print(5 * 7 + ("str" + "str2") + 6 / 80000000);
 ```
 
 These lines print the results of arithmetic operations and string concatenations.

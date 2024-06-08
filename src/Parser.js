@@ -77,7 +77,7 @@ class Parser {
     while (!this.eof()) {
       const token = this.peek();
       if (token.name !== "BinaryOperator" && token.name !== "Operator") break;
-      
+
       const tokenPrecedence = this.getPrecedence(token);
       if (tokenPrecedence < precedence) break;
 
@@ -146,7 +146,7 @@ class Parser {
           const expr = this.parseObject();
           this.expect("Operator", "}");
           return expr;
-        } else return ;
+        } else return;
         break;
       default:
         throw new SyntaxError(`Unexpected token: ${token.name}`);
@@ -246,15 +246,15 @@ class Parser {
     const method = this.expect("Identifier");
     if (this.match("Operator", "(")) {
       this.expect("Operator", "(");
-    const args = [];
-    while (!this.match("Operator", ")")) {
-      args.push(this.parseExpression());
-      if (this.match("Operator", ",")) {
-        this.next();
+      const args = [];
+      while (!this.match("Operator", ")")) {
+        args.push(this.parseExpression());
+        if (this.match("Operator", ",")) {
+          this.next();
+        }
       }
-    }
-    this.expect("Operator", ")");
-    return new MethodCall([identifierToken.value, method.value], args);
+      this.expect("Operator", ")");
+      return new MethodCall([identifierToken.value, method.value], args);
     } else {
       return new MethodCall([identifierToken.value, method.value], null);
     }

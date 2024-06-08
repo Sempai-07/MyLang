@@ -161,7 +161,7 @@ class Lexer {
         return new Token("Operator", ":", position);
       default:
         throw new SyntaxError(
-          `Unrecognized punctuation ${beginChar} ${this.line}:${this.column}`
+          `Unrecognized punctuation ${beginChar} ${this.line}:${this.column}`,
         );
     }
   }
