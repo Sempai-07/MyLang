@@ -27,8 +27,8 @@ Variables in MyLang can be declared using the `var` keyword. Here is an example:
 
 ```js
 var var_bool = true;
-var var_int = 4.5;
-var var_floot = 6;
+var var_int = 45;
+var var_floot = 6.7;
 var var_string = "Hello world";
 var var_object = {
   var_bool,
