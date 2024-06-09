@@ -33,6 +33,8 @@ class BinaryExpression {
         return leftVal < rightVal;
       case "<":
         return leftVal > rightVal;
+      case "=":
+        return rightVal;
       case "==":
         return deepEqualTry(leftVal, rightVal);
       case "!=":

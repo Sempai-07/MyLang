@@ -1,3 +1,5 @@
+const SymbolFunction = Symbol("Function");
+
 class FunctionDeclaration {
   constructor(name, children) {
     this.name = "FunctionDeclaration";
@@ -5,18 +7,16 @@ class FunctionDeclaration {
     this.children = children;
   }
 
-  getName() {
-    return this.func;
-  }
-
   evaluate(node, body) {
     const [name, params, parse] = node.children;
-    body.globalScope[name.value] = {
-      params: params.children.map((param) => param.value),
-      body: parse,
-      toString: () => name.value,
+    body.globalScope[name.value] = function () {
+      return {
+        params: params.children.map((param) => param.value),
+        isFunction: SymbolFunction,
+        body: parse,
+      };
     };
   }
 }
 
-module.exports = { FunctionDeclaration };
+module.exports = { FunctionDeclaration, SymbolFunction };

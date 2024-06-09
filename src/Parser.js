@@ -11,7 +11,6 @@ const { ObjectLiteral } = require("./ast/Type/Object");
 const { UndefinedLiteral } = require("./ast/Type/Undefined");
 const { ReturnStatement } = require("./ast/Keyword/Return");
 const { MethodCall } = require("./ast/Keyword/MethodCall");
-const { ImportDeclaration } = require("./ast/Keyword/Import");
 const { FunctionDeclaration } = require("./ast/Keyword/Function");
 const { VariableDeclaration } = require("./ast/Keyword/Variable");
 const { ExpressionStatement } = require("./ast/Utils/Expression");
@@ -31,14 +30,6 @@ class Parser {
       if (stmt) {
         program.children.push(stmt);
       }
-    }
-    const isMainFunction = program.children.findIndex((ctx) => {
-      return (
-        ctx instanceof FunctionDeclaration && ctx.getName().value === "main"
-      );
-    });
-    if (isMainFunction === -1) {
-      throw new Error("Missing Entry Point: main function not defined");
     }
     return program;
   }
@@ -91,7 +82,7 @@ class Parser {
   parseObject() {
     const result = [];
     while (!this.match("Operator", "}")) {
-      if (this.match("Identifier") || this.match("String")) {
+      if (this.match(["Identifier", "String"])) {
         const key = this.expect(["Identifier", "String"]);
         if (!this.match("Operator", ":") && key.name === "Identifier") {
           result.push({
@@ -106,6 +97,7 @@ class Parser {
           value: this.parsePrimary(),
         });
       }
+
       if (this.match("Operator", ",")) {
         this.next();
       }
@@ -129,7 +121,7 @@ class Parser {
       case "Identifier":
         if (this.match("Operator", "(")) {
           return this.parseFunctionCall(token);
-        } else if (this.match("Operator", ".")) {
+        } else if (this.match("Operator", ".") || this.match("Operator", "[")) {
           return this.parseMethodCall(token);
         } else if (this.match("BinaryOperator", "=")) {
           return new VariableDeclaration(this.last(), [this.parseExpression()]);
@@ -169,6 +161,8 @@ class Parser {
         return this.parseFunctionDeclaration();
       case "import":
         return this.parseImportDeclaration();
+      case "export":
+        return this.parseExportsDeclaration();
       case "return":
         return this.parseReturnDeclaration();
       default:
@@ -221,6 +215,23 @@ class Parser {
     return new ImportDeclaration([new Parameters(params)]);
   }
 
+  parseExportsDeclaration() {
+    if (!this.match("Operator", "{")) {
+      const variable = this.parsePrimary();
+      return new ExportsDeclaration(
+        variable.name === "Identifier"
+          ? new ObjectLiteral({ [variable.value]: variable })
+          : new ObjectLiteral({ [variable.value]: variable }),
+      );
+    }
+
+    this.expect("Operator", "{");
+    const params = this.parseObject();
+    this.expect("Operator", "}");
+    this.expect("Operator", ";");
+    return new ExportsDeclaration(params);
+  }
+
   parseFunctionDeclaration() {
     const name = this.expect("Identifier");
     this.expect("Operator", "(");
@@ -248,10 +259,17 @@ class Parser {
   parseMethodCall(identifierToken) {
     const path = [identifierToken.value];
 
-    while (this.match("Operator", ".")) {
-      this.expect("Operator", ".");
-      const nextIdentifier = this.expect("Identifier");
-      path.push(nextIdentifier.value);
+    while (this.match("Operator", ".") || this.match("Operator", "[")) {
+      if (this.match("Operator", ".")) {
+        this.expect("Operator", ".");
+        const nextIdentifier = this.expect("Identifier");
+        path.push(nextIdentifier.value);
+      } else if (this.match("Operator", "[")) {
+        this.expect("Operator", "[");
+        const key = this.expect("String");
+        path.push(key.value);
+        this.expect("Operator", "]");
+      }
     }
 
     if (this.match("Operator", "(")) {
@@ -338,7 +356,7 @@ class Parser {
       values = [values];
     }
 
-    const nameMatch = names.includes(token.name);
+    const nameMatch = names.includes(token?.name);
     const valueMatch = values === null || values.includes(token.value);
     if (!nameMatch || !valueMatch) {
       const expectedNames = names.join(" or ");
@@ -353,12 +371,19 @@ class Parser {
 
   match(name, value = null) {
     const token = this.peek();
-    return token?.name === name && (!value || token.value === value);
+    const names = Array.isArray(name) ? name : [name];
+    return names.includes(token?.name) && (!value || token.value === value);
   }
 
   eof() {
-    return this.position >= this.tokens.length;
+    return (
+      this.position >= this.tokens.length ||
+      this.tokens[this.position].value === "EOF"
+    );
   }
 }
 
 module.exports = { Parser };
+
+const { ImportDeclaration } = require("./ast/Keyword/Import");
+const { ExportsDeclaration } = require("./ast/Keyword/Exports");

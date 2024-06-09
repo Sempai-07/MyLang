@@ -68,15 +68,16 @@ class Lexer {
         }
       }
     }
+    this.tokenList.push(new Token("Program", "EOF"));
     return this.tokenList;
   }
 
   readKeyword(beginChar) {
     switch (beginChar) {
       case "import":
+      case "export":
       case "var":
       case "func":
-      case "class":
       case "return":
         return true;
       default:
@@ -156,6 +157,12 @@ class Lexer {
       case "}":
         this.next();
         return new Token("Operator", "}", position);
+      case "[":
+        this.next();
+        return new Token("Operator", "[", position);
+      case "]":
+        this.next();
+        return new Token("Operator", "]", position);
       case ":":
         this.next();
         return new Token("Operator", ":", position);

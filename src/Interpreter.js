@@ -13,15 +13,26 @@ const { ObjectLiteral } = require("./ast/Type/Object");
 const { UndefinedLiteral } = require("./ast/Type/Undefined");
 const { FunctionDeclaration } = require("./ast/Keyword/Function");
 const { ImportDeclaration } = require("./ast/Keyword/Import");
+const { ExportsDeclaration } = require("./ast/Keyword/Exports");
 const { VariableDeclaration } = require("./ast/Keyword/Variable");
 const { ExpressionStatement } = require("./ast/Utils/Expression");
 const { BinaryExpression } = require("./ast/Utils/BinaryOperator");
 const { VisitUnaryExpression } = require("./ast/Utils/VisitUnary");
 
 class Interpreter {
-  constructor(ast) {
+  constructor(ast, options = {}) {
+    const isMainFunction = ast.children.find((ctx) => {
+      return ctx instanceof FunctionDeclaration && ctx.func.value === "main";
+    });
+    if (!isMainFunction) {
+      throw new Error("Missing Entry Point: main function not defined");
+    }
+
     this.ast = ast;
+    this.main = options.main;
+    this.exports = {};
     this.globalScope = {};
+    this.globalExports = options.exports;
   }
 
   interpret() {
@@ -46,6 +57,9 @@ class Interpreter {
         return node.evaluate(node, this);
       case node instanceof ImportDeclaration:
         return node.evaluate(node, this);
+      case node instanceof ExportsDeclaration:
+        this.exports = { ...this.exports, ...node.evaluate(node, this) };
+        break;
       case node instanceof CallExpression:
         const { globalScope, result } = node.evaluate(node, this);
         this.globalScope = globalScope.globalScope;

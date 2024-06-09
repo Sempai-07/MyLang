@@ -7,15 +7,16 @@ class CallExpression {
 
   evaluate(node, body) {
     const func = body.globalScope[node.value];
-    if (!func) {
+    if (!func || typeof func !== "function") {
       throw new Error(`Undefined function: ${node.value}`);
     }
     const args = node.children.map((arg) => body.visit(arg));
     const localScope = {};
-    for (let i = 0; i < func.params.length; i++) {
-      localScope[func.params[i]] = args[i];
+    const callFunction = func();
+    for (let i = 0; i < callFunction.params.length; i++) {
+      localScope[callFunction.params[i]] = args[i];
     }
-    return this.executeFunction(func.body, localScope, body);
+    return this.executeFunction(callFunction.body, localScope, body);
   }
 
   executeFunction(body, localScope, globalScope) {

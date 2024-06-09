@@ -6,8 +6,9 @@ class Identifier {
 
   evaluate(node, body) {
     if (node.value in body.globalScope) {
-      if (body.globalScope[node.value].params) {
-        return body.globalScope[node.value].toString();
+      if (body.globalScope[node.value]?.params) {
+        const func = body.globalScope[node.value].toString();
+        return { [func]: function () {} }[func];
       }
       return body.globalScope[node.value];
     }
