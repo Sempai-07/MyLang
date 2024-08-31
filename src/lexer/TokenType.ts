@@ -74,6 +74,7 @@ enum KeywordType {
   Var = "var",
   Func = "func",
   Import = "import",
+  Return = "return",
 }
 
 export { TokenList, TokenType, OperatorType, KeywordType };

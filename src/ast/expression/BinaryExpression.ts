@@ -27,7 +27,7 @@ class BinaryExpression extends Stmt {
   }
 
   override evaluate(score: Record<string, any>) {
-    const left = this.left.evaluate(score);
+    const left = this.left.evaluate(score) as any;
 
     switch (this.operator) {
       case OperatorType.Add: {

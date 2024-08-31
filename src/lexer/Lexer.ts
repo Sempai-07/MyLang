@@ -122,7 +122,7 @@ class Lexer {
   }
 
   processIdentifierLiteral(): void {
-    const token = this.searchToken((char) => /[a-zA-Z_]/.test(char));
+    const token = this.searchToken((char) => /^[a-zA-Z0-9_]$/.test(char));
     const position = new Position(this.line, this.column);
 
     if (this.isKeyword(token)) {

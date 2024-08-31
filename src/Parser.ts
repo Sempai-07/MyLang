@@ -12,8 +12,10 @@ import { ImportDeclaration } from "./ast/declaration/ImportDeclaration";
 import { BinaryExpression } from "./ast/expression/BinaryExpression";
 import { VisitUnaryExpression } from "./ast/expression/VisitUnaryExpression";
 import { BlockStatement } from "./ast/expression/BlockStatement";
+import { ReturnStatement } from "./ast/expression/ReturnStatement";
 import { FunctionExpression } from "./ast/expression/FunctionExpression";
 import { CallExpression } from "./ast/expression/CallExpression";
+import { MemberExpression } from "./ast/expression/MemberExpression";
 import { Assignment } from "./ast/expression/Assignment";
 import { IdentifierLiteral } from "./ast/type/IdentifierLiteral";
 
@@ -45,9 +47,6 @@ class Parser {
     switch (token.type) {
       case TokenType.String:
       case TokenType.Number: {
-        if (this.isOperator(this.peek(1).type)) {
-          return this.parseExpression();
-        }
         return this.parsePrimary();
       }
       case TokenType.Identifier: {
@@ -55,8 +54,26 @@ class Parser {
           return this.parseAssignment(token);
         } else if (this.peek(1).type === TokenType.ParenthesisOpen) {
           return this.parseFunctionCall(token);
-        } else if (this.peek(1).type === TokenType.Period) {
+        } else if (
+          this.peek(1).type === TokenType.Period &&
+          this.peek(2).type === TokenType.Identifier &&
+          this.peek(3).type === TokenType.ParenthesisOpen
+        ) {
+          this.next();
           return this.parseMethodCall(token);
+        } else if (
+          this.peek(1).type === TokenType.BracketOpen ||
+          this.peek(1).type === TokenType.Period
+        ) {
+          this.next();
+          return this.parseMemberExpressions(
+            new IdentifierLiteral(token.value, token.position),
+          );
+        } else if (this.isOperator(this.peek(1).type)) {
+          this.next();
+          return this.parseExpression(
+            new IdentifierLiteral(token.value, token.position),
+          );
         }
         this.next();
         return new IdentifierLiteral(token.value, token.position);
@@ -73,7 +90,7 @@ class Parser {
         this.next(); // Skip '('
         const expr = this.parseExpression();
         this.expect(TokenType.ParenthesisClose);
-        console.log(expr)
+        console.log(expr);
         this.next(); // Skip ')'
         return expr;
       }
@@ -93,8 +110,20 @@ class Parser {
         this.next();
         return this.parseFunctionDeclaration(this.peek());
       case KeywordType.Import:
+        if (
+          this.peek(1).type === TokenType.BracketOpen ||
+          this.peek(1).type === TokenType.Period
+        ) {
+          this.next();
+          return this.parseMemberExpressions(
+            new IdentifierLiteral(token.value, token.position),
+          );
+        }
         this.next();
         return this.parseImportDeclaration(this.peek());
+      case KeywordType.Return:
+        this.next();
+        return this.parseReturnStatement(this.peek());
       default:
         this.throwError(SyntaxCodeError.InvalidUnexpectedToken, token.position);
     }
@@ -106,11 +135,31 @@ class Parser {
     this.next(); // Move past '='
 
     const expression = this.parseExpression();
+    let constant = false;
+
+    if (
+      this.peek().type === TokenType.Identifier &&
+      this.peek().value === "as"
+    ) {
+      this.next(); // Skip as
+
+      if (
+        this.peek().type === TokenType.Identifier &&
+        this.peek().value === "const"
+      ) {
+        this.next(); // Skip const
+        constant = true;
+      } else {
+        this.throwError(SyntaxCodeError.Unexpected, identifier);
+      }
+    }
+
     this.expectSemicolonOrEnd();
 
     return new VariableDeclaration(
       identifier.value,
       expression,
+      constant,
       identifier.position,
     );
   }
@@ -123,7 +172,7 @@ class Parser {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
 
-    const args = this.parseArguments();
+    const args = this.parseArgumentsAndDefault();
 
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
@@ -147,18 +196,98 @@ class Parser {
           identifier.position,
         );
   }
-  
-  parseImportDeclaration(identifier: Token, expression: boolean = false): ImportDeclaration {
-    const packageName = this.parsePrimary();
+
+  parseImportDeclaration(
+    identifier: Token,
+    expression: boolean = false,
+  ): ImportDeclaration {
+    if (this.peek().type !== TokenType.ParenthesisOpen && expression) {
+      this.throwError(SyntaxCodeError.InvalidDynamicImportUsage, identifier);
+    }
+
+    if (this.peek().type === TokenType.ParenthesisOpen && !expression) {
+      const packages: Record<string, StmtType> = {};
+
+      this.next(); // Move past '('
+
+      while (this.peek().type !== TokenType.ParenthesisClose) {
+        if (this.peek().type === TokenType.String) {
+          const packageName = this.peek().value;
+          this.next(); // Move past string
+
+          packages[packageName] = packageName;
+
+          if (
+            (this.peek().type !== TokenType.Identifier ||
+              this.peek().type !== TokenType.String) &&
+            this.peek().type !== TokenType.ParenthesisClose
+          ) {
+            this.expect(TokenType.Comma);
+          }
+        } else if (this.peek().type === TokenType.Identifier) {
+          const packageName = this.peek();
+          this.next(); // Move past identifier
+
+          this.expect(TokenType.Colon);
+          this.next(); // Move past ':'
+
+          this.expect(TokenType.String);
+          const importNamePackage = this.parsePrimary();
+
+          packages[packageName.value] = importNamePackage;
+
+          if (
+            (this.peek().type !== TokenType.Identifier ||
+              this.peek().type !== TokenType.String) &&
+            this.peek().type !== TokenType.ParenthesisClose
+          ) {
+            this.expect(TokenType.Comma);
+          }
+        } else if (this.peek().type === TokenType.Comma) {
+          this.next(); // Move past ','
+        } else {
+          this.throwError(SyntaxCodeError.Unexpected, identifier);
+        }
+      }
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expectSemicolonOrEnd();
+
+      return new ImportDeclaration(packages, expression, identifier.position);
+    }
+
+    if (this.peek().type === TokenType.ParenthesisOpen && expression) {
+      this.next(); // Move past '('
+
+      this.expect(TokenType.String);
+      const packageName = this.peek().value;
+      this.next(); // Move past string
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expectSemicolonOrEnd();
+
+      return new ImportDeclaration(
+        packageName,
+        expression,
+        identifier.position,
+      );
+    }
+
+    this.expect(TokenType.String);
+    const packageName = this.peek().value;
+    this.next(); // Move past string
+
     this.expectSemicolonOrEnd();
-    
+
     return new ImportDeclaration(packageName, expression, identifier.position);
   }
 
   parseAnonymousFunction(identifier: Token): FunctionDeclaration {
     this.next(); // Move past '('
 
-    const args = this.parseArguments();
+    const args = this.parseArgumentsAndDefault();
 
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
@@ -169,6 +298,25 @@ class Parser {
     this.next(); // Move past '}'
 
     return new FunctionDeclaration("", args, statement, identifier.position);
+  }
+
+  parseReturnStatement(identifier: Token): ReturnStatement {
+    if (this.peek().type === TokenType.ParenthesisOpen) {
+      this.next(); // Move past '('
+
+      const value = this.parsePrimary();
+
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expectSemicolonOrEnd();
+
+      return new ReturnStatement(value, identifier.position);
+    }
+    const value = this.parsePrimary();
+    this.expectSemicolonOrEnd();
+
+    return new ReturnStatement(value, identifier.position);
   }
 
   parseFunctionCall(identifier: Token): FunctionCall {
@@ -184,24 +332,30 @@ class Parser {
 
     return new FunctionCall(identifier.value, args, identifier.position);
   }
-  
+
   parseMethodCall(identifier: Token): CallExpression {
-    this.next() // Move past '.'
-    
+    this.next(); // Move past '.'
+
     const method = this.peek();
-    this.next() // Move past 'identifier' method
-    
+    this.next(); // Move past 'identifier' method
+
     this.expect(TokenType.ParenthesisOpen);
-    this.next() // Move past '('
-    
+    this.next(); // Move past '('
+
     const args = this.parseArguments();
-    
+
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
-    
+
     this.expectSemicolonOrEnd();
-    
-    return new CallExpression(identifier.value, method.value, args, identifier.position);
+
+    return new CallExpression(
+      identifier.value,
+      method.value,
+      null,
+      args,
+      identifier.position,
+    );
   }
 
   parseAssignment(identifier: Token): Assignment {
@@ -222,6 +376,32 @@ class Parser {
       args.push(this.parseExpression());
       if (this.peek().type === TokenType.Comma) {
         this.next(); // Skip comma
+      }
+    }
+
+    return args;
+  }
+
+  parseArgumentsAndDefault(): [string, StmtType | null][] {
+    const args: [string, StmtType | null][] = [];
+
+    while (this.peek().type !== TokenType.ParenthesisClose) {
+      this.expect(TokenType.Identifier);
+      const param = this.peek().value;
+      this.next(); // Move past identifier
+
+      if (this.peek().type === TokenType.OperatorAssign) {
+        this.next(); // Move past '='
+        const defaultParameters = this.parsePrimary();
+        args.push([param, defaultParameters]);
+        if (this.peek().type === TokenType.Comma) {
+          this.next(); // Skip comma
+        }
+      } else {
+        args.push([param, null]);
+        if (this.peek().type === TokenType.Comma) {
+          this.next(); // Skip comma
+        }
       }
     }
 
@@ -268,6 +448,90 @@ class Parser {
     );
   }
 
+  parseMemberExpressions(identifier: StmtType): MemberExpression {
+    const isMemberExpression = (token: TokenType) =>
+      token === TokenType.BracketOpen || token === TokenType.Period;
+
+    let object = identifier;
+
+    while (isMemberExpression(this.peek().type)) {
+      const tokenType = this.peek().type;
+      this.next();
+
+      let property;
+
+      if (tokenType === TokenType.BracketOpen) {
+        const token = this.peek();
+        property = this.parsePrimary();
+        this.expect(TokenType.BracketClose);
+        this.next(); // Move past ']'
+
+        if (this.peek().type === TokenType.ParenthesisOpen) {
+          const methodName = new StringLiteral(token.value, token.position);
+
+          this.next(); // Move past '('
+          const args = this.parseArguments();
+          this.expect(TokenType.ParenthesisClose);
+          this.next(); // Move past ')'
+
+          this.expectSemicolonOrEnd();
+
+          return new CallExpression(
+            methodName.value,
+            methodName.value,
+            object,
+            args,
+            methodName.position,
+          );
+        }
+      } else if (tokenType === TokenType.Period) {
+        this.expect(TokenType.Identifier);
+
+        if (
+          this.peek().type === TokenType.Identifier &&
+          this.peek(1).type === TokenType.ParenthesisOpen
+        ) {
+          const methodName = new StringLiteral(
+            this.peek().value,
+            this.peek().position,
+          );
+          this.next(); // Move past identifier
+
+          this.next(); // Move past '('
+          const args = this.parseArguments();
+          this.expect(TokenType.ParenthesisClose);
+          this.next(); // Move past ')'
+
+          this.expectSemicolonOrEnd();
+
+          return new CallExpression(
+            methodName.value,
+            methodName.value,
+            object,
+            args,
+            methodName.position,
+          );
+        } // else if (this.peek(1).type === TokenType.OperatorAssign) {
+        //           const assignment = this.peek();
+        //           this.next();
+        //           this.next(); // Move past '='
+        //
+        //           const expression = this.parseExpression();
+        //           this.expectSemicolonOrEnd();
+        //
+        //           return new Assignment(assignment.value, object, expression, identifier.position);
+        //         }
+
+        property = new StringLiteral(this.peek().value, this.peek().position);
+        this.next(); // Move past identifier
+      }
+
+      object = new MemberExpression(object, property, object.position);
+    }
+
+    return object;
+  }
+
   parsePrimary(): StmtType {
     const token = this.peek();
 
@@ -286,6 +550,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(strings);
+        } else if (this.peek(1).type === TokenType.BracketOpen) {
+          this.next();
+          return this.parseMemberExpressions(strings);
         }
         this.next();
         return strings;
@@ -299,9 +566,19 @@ class Parser {
           return this.parseAssignment(token);
         } else if (this.peek(1).type === TokenType.ParenthesisOpen) {
           return this.parseFunctionCall(token);
-        } else if (this.peek(1).type === TokenType.Period) {
+        } else if (
+          this.peek(1).type === TokenType.Period &&
+          this.peek(2).type === TokenType.Identifier &&
+          this.peek(3).type === TokenType.ParenthesisOpen
+        ) {
           this.next();
           return this.parseMethodCall(token);
+        } else if (
+          this.peek(1).type === TokenType.BracketOpen ||
+          this.peek(1).type === TokenType.Period
+        ) {
+          this.next();
+          return this.parseMemberExpressions(identifier);
         }
         this.next();
         return identifier;
@@ -318,8 +595,27 @@ class Parser {
           this.next();
           return this.parseFunctionDeclaration(this.peek(), true);
         } else if (token.value === KeywordType.Import) {
+          if (
+            this.peek(1).type === TokenType.BracketOpen ||
+            this.peek(1).type === TokenType.Period
+          ) {
+            this.next();
+            return this.parseMemberExpressions(
+              new IdentifierLiteral(token.value, token.position),
+            );
+          }
           this.next();
-          return this.parseImportDeclaration(this.peek(), true);
+          const importDeclaration = this.parseImportDeclaration(
+            this.peek(),
+            true,
+          );
+          if (
+            this.peek().type === TokenType.BracketOpen ||
+            this.peek().type === TokenType.Period
+          ) {
+            return this.parseMemberExpressions(importDeclaration);
+          }
+          return importDeclaration;
         } else if (this.peek(1).type === TokenType.Period) {
           this.next();
           return this.parseMethodCall(this.peek());

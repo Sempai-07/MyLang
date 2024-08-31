@@ -1,3 +1,5 @@
+import { NativeFunction } from "./Environment";
+/** AST */
 import type { StmtType } from "./ast/StmtType";
 import { StringLiteral } from "./ast/type/StringLiteral";
 import { NumberLiteral } from "./ast/type/NumberLiteral";
@@ -9,23 +11,27 @@ import { BinaryExpression } from "./ast/expression/BinaryExpression";
 import { VisitUnaryExpression } from "./ast/expression/VisitUnaryExpression";
 import { BlockStatement } from "./ast/expression/BlockStatement";
 import { CallExpression } from "./ast/expression/CallExpression";
+import { MemberExpression } from "./ast/expression/MemberExpression";
 import { Assignment } from "./ast/expression/Assignment";
 import { IdentifierLiteral } from "./ast/type/IdentifierLiteral";
 /** Native */
 import { print } from "./native/function/print";
 
-const NativeFunction = Symbol("NativeFunction");
-
 class Interpreter {
   public readonly ast: StmtType[] = [];
   public readonly globalScore: Record<string, any> = {};
 
-  constructor(ast: StmtType[] = []) {
+  constructor(ast: StmtType[] = [], options: Record<string, any>) {
     this.ast = ast;
     this.globalScore = {
       print: {
         func: print,
         [NativeFunction]: true,
+      },
+      import: {
+        base: options.base,
+        main: options.main,
+        cache: {},
       },
     };
   }
@@ -47,19 +53,11 @@ class Interpreter {
       case body instanceof BinaryExpression:
       case body instanceof VisitUnaryExpression:
       case body instanceof CallExpression:
+      case body instanceof MemberExpression:
       case body instanceof Assignment:
       case body instanceof IdentifierLiteral:
-        return body.evaluate(this.globalScore);
       case body instanceof BlockStatement:
-        let result: unknown = null;
-        for (const bo of body.evaluate()) {
-          const evaluate = bo.evaluate(this.globalScore);
-
-          if (evaluate) {
-            result = evaluate;
-          }
-        }
-        return result;
+        return body.evaluate(this.globalScore);
       default:
         console.log(body);
         throw new Error("Unknown AST node type encountered");
@@ -67,4 +65,4 @@ class Interpreter {
   }
 }
 
-export { Interpreter, NativeFunction };
+export { Interpreter };

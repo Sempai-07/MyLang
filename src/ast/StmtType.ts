@@ -8,6 +8,7 @@ import type { VisitUnaryExpression } from "./expression/VisitUnaryExpression";
 import type { BlockStatement } from "./expression/BlockStatement";
 import type { FunctionExpression } from "./expression/FunctionExpression";
 import type { CallExpression } from "./expression/CallExpression";
+import type { MemberExpression } from "./expression/MemberExpression";
 import type { Assignment } from "./expression/Assignment";
 import type { ImportDeclaration } from "./declaration/ImportDeclaration";
 
@@ -23,6 +24,7 @@ type StmtType =
   | FunctionExpression
   | CallExpression
   | Assignment
+  | MemberExpression
   | ImportDeclaration;
 
 export { type StmtType };

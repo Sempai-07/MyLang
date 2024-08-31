@@ -7,6 +7,7 @@ enum SyntaxCodeError {
   UnexpectedOperator = "UNEXPECTED_OPERATOR",
   ExpectedToken = "EXPECTED_TOKEN",
   Unexpected = "UNEXPECTED",
+  InvalidDynamicImportUsage = "INVALID_DYNAMIC_IMPORT_USAGE",
 }
 
 const SyntaxMessageError = {
@@ -22,6 +23,8 @@ const SyntaxMessageError = {
     "Expected ${expectedTokenType} but found ${foundTokenType} at ${line}:${column}",
   [SyntaxCodeError.Unexpected]:
     "Unexpected token '${value}' at ${line}:${column}",
+  [SyntaxCodeError.InvalidDynamicImportUsage]:
+    "Invalid use of import() at ${line}:${column}",
 } as const;
 
 class SyntaxError {

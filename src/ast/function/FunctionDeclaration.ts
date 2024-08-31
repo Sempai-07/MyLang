@@ -1,17 +1,18 @@
 import { Stmt } from "../Stmt";
+import type { StmtType } from "../StmtType";
 import type { Position } from "../../lexer/Token";
 import type { BlockStatement } from "../expression/BlockStatement";
 import type { IdentifierLiteral } from "../type/IdentifierLiteral";
 
 class FunctionDeclaration extends Stmt {
   public readonly name: string;
-  public readonly params: IdentifierLiteral[];
+  public readonly params: [IdentifierLiteral, StmtType | null][];
   public readonly body: BlockStatement;
   public readonly position: Position;
 
   constructor(
     name: string,
-    params: IdentifierLiteral[],
+    params: [IdentifierLiteral, StmtType | null][],
     body: BlockStatement,
     position: Position,
   ) {

@@ -25,6 +25,7 @@ class Assignment extends Stmt {
     const result: unknown = this.value.evaluate(score);
 
     score[this.variable] = result;
+
     return result;
   }
 }

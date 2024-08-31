@@ -26,7 +26,7 @@ class FunctionExpression extends Stmt {
     this.position = position;
   }
 
-  override evaluate() {
+  override evaluate(score) {
     return this;
   }
 }

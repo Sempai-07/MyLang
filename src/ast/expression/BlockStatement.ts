@@ -1,6 +1,7 @@
 import { Stmt } from "../Stmt";
 import type { StmtType } from "../StmtType";
 import type { Position } from "../../lexer/Token";
+import { ReturnStatement } from "./ReturnStatement";
 
 class BlockStatement extends Stmt {
   public readonly body: StmtType[];
@@ -14,8 +15,15 @@ class BlockStatement extends Stmt {
     this.position = position;
   }
 
-  override evaluate() {
-    return this.body;
+  override evaluate(score: Record<string, any>) {
+    let result: unknown = null;
+    for (const body of this.body) {
+      const evaluate = body.evaluate(score);
+      if (body instanceof ReturnStatement) {
+        result = evaluate;
+      }
+    }
+    return result;
   }
 }
 

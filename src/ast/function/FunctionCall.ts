@@ -1,9 +1,9 @@
 import { Stmt } from "../Stmt";
 import type { StmtType } from "../StmtType";
 import type { Position } from "../../lexer/Token";
-import type { FunctionDeclaration } from "../function/FunctionDeclaration";
+import { FunctionDeclaration } from "../function/FunctionDeclaration";
 import type { BinaryExpression } from "../expression/BinaryExpression";
-import { NativeFunction } from "../../Interpreter";
+import { NativeFunction } from "../../Environment";
 
 class FunctionCall extends Stmt {
   public readonly name: string;
@@ -16,48 +16,52 @@ class FunctionCall extends Stmt {
     position: Position,
   ) {
     super();
-
     this.name = name;
-
     this.argument = argument;
-
     this.position = position;
   }
 
   override evaluate(score: Record<string, any>) {
-    if (!(this.name in score)) {
+    const func = score[this.name];
+
+    if (!func) {
       throw new Error(`Invalid identity ${this.name}`);
     }
 
-    if (score[this.name]?.[NativeFunction]) {
-      return score[this.name].func(score, ...this.argument);
+    if (func?.[NativeFunction]) {
+      return func.func(score, ...this.argument);
     }
 
-    const func = score[this.name];
+    const evaluatedFunc = func?.evaluate?.(score);
 
+    if (typeof evaluatedFunc === "function") {
+      const evaluatedArgs = this.argument.map((arg) =>
+        arg.evaluate(score),
+      ) as any[];
+      return evaluatedFunc(evaluatedArgs, score);
+    }
+
+    return this.executeFunction(score, func);
+  }
+
+  executeFunction(score: Record<string, any>, func: FunctionDeclaration) {
     const localStore = { ...score };
+    const evaluatedArgs = this.argument.map((arg) => arg.evaluate(localStore));
 
-    func.params.forEach((args: FunctionDeclaration, index: number) => {
-      localStore[args.name] = this.argument[index]?.evaluate(localStore);
-    });
-
-    let result: unknown = null;
-
-    for (const body of func.body.evaluate(localStore)) {
-      const evaluate = body.evaluate(localStore);
-
-      if (evaluate) {
-        result = evaluate;
-      }
+    if (!(func instanceof FunctionDeclaration)) {
+      func = func.evaluate(localStore);
     }
 
-    for (const key in localStore) {
-      if (key in score) {
-        score = { ...score, [key]: localStore[key] };
+    for (let i = 0; i < func.params.length; i++) {
+      if (!evaluatedArgs[i] && func.params[i][1]!) {
+        localStore[func.params[i][0]!] =
+          func.params[i][1]!.evaluate(localStore);
+        continue;
       }
+      localStore[func.params[i][0]!] = evaluatedArgs[i];
     }
 
-    return result;
+    return func.body.evaluate(localStore);
   }
 }
 
