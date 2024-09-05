@@ -138,14 +138,14 @@ class Parser {
     let constant = false;
 
     if (
-      this.peek().type === TokenType.Identifier &&
-      this.peek().value === "as"
+      this.peek().type === TokenType.Keyword &&
+      this.peek().value === KeywordType.As
     ) {
       this.next(); // Skip as
 
       if (
-        this.peek().type === TokenType.Identifier &&
-        this.peek().value === "const"
+        this.peek().type === TokenType.Keyword &&
+        this.peek().value === KeywordType.Const
       ) {
         this.next(); // Skip const
         constant = true;

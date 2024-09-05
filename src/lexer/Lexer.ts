@@ -4,8 +4,8 @@ import { SyntaxError, SyntaxCodeError } from "../errors/SyntaxError";
 
 class Lexer {
   public offset: number = 0;
-  public line: number = 0;
-  public column: number = 0;
+  public line: number = 1;
+  public column: number = 1;
   public paths: string[] = [];
   public readonly code: string;
   public readonly tokenList: Token[] = [];

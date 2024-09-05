@@ -4,6 +4,7 @@ import type { Position } from "../../lexer/Token";
 import { FunctionDeclaration } from "../function/FunctionDeclaration";
 import type { BinaryExpression } from "../expression/BinaryExpression";
 import { NativeFunction } from "../../Environment";
+import { TypeError, TypeCodeError } from "../../errors/TypeError";
 
 class FunctionCall extends Stmt {
   public readonly name: string;
@@ -22,10 +23,12 @@ class FunctionCall extends Stmt {
   }
 
   override evaluate(score: Record<string, any>) {
-    const func = score[this.name];
+    const func = score[this.name]?.value || score[this.name];
 
     if (!func) {
-      throw new Error(`Invalid identity ${this.name}`);
+      throw new TypeError(TypeCodeError.InvalidIdentifier, {
+        value: this.identifier,
+      }).genereteMessage(score.import.paths, this.position);
     }
 
     if (func?.[NativeFunction]) {

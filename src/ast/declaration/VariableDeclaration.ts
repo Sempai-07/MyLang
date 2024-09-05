@@ -28,10 +28,8 @@ class VariableDeclaration extends Stmt {
   override evaluate(score: Record<string, any>) {
     score[this.name] = { value: this.value, constant: this.constant };
 
-    const result = score[this.name]?.value?.evaluate(score);
-
-    if (result) {
-      return result;
+    if (this.value instanceof Stmt) {
+      return this.value.evaluate(score);
     }
 
     return score[this.name].value;

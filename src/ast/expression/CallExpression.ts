@@ -2,6 +2,7 @@ import { Stmt } from "../Stmt";
 import type { StmtType } from "../StmtType";
 import type { Position } from "../../lexer/Token";
 import { MemberExpression } from "./MemberExpression";
+import { TypeError, TypeCodeError } from "../../errors/TypeError";
 
 class CallExpression extends Stmt {
   public readonly identifier: string;
@@ -31,12 +32,37 @@ class CallExpression extends Stmt {
   }
 
   override evaluate(score: Record<string, any>) {
+    if (!(this.identifier in score)) {
+      throw new TypeError(TypeCodeError.InvalidIdentifier, {
+        value: this.identifier,
+      }).genereteMessage(score.import.paths, this.position);
+    }
+
     const args = this.argument.map((arg) => arg.evaluate(score));
 
     if (!this.callee) {
+      const methodVar = score[this.identifier]?.value;
+
+      if (methodVar instanceof Stmt) {
+        const methodRef = methodVar.evaluate(score)?.[this.method];
+
+        if (!methodRef) {
+          throw new TypeError(TypeCodeError.InvalidMethodCall, {
+            variable: this.identifier,
+            method: this.method,
+          }).genereteMessage(score.import.paths, this.position);
+        }
+
+        return methodRef(args, score);
+      }
+
       const methodRef = score[this.identifier]?.[this.method];
+
       if (!methodRef) {
-        throw new Error(`Invalid identity ${this.identifier}`);
+        throw new TypeError(TypeCodeError.InvalidMethodCall, {
+          variable: this.identifier,
+          method: this.method,
+        }).genereteMessage(score.import.paths, this.position);
       }
 
       return methodRef(args, score);
@@ -46,7 +72,9 @@ class CallExpression extends Stmt {
     const methodRef = obj[this.method];
 
     if (typeof methodRef !== "function") {
-      throw new Error(`Method "${this.method}" not found on ${obj}`);
+      throw new TypeError(TypeCodeError.InvalidIdentifier, {
+        value: this.method,
+      }).genereteMessage(score.import.paths, this.position);
     }
 
     return methodRef(args, score);

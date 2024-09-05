@@ -3,6 +3,7 @@ import { join as joinPath, parse as parsePath } from "node:path";
 import { Stmt } from "../Stmt";
 import type { StmtType } from "../StmtType";
 import type { Position } from "../../lexer/Token";
+import { Error, CodeError } from "../../errors/Error";
 
 class ImportDeclaration extends Stmt {
   public readonly package: string | Record<string, StmtType>;
@@ -30,7 +31,9 @@ class ImportDeclaration extends Stmt {
       score.import.cache[resolve] = json;
       return json;
     } catch (err) {
-      throw new Error(`Failed to load JSON module: ${err}`);
+      throw new Error(CodeError.FaildLoadJSON, {
+        err: String(err),
+      }).genereteMessage(score.import.paths, this.position);
     }
   }
 
@@ -66,7 +69,9 @@ class ImportDeclaration extends Stmt {
       );
     }
 
-    throw new Error(`Cannot find module: "${name}"`);
+    throw new Error(CodeError.FaildLoadModule, {
+      module: name,
+    }).genereteMessage(score.import.paths, this.position);
   }
 
   evaluateMultiplePackages(score: Record<string, any>) {
@@ -80,7 +85,9 @@ class ImportDeclaration extends Stmt {
       } else if (this.buildInLibs.includes(name)) {
         packages[packageName] = this.resolvePackageModule(base, score);
       } else {
-        throw new Error(`No such built-in module: "${packageName}"`);
+        throw new Error(CodeError.FaildLoadBuildInModule, {
+          module: packageName,
+        }).genereteMessage(score.import.paths, this.position);
       }
 
       score[packageName] = packages[packageName];

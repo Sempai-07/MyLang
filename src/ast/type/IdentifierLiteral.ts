@@ -18,13 +18,15 @@ class IdentifierLiteral extends Stmt {
       throw new Error(`Invalid identity ${this.name}`);
     }
 
-    const result = score[this.name]?.evaluate?.(score);
+    const result =
+      score[this.name]?.value?.evaluate?.(score) ||
+      score[this.name]?.evaluate?.(score);
 
     if (result) {
       return result;
     }
 
-    return score[this.name];
+    return score[this.name]?.value || score[this.name];
   }
 }
 

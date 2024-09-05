@@ -20,11 +20,13 @@ class MemberExpression extends Stmt {
   override evaluate(score: Record<string, any>) {
     const obj = this.obj.evaluate(score);
 
-    const evaluate = this.property.evaluate(score);
-    if (evaluate && typeof evaluate === "object" && "evaluate" in evaluate) {
-      return obj[evaluate.evaluate(score)];
+    const objRef = this.property.evaluate(score);
+
+    if (objRef instanceof Stmt) {
+      return obj[objRef.evaluate(score)];
     }
-    return obj[evaluate];
+
+    return obj[objRef];
   }
 }
 
