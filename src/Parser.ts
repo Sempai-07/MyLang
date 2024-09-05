@@ -5,6 +5,7 @@ import { SyntaxError, SyntaxCodeError } from "./errors/SyntaxError";
 import type { StmtType } from "./ast/StmtType";
 import { StringLiteral } from "./ast/type/StringLiteral";
 import { NumberLiteral } from "./ast/type/NumberLiteral";
+import { BoolLiteral } from "./ast/type/BoolLiteral";
 import { FunctionCall } from "./ast/function/FunctionCall";
 import { FunctionDeclaration } from "./ast/function/FunctionDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
@@ -46,7 +47,8 @@ class Parser {
 
     switch (token.type) {
       case TokenType.String:
-      case TokenType.Number: {
+      case TokenType.Number:
+      case TokenType.Bool: {
         return this.parsePrimary();
       }
       case TokenType.Identifier: {
@@ -556,6 +558,15 @@ class Parser {
         }
         this.next();
         return strings;
+      }
+      case TokenType.Bool: {
+        const booleans = new BoolLiteral(token.value, token.position);
+        if (this.isOperator(this.peek(1).type)) {
+          this.next();
+          return this.parseExpression(booleans);
+        }
+        this.next();
+        return booleans;
       }
       case TokenType.Identifier: {
         const identifier = new IdentifierLiteral(token.value, token.position);

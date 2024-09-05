@@ -18,14 +18,11 @@ import { IdentifierLiteral } from "./ast/type/IdentifierLiteral";
 import { print } from "./native/function/print";
 
 class Interpreter {
-  public readonly paths: string[];
   public readonly ast: StmtType[];
   public readonly globalScore: Record<string, any> = {};
 
   constructor(ast: StmtType[], paths: string[], options: Record<string, any>) {
     this.ast = ast;
-
-    this.paths = paths;
 
     this.globalScore = {
       print: {
@@ -62,7 +59,7 @@ class Interpreter {
       case body instanceof Assignment:
       case body instanceof IdentifierLiteral:
       case body instanceof BlockStatement:
-        return body.evaluate(this.globalScore, this.paths);
+        return body.evaluate(this.globalScore);
       default:
         console.log(body);
         throw new Error("Unknown AST node type encountered");

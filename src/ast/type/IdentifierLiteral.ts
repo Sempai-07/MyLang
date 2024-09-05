@@ -1,5 +1,6 @@
 import { Stmt } from "../Stmt";
 import type { Position } from "../../lexer/Token";
+import { TypeError, TypeCodeError } from "../../errors/TypeError";
 
 class IdentifierLiteral extends Stmt {
   public readonly name: string;
@@ -15,15 +16,17 @@ class IdentifierLiteral extends Stmt {
 
   override evaluate(score: Record<string, any>) {
     if (!(this.name in score)) {
-      throw new Error(`Invalid identity ${this.name}`);
+      throw new TypeError(TypeCodeError.InvalidIdentifier, {
+        value: this.identifier,
+      }).genereteMessage(score.import.paths, this.position);
     }
 
-    const result =
-      score[this.name]?.value?.evaluate?.(score) ||
-      score[this.name]?.evaluate?.(score);
+    if (score[this.name] instanceof Stmt) {
+      return score[this.name].evaluate(score);
+    }
 
-    if (result) {
-      return result;
+    if (score[this.name]?.value instanceof Stmt) {
+      return score[this.name].value.evaluate(score);
     }
 
     return score[this.name]?.value || score[this.name];

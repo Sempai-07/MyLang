@@ -2,6 +2,7 @@ enum TokenType {
   EndOf = "EndOf",
   String = "String",
   Number = "Number",
+  Bool = "Bool",
   Keyword = "Keyword",
   Identifier = "Identifier",
   OperatorAdd = "OperatorAdd",

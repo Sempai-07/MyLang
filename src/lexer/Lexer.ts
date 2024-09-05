@@ -125,6 +125,11 @@ class Lexer {
     const token = this.searchToken((char) => /^[a-zA-Z0-9_]$/.test(char));
     const position = new Position(this.line, this.column);
 
+    if (token === "false" || token === "true") {
+      this.tokenList.push(new Token(token, TokenType.Bool, position));
+      return;
+    }
+
     if (this.isKeyword(token)) {
       this.tokenList.push(new Token(token, TokenType.Keyword, position));
       return;
