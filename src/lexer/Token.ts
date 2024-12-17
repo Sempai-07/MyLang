@@ -1,4 +1,5 @@
 import { TokenType } from "./TokenType";
+import { Position } from "./Position";
 
 interface IToken {
   type: TokenType;
@@ -7,16 +8,6 @@ interface IToken {
     line: number;
     column: number;
   };
-}
-
-class Position {
-  public readonly line: number;
-  public readonly column: number;
-
-  constructor(line: number, column: number) {
-    this.line = line;
-    this.column = column;
-  }
 }
 
 class Token implements IToken {
@@ -31,4 +22,4 @@ class Token implements IToken {
   }
 }
 
-export { Token, Position };
+export { Token };

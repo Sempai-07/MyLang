@@ -2,19 +2,18 @@ import { randomUUID } from "node:crypto";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { type BlockStatement } from "../statement/BlockStatement";
-import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { Environment } from "../../Environment";
 
-class FunctionExpression extends StmtType {
-  public name: string | null;
+class FunctionDeclaration extends StmtType {
   public readonly id: string = randomUUID();
+  public readonly name: string;
   public readonly params: [string, StmtType][];
   public readonly body: BlockStatement;
   public parentEnv: Environment = new Environment();
   public readonly position: Position;
 
   constructor(
-    name: string | null,
+    name: string,
     params: [string, StmtType][],
     body: BlockStatement,
     position: Position,
@@ -68,7 +67,7 @@ class FunctionExpression extends StmtType {
   }
 
   override evaluate(score: Environment): any {
-    const func = new FunctionExpression(
+    const func = new FunctionDeclaration(
       this.name,
       this.params,
       this.body,
@@ -77,8 +76,12 @@ class FunctionExpression extends StmtType {
 
     func.parentEnv = score;
 
+    if (!score.has(func.name)) {
+      score.create(func.name, func);
+    } else score.update(func.name, func);
+
     return func;
   }
 }
 
-export { FunctionExpression };
+export { FunctionDeclaration };

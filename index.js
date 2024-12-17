@@ -1,71 +1,107 @@
-const { Interpreter, run } = require("./dist/index.js");
+const path = require("node:path");
+const { Lexer, Parser, Interpreter } = require("./dist/index");
 
 // const code = `
-// var variable = "Sempai-07";
+// import "events";
+// import "coreio";
+// import "./start.ml";
+// import "ds";
+// import "./package.json";
 //
-// func add() {
-//   6
+// var hash = ds.Bag();
+//
+// hash.add(1, "true");
+//
+// coreio.printf(import.cache == import.cache);
+//
+// coreio.printf(hash.values(), import.resolve("package.json"));
+//
+// var node = events.Emmiter();
+//
+// var assign = nil;
+//
+// coreio.printf(assign);
+//
+// assign = 12345;
+//
+// coreio.printf(assign);
+//
+// coreio.printf(package);
+//
+// package.devDependencies.names = "myLANG";
+// package.name = "myLANG";
+//
+// coreio.printf(package);
+//
+// true && coreio.printf("Hello &{1}", (6 + 8));
+//
+// func Trigger(name) {
+//   this.name = name;
+//
+//   func log(name) {
+//     import "coreio"; // Облачная выдемость
+//     coreio.printf(this.name + name);
+//   }
 // }
 //
-// func yes(ad) {
-//   ad(6, 8)
+// var trigger = Trigger("SEMPAI");
+//
+// trigger.log("LOX");
+//
+// var king = "👑";
+// var index = nil;
+// {
+//   king = "👑 2";
+//   var index = 5; // Good...
+//   coreio.printf(index); // 5
+//   coreio.printf(king);
 // }
+// coreio.printf(index); // nil
+// coreio.printf(king); // 👑 2
 //
-// print("Hello world", (5 + 6), add(5, 7, (7/6), variable), variable, var index = add(9, variable, variable = "Sempai"), yes(add));
+// var te = 5;
 //
-// var mutable = 50;
-// print(mutable);
-// mutable = 100 + 8;
-// print(mutable)
-//
-// func remove(and) {
-//   mutable = mutable - 1;
-//   print(and(), mutable);
+// {
+//   var te = 6;
+//   var started = func(text) {
+//   start.fsk(text);
+//   start.start(text);
+//   coreio.printf(import("./start.ml"), start.g, coreio.printf());
+//   }
+//   coreio.printf(te);
 // }
+//   coreio.printf(te);
 //
-// remove(func() {
-//   mutable = mutable == mutable;
-// });
+// node.on("start", started);
 //
-// `;
+// node.off("start", started)
 //
-// const code = `
-// func return(result) {
-//   result
-// }
-// func add(a, b, c) {
-//   return(a + b + c);
-// }
-// print(add(1, 100000000000000, add(8, 700000)));
-// `
-
-// const code = `
-// func once(callback) {
-//   print(callback)
-// }
-//
-// once(print(50))
-// `
-
-// const code = `
-// 6 + 7
-// `;
-
-// const code = `
-// "" && print("Hello world") + 5 && !0
-// print("" && print("Hello world") + 5 && !0);
-// 
-// (func main() { print("Hello world"); })();
+// node.emit("start", "Hello world 🗺");
 // `;
 
 const code = `
 import "coreio";
+import "dotenv";
+dotenv.config(".env");
 
-print("Version MyLang:", coreio.version());
+coreio.printf(process.env);
 `;
 
-const result = run(code, [process.cwd() + "/index.ml"]);
-console.log(result.ast);
-new Interpreter(result.ast).run();
+const token = new Lexer(code).analyze();
 
-// console.log(result);
+if (token.errors.length > 0) {
+  console.error(token.errors[0]);
+  process.exit(1);
+}
+
+const parse = new Parser(token.tokens, code).parse();
+
+// console.log(token, parse);
+
+const { base } = path.parse(process.cwd());
+
+new Interpreter(parse, [], {
+  base: process.cwd(),
+  main: path.join(process.cwd(), "./index.ml"),
+  paths: [path.join(process.cwd(), "./start.ml")],
+}).run();

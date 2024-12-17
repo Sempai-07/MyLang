@@ -1,38 +1,35 @@
-import { Stmt } from "../Stmt";
-import type { StmtType } from "../StmtType";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
+import { FunctionExpression } from "../expression/FunctionExpression";
+import { Environment } from "../../Environment";
 
-class VariableDeclaration extends Stmt {
+class VariableDeclaration extends StmtType {
   public readonly name: string;
   public readonly value: StmtType;
-  public readonly constant: boolean;
   public readonly position: Position;
 
-  constructor(
-    name: string,
-    value: StmtType,
-    constant: boolean,
-    position: Position,
-  ) {
+  constructor(name: string, value: StmtType, position: Position) {
     super();
 
     this.name = name;
 
     this.value = value;
 
-    this.constant = constant;
-
     this.position = position;
   }
 
-  override evaluate(score: Record<string, any>) {
-    score[this.name] = { value: this.value, constant: this.constant };
+  override evaluate(score: Environment): any {
+    score.create(this.name, this.value);
 
-    if (this.value instanceof Stmt) {
-      return this.value.evaluate(score);
+    if (this.value instanceof StmtType) {
+      if (this.value instanceof FunctionExpression) {
+        this.value.name = this.name;
+      }
+      score.update(this.name, this.value.evaluate(score));
+      return score.get(this.name);
     }
 
-    return score[this.name].value;
+    return score.get(this.name);
   }
 }
 

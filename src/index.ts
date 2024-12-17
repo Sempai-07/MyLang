@@ -1,6 +1,3 @@
-export { Parser } from "./Parser";
-export { Lexer } from "./lexer/Lexer";
+export * from "./lexer/index";
+export { Parser } from "./ast/Parser";
 export { Interpreter } from "./Interpreter";
-export { Token, Position } from "./lexer/Token";
-export { TokenList, TokenType, OperatorType } from "./lexer/TokenType";
-export { run } from "./utils";

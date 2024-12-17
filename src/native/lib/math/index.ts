@@ -1,180 +1,131 @@
-function abs([number]: [number]): number {
-  return Math.abs(number);
+function ensureArgsCount(args: any[], count: number, message: string): void {
+  if (args.length < count) throw new Error(message);
 }
 
-function acos([number]: [number]): number {
-  return Math.acos(number);
+function toNumber(value: any): number {
+  const num = Number(value);
+  if (isNaN(num)) throw new Error(`Invalid number: ${value}`);
+  return num;
 }
 
-function acosh([number]: [number]): number {
-  return Math.acosh(number);
+function abs(args: any[]): number {
+  ensureArgsCount(args, 1, "abs requires 1 argument: number.");
+  return Math.abs(toNumber(args[0]));
 }
 
-function asin([number]: [number]): number {
-  return Math.asin(number);
+function ceil(args: any[]): number {
+  ensureArgsCount(args, 1, "ceil requires 1 argument: number.");
+  return Math.ceil(toNumber(args[0]));
 }
 
-function asinh([number]: [number]): number {
-  return Math.asinh(number);
+function floor(args: any[]): number {
+  ensureArgsCount(args, 1, "floor requires 1 argument: number.");
+  return Math.floor(toNumber(args[0]));
 }
 
-function atan([number]: [number]): number {
-  return Math.atan(number);
+function round(args: any[]): number {
+  ensureArgsCount(args, 1, "round requires 1 argument: number.");
+  return Math.round(toNumber(args[0]));
 }
 
-function atan2([y, x]: [number, number]): number {
-  return Math.atan2(y, x);
+function max(args: any[]): number {
+  if (!args.length) throw new Error("max requires at least 1 argument.");
+  return Math.max(...args.map(toNumber));
 }
 
-function atanh([number]: [number]): number {
-  return Math.atanh(number);
+function min(args: any[]): number {
+  if (!args.length) throw new Error("min requires at least 1 argument.");
+  return Math.min(...args.map(toNumber));
 }
 
-function cbrt([number]: [number]): number {
-  return Math.cbrt(number);
+function pow(args: any[]): number {
+  ensureArgsCount(args, 2, "pow requires 2 arguments: base and exponent.");
+  return Math.pow(toNumber(args[0]), toNumber(args[1]));
 }
 
-function ceil([number]: [number]): number {
-  return Math.ceil(number);
-}
-
-function clz32([number]: [number]): number {
-  return Math.clz32(number);
-}
-
-function cos([number]: [number]): number {
-  return Math.cos(number);
-}
-
-function cosh([number]: [number]): number {
-  return Math.cosh(number);
-}
-
-function exp([number]: [number]): number {
-  return Math.exp(number);
-}
-
-function expm1([number]: [number]): number {
-  return Math.expm1(number);
-}
-
-function floor([number]: [number]): number {
-  return Math.floor(number);
-}
-
-function fround([number]: [number]): number {
-  return Math.fround(number);
-}
-
-function hypot(numbers: number[]): number {
-  return Math.hypot(...numbers);
-}
-
-function imul([a, b]: [number, number]): number {
-  return Math.imul(a, b);
-}
-
-function log([number]: [number]): number {
-  return Math.log(number);
-}
-
-function log10([number]: [number]): number {
-  return Math.log10(number);
-}
-
-function log1p([number]: [number]): number {
-  return Math.log1p(number);
-}
-
-function log2([number]: [number]): number {
-  return Math.log2(number);
-}
-
-function max(numbers: number[]): number {
-  return Math.max(...numbers);
-}
-
-function min(numbers: number[]): number {
-  return Math.min(...numbers);
-}
-
-function pow([base, exponent]: [number, number]): number {
-  return Math.pow(base, exponent);
+function sqrt(args: any[]): number {
+  ensureArgsCount(args, 1, "sqrt requires 1 argument: number.");
+  return Math.sqrt(toNumber(args[0]));
 }
 
 function random(): number {
   return Math.random();
 }
 
-function round([number]: [number]): number {
-  return Math.round(number);
+function sin(args: any[]): number {
+  ensureArgsCount(args, 1, "sin requires 1 argument: angle in radians.");
+  return Math.sin(toNumber(args[0]));
 }
 
-function sign([number]: [number]): number {
-  return Math.sign(number);
+function cos(args: any[]): number {
+  ensureArgsCount(args, 1, "cos requires 1 argument: angle in radians.");
+  return Math.cos(toNumber(args[0]));
 }
 
-function sin([number]: [number]): number {
-  return Math.sin(number);
+function tan(args: any[]): number {
+  ensureArgsCount(args, 1, "tan requires 1 argument: angle in radians.");
+  return Math.tan(toNumber(args[0]));
 }
 
-function sinh([number]: [number]): number {
-  return Math.sinh(number);
+function asin(args: any[]): number {
+  ensureArgsCount(args, 1, "asin requires 1 argument: number.");
+  return Math.asin(toNumber(args[0]));
 }
 
-function sqrt([number]: [number]): number {
-  return Math.sqrt(number);
+function acos(args: any[]): number {
+  ensureArgsCount(args, 1, "acos requires 1 argument: number.");
+  return Math.acos(toNumber(args[0]));
 }
 
-function tan([number]: [number]): number {
-  return Math.tan(number);
+function atan(args: any[]): number {
+  ensureArgsCount(args, 1, "atan requires 1 argument: number.");
+  return Math.atan(toNumber(args[0]));
 }
 
-function tanh([number]: [number]): number {
-  return Math.tanh(number);
+function atan2(args: any[]): number {
+  ensureArgsCount(args, 2, "atan2 requires 2 arguments: y and x.");
+  return Math.atan2(toNumber(args[0]), toNumber(args[1]));
 }
 
-function trunc([number]: [number]): number {
-  return Math.trunc(number);
+function log(args: any[]): number {
+  ensureArgsCount(args, 1, "log requires 1 argument: number.");
+  return Math.log(toNumber(args[0]));
 }
 
-const pi = Math.PI;
+function exp(args: any[]): number {
+  ensureArgsCount(args, 1, "exp requires 1 argument: number.");
+  return Math.exp(toNumber(args[0]));
+}
+
+function sign(args: any[]): number {
+  ensureArgsCount(args, 1, "sign requires 1 argument: number.");
+  return Math.sign(toNumber(args[0]));
+}
+
+function trunc(args: any[]): number {
+  ensureArgsCount(args, 1, "trunc requires 1 argument: number.");
+  return Math.trunc(toNumber(args[0]));
+}
 
 export {
   abs,
-  acos,
-  acosh,
-  asin,
-  asinh,
-  atan,
-  atan2,
-  atanh,
-  cbrt,
   ceil,
-  clz32,
-  cos,
-  cosh,
-  exp,
-  expm1,
   floor,
-  fround,
-  hypot,
-  imul,
-  log,
-  log10,
-  log1p,
-  log2,
+  round,
   max,
   min,
   pow,
-  random,
-  round,
-  sign,
-  sin,
-  sinh,
   sqrt,
+  random,
+  sin,
+  cos,
   tan,
-  tanh,
+  asin,
+  acos,
+  atan,
+  atan2,
+  log,
+  exp,
+  sign,
   trunc,
-  pi,
 };

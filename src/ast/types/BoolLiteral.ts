@@ -1,7 +1,7 @@
-import { Stmt } from "../Stmt";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
 
-class BoolLiteral extends Stmt {
+class BoolLiteral extends StmtType {
   public readonly value: string;
   public readonly position: Position;
 
@@ -13,7 +13,7 @@ class BoolLiteral extends Stmt {
     this.position = position;
   }
 
-  override evaluate() {
+  override evaluate(): boolean {
     return this.value === "true";
   }
 }

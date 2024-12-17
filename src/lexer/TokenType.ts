@@ -1,8 +1,10 @@
 enum TokenType {
   EndOf = "EndOf",
   String = "String",
-  Number = "Number",
+  Int = "Int",
+  Float = "Float",
   Bool = "Bool",
+  Nil = "Nil",
   Keyword = "Keyword",
   Identifier = "Identifier",
   OperatorAdd = "OperatorAdd",
@@ -11,6 +13,8 @@ enum TokenType {
   OperatorDivide = "OperatorDivide",
   OperatorModulo = "OperatorModulo",
   OperatorAssign = "OperatorAssign",
+  OperatorAssignMinus = "OperatorAssignMinus",
+  OperatorAssignPlus = "OperatorAssignPlus",
   OperatorEqual = "OperatorEqual",
   OperatorNotEqual = "OperatorNotEqual",
   OperatorGreaterThan = "OperatorGreaterThan",
@@ -58,6 +62,8 @@ enum OperatorType {
   Divide = "/",
   Modulo = "%",
   Assign = "=",
+  AssignMinus = "-=",
+  AssignPlus = "+=",
   Equal = "==",
   NotEqual = "!=",
   GreaterThan = ">",
@@ -75,9 +81,7 @@ enum KeywordType {
   Var = "var",
   Func = "func",
   Import = "import",
-  Return = "return",
-  As = "as",
-  Const = "const",
+  Export = "export",
 }
 
 export { TokenList, TokenType, OperatorType, KeywordType };

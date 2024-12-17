@@ -1,20 +1,22 @@
-import { Stmt } from "../Stmt";
-import type { StmtType } from "../StmtType";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
 import { MemberExpression } from "./MemberExpression";
-import { TypeError, TypeCodeError } from "../../errors/TypeError";
+import { IdentifierLiteral } from "../types/IdentifierLiteral";
+import { Environment } from "../../Environment";
+import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
+import { FunctionExpression } from "../expression/FunctionExpression";
 
-class CallExpression extends Stmt {
+class CallExpression extends StmtType {
   public readonly identifier: string;
   public readonly method: string;
-  public readonly callee: MemberExpression | null;
+  public readonly callee: MemberExpression | IdentifierLiteral | null;
   public readonly argument: StmtType[];
   public readonly position: Position;
 
   constructor(
     identifier: string,
     method: string,
-    callee: MemberExpression | null,
+    callee: MemberExpression | IdentifierLiteral | null,
     argument: StmtType[],
     position: Position,
   ) {
@@ -31,53 +33,60 @@ class CallExpression extends Stmt {
     this.position = position;
   }
 
-  override evaluate(score: Record<string, any>) {
-    if (!(this.identifier in score)) {
-      throw new TypeError(TypeCodeError.InvalidIdentifier, {
-        value: this.identifier,
-      }).genereteMessage(score.import.paths, this.position);
-    }
-
-    const args = this.argument.map((arg) => arg.evaluate(score));
-
+  override evaluate(score: Environment): any {
     if (!this.callee) {
-      const methodVar = score[this.identifier]?.value;
-
-      if (methodVar instanceof Stmt) {
-        const methodRef = methodVar.evaluate(score)?.[this.method];
-
-        if (!methodRef) {
-          throw new TypeError(TypeCodeError.InvalidMethodCall, {
-            variable: this.identifier,
-            method: this.method,
-          }).genereteMessage(score.import.paths, this.position);
-        }
-
-        return methodRef(args, score);
+      if (
+        score.get(this.identifier) instanceof FunctionDeclaration ||
+        score.get(this.identifier) instanceof FunctionExpression
+      ) {
+        return score
+          .get(this.identifier)
+          .call(this.argument.map((arg) => arg.evaluate(score)));
       }
 
-      const methodRef = score[this.identifier]?.[this.method];
-
-      if (!methodRef) {
-        throw new TypeError(TypeCodeError.InvalidMethodCall, {
-          variable: this.identifier,
-          method: this.method,
-        }).genereteMessage(score.import.paths, this.position);
+      if (!(this.method in score.get(this.identifier))) {
+        throw `${this.identifier}.${this.method} is not method`;
       }
 
-      return methodRef(args, score);
+      const methodVar = score.get(this.identifier)[this.method];
+
+      if (
+        methodVar instanceof FunctionDeclaration ||
+        methodVar instanceof FunctionExpression
+      ) {
+        return methodVar.call(this.argument.map((arg) => arg.evaluate(score)));
+      }
+
+      return methodVar(
+        this.argument.map((arg) => arg.evaluate(score)),
+        score,
+      );
     }
 
     const obj = this.callee.evaluate(score);
-    const methodRef = obj[this.method];
 
-    if (typeof methodRef !== "function") {
-      throw new TypeError(TypeCodeError.InvalidIdentifier, {
-        value: this.method,
-      }).genereteMessage(score.import.paths, this.position);
+    const methodRef = obj?.[this.method];
+
+    if (
+      methodRef instanceof FunctionDeclaration ||
+      methodRef instanceof FunctionExpression
+    ) {
+      return methodRef.call(
+        this.argument.map((arg) => arg.evaluate(score)),
+        this.callee instanceof MemberExpression
+          ? this.callee.obj.evaluate(methodRef.parentEnv)
+          : this.callee.evaluate(methodRef.parentEnv),
+      );
     }
 
-    return methodRef(args, score);
+    if (typeof methodRef !== "function") {
+      throw `${this.identifier}.${this.method} is not method`;
+    }
+
+    return methodRef(
+      this.argument.map((arg) => arg.evaluate(score)),
+      score,
+    );
   }
 }
 

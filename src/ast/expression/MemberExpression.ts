@@ -1,8 +1,8 @@
-import { Stmt } from "../Stmt";
-import type { StmtType } from "../StmtType";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
+import { Environment } from "../../Environment";
 
-class MemberExpression extends Stmt {
+class MemberExpression extends StmtType {
   public readonly obj: StmtType;
   public readonly property: MemberExpression;
   public readonly position: Position;
@@ -17,12 +17,12 @@ class MemberExpression extends Stmt {
     this.position = position;
   }
 
-  override evaluate(score: Record<string, any>) {
+  override evaluate(score: Environment): any {
     const obj = this.obj.evaluate(score);
 
     const objRef = this.property.evaluate(score);
 
-    if (objRef instanceof Stmt) {
+    if (objRef instanceof StmtType) {
       return obj[objRef.evaluate(score)];
     }
 

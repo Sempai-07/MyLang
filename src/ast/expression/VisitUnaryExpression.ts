@@ -1,9 +1,9 @@
-import { Stmt } from "../Stmt";
-import type { StmtType } from "../StmtType";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
+import { Environment } from "../../Environment";
 
-class VisitUnaryExpression extends Stmt {
+class VisitUnaryExpression extends StmtType {
   public readonly operator: OperatorType;
   public readonly position: Position;
   public readonly right: StmtType;
@@ -18,7 +18,7 @@ class VisitUnaryExpression extends Stmt {
     this.position = position;
   }
 
-  override evaluate(score: Record<string, any>) {
+  override evaluate(score: Environment): any {
     switch (this.operator) {
       case OperatorType.Add: {
         return +this.right.evaluate(score);
@@ -30,7 +30,7 @@ class VisitUnaryExpression extends Stmt {
         return !this.right.evaluate(score);
       }
       default: {
-        throw new Error(`Invalid operator "${this.operator}"`);
+        throw `Invalid operator "${this.operator}"`;
       }
     }
   }

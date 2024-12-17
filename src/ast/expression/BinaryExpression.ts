@@ -1,9 +1,9 @@
-import { Stmt } from "../Stmt";
-import type { StmtType } from "../StmtType";
-import type { Position } from "../../lexer/Token";
+import { StmtType } from "../StmtType";
+import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
+import { Environment } from "../../Environment";
 
-class BinaryExpression extends Stmt {
+class BinaryExpression extends StmtType {
   public readonly operator: OperatorType;
   public readonly position: Position;
   public readonly left: StmtType;
@@ -26,7 +26,7 @@ class BinaryExpression extends Stmt {
     this.position = position;
   }
 
-  override evaluate(score: Record<string, any>) {
+  override evaluate(score: Environment): any {
     const left = this.left.evaluate(score) as any;
 
     switch (this.operator) {
@@ -38,6 +38,9 @@ class BinaryExpression extends Stmt {
       }
       case OperatorType.Multiply: {
         return left * this.right.evaluate(score);
+      }
+      case OperatorType.Modulo: {
+        return left % this.right.evaluate(score);
       }
       case OperatorType.Divide: {
         return left / this.right.evaluate(score);
@@ -73,7 +76,7 @@ class BinaryExpression extends Stmt {
         return left || this.right.evaluate(score);
       }
       default: {
-        throw new Error(`Invalid operator "${this.operator}"`);
+        throw `Invalid operator "${this.operator}"`;
       }
     }
   }

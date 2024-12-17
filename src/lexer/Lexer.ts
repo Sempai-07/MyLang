@@ -1,4 +1,5 @@
-import { Token, Position } from "./Token";
+import { Token } from "./Token";
+import { Position } from "./Position";
 import { TokenType, TokenList, OperatorType, KeywordType } from "./TokenType";
 import { SyntaxError, SyntaxCodeError } from "../errors/SyntaxError";
 
@@ -6,14 +7,12 @@ class Lexer {
   public offset: number = 0;
   public line: number = 1;
   public column: number = 1;
-  public paths: string[] = [];
   public readonly code: string;
   public readonly tokenList: Token[] = [];
   public errors: SyntaxError[] = [];
 
-  constructor(code: string, paths: string[] = []) {
+  constructor(code: string) {
     this.code = code;
-    this.paths = paths;
   }
 
   analyze(): { tokens: Token[]; errors: SyntaxError[] } {
@@ -118,12 +117,19 @@ class Lexer {
     });
 
     const position = new Position(this.line, this.column);
-    this.tokenList.push(new Token(token, TokenType.Number, position));
+    this.tokenList.push(
+      new Token(token, isFloat ? TokenType.Float : TokenType.Int, position),
+    );
   }
 
   processIdentifierLiteral(): void {
     const token = this.searchToken((char) => /^[a-zA-Z0-9_]$/.test(char));
     const position = new Position(this.line, this.column);
+
+    if (token === "nil") {
+      this.tokenList.push(new Token(token, TokenType.Nil, position));
+      return;
+    }
 
     if (token === "false" || token === "true") {
       this.tokenList.push(new Token(token, TokenType.Bool, position));
@@ -153,19 +159,41 @@ class Lexer {
 
     switch (operator) {
       case OperatorType.Add:
-        this.tokenList.push(
-          new Token(OperatorType.Add, TokenType.OperatorAdd, position),
-        );
+        if (this.current(1) === OperatorType.Assign) {
+          this.tokenList.push(
+            new Token(
+              OperatorType.AssignPlus,
+              TokenType.OperatorAssignPlus,
+              position,
+            ),
+          );
+          this.next();
+        } else {
+          this.tokenList.push(
+            new Token(OperatorType.Add, TokenType.OperatorAdd, position),
+          );
+        }
         this.next();
         break;
       case OperatorType.Subtract:
-        this.tokenList.push(
-          new Token(
-            OperatorType.Subtract,
-            TokenType.OperatorSubtract,
-            position,
-          ),
-        );
+        if (this.current(1) === OperatorType.Assign) {
+          this.tokenList.push(
+            new Token(
+              OperatorType.AssignMinus,
+              TokenType.OperatorAssignMinus,
+              position,
+            ),
+          );
+          this.next();
+        } else {
+          this.tokenList.push(
+            new Token(
+              OperatorType.Subtract,
+              TokenType.OperatorSubtract,
+              position,
+            ),
+          );
+        }
         this.next();
         break;
       case OperatorType.Multiply:
