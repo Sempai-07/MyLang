@@ -1,7 +1,19 @@
+import { deepEqual } from "node:assert";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
+import { FunctionExpression } from "./FunctionExpression";
+import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { Environment } from "../../Environment";
+
+function deepEqualTry(actual: unknown, expected: unknown) {
+  try {
+    deepEqual(actual, expected);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 class BinaryExpression extends StmtType {
   public readonly operator: OperatorType;
@@ -26,7 +38,7 @@ class BinaryExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     const left = this.left.evaluate(score) as any;
 
     switch (this.operator) {
@@ -46,10 +58,10 @@ class BinaryExpression extends StmtType {
         return left / this.right.evaluate(score);
       }
       case OperatorType.Equal: {
-        return left == this.right.evaluate(score);
+        return deepEqualTry(left, this.right.evaluate(score));
       }
       case OperatorType.NotEqual: {
-        return left != this.right.evaluate(score);
+        return !deepEqualTry(left, this.right.evaluate(score));
       }
       case OperatorType.GreaterThan: {
         return left > this.right.evaluate(score);
@@ -74,6 +86,18 @@ class BinaryExpression extends StmtType {
       }
       case OperatorType.Or: {
         return left || this.right.evaluate(score);
+      }
+      case OperatorType.PipeLine: {
+        const callExpression = this.right.evaluate(score);
+        if (
+          !(
+            callExpression instanceof FunctionExpression ||
+            callExpression instanceof FunctionDeclaration
+          )
+        ) {
+          throw "Expect function, for |> operator";
+        }
+        return this.right.evaluate(score).call([left]);
       }
       default: {
         throw `Invalid operator "${this.operator}"`;

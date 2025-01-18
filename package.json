@@ -1,18 +1,29 @@
 {
-  "name": "mylang",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "mylang2",
+  "version": "1.0.0-beta.3",
+  "main": "./dist/src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": {
+    "mylang": "./dist/bin/index.js"
+  },
+  "files": [
+    "./dist"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@types/node": "^18.19.68"
+    "@types/node": "^18.19.68",
+    "@types/node-fetch": "^2.6.12"
   },
   "dependencies": {
+    "commander": "^12.1.0",
+    "minimatch": "^10.0.1",
+    "node-fetch": "^2.7.0",
+    "request-sync": "^0.0.7",
     "tslib": "^2.8.1"
   }
 }

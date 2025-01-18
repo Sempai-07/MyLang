@@ -18,7 +18,7 @@ class VisitUnaryExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     switch (this.operator) {
       case OperatorType.Add: {
         return +this.right.evaluate(score);

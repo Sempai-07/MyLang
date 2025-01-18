@@ -18,7 +18,7 @@ class VariableDeclaration extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  override evaluate(score: Environment) {
     score.create(this.name, this.value);
 
     if (this.value instanceof StmtType) {

@@ -8,6 +8,8 @@ enum SyntaxCodeError {
   ExpectedToken = "EXPECTED_TOKEN",
   Unexpected = "UNEXPECTED",
   InvalidDynamicImportUsage = "INVALID_DYNAMIC_IMPORT_USAGE",
+  MissingCatchOrTry = "MISSING_CATCH_OR_TRY",
+  ValidAwait = "VALID_AWAIT",
 }
 
 const SyntaxMessageError = {
@@ -25,6 +27,10 @@ const SyntaxMessageError = {
     "Unexpected token '${value}' at ${line}:${column}",
   [SyntaxCodeError.InvalidDynamicImportUsage]:
     "Invalid use of import() at ${line}:${column}",
+  [SyntaxCodeError.MissingCatchOrTry]:
+    "Missing catch or finally after try at ${line}:${column}",
+  [SyntaxCodeError.ValidAwait]:
+    "await is only valid in async functions at ${line}:${column}",
 } as const;
 
 class SyntaxError {

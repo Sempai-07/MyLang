@@ -4,7 +4,7 @@ function processArray(arr: any[]): any[] {
   arr.forEach((value, index) => {
     if (Array.isArray(value)) {
       arr[index] = processArray(value);
-    } else if (typeof value === "object") {
+    } else if (value && typeof value === "object") {
       arr[index] = processObject(value);
     } else if (isFunctionNode(value)) {
       arr[index] = value?.name
@@ -26,7 +26,7 @@ function processObject(obj: Record<any, any>): any {
   for (const [name, value] of Object.entries(obj)) {
     if (Array.isArray(value)) {
       obj[name] = processArray(value);
-    } else if (typeof value === "object") {
+    } else if (value && typeof value === "object") {
       obj[name] = processObject(value);
     } else if (isFunctionNode(value)) {
       obj[name] = value?.name
@@ -46,7 +46,7 @@ function printf(args: any[]): any {
     const processedArgs = args.map((value) => {
       if (Array.isArray(value)) {
         return processArray(value);
-      } else if (typeof value === "object") {
+      } else if (value && typeof value === "object") {
         return processObject(value);
       } else if (isFunctionNode(value)) {
         return value?.name
@@ -70,4 +70,22 @@ function printf(args: any[]): any {
   console.log(result);
 }
 
-export { printf };
+function print(args: any[]): any {
+  const processedArgs = args.map((value) => {
+    if (Array.isArray(value)) {
+      return processArray(value);
+    } else if (value && typeof value === "object") {
+      return processObject(value);
+    } else if (isFunctionNode(value)) {
+      return value?.name
+        ? { [String(value.name)]() {} }[value.name]
+        : { anonymous() {} }["anonymous"];
+    }
+    return value;
+  });
+
+  console.log(...processedArgs);
+  return;
+}
+
+export { printf, print };

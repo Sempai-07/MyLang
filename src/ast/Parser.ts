@@ -16,13 +16,22 @@ import { FunctionCall } from "./expression/FunctionCall";
 import { FunctionExpression } from "./expression/FunctionExpression";
 import { MemberExpression } from "./expression/MemberExpression";
 import { AssignmentExpression } from "./expression/AssignmentExpression";
+import { UpdateExpression } from "./expression/UpdateExpression";
 import { ArrayExpression } from "./expression/ArrayExpression";
 import { ObjectExpression } from "./expression/ObjectExpression";
+import { TernaryExpression } from "./expression/TernaryExpression";
 import { ImportDeclaration } from "./declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./declaration/FunctionDeclaration";
 import { BlockStatement } from "./statement/BlockStatement";
+import { ReturnStatement } from "./statement/ReturnStatement";
+import { ForStatement } from "./statement/ForStatement";
+import { BreakStatement } from "./statement/BreakStatement";
+import { ContinueStatement } from "./statement/ContinueStatement";
+import { IfStatement } from "./statement/IfStatement";
+import { WhileStatement } from "./statement/WhileStatement";
+import { TryCatchStatement } from "./statement/TryCatchStatement";
 
 class Parser {
   private offset: number = 0;
@@ -72,6 +81,9 @@ class Parser {
         const expr = this.parseExpression();
         this.expect(TokenType.ParenthesisClose);
         this.next(); // Skip ')'
+        if (this.peek().type === TokenType.QuestionMark) {
+          return this.parseTernaryExpression(expr);
+        }
         return expr;
       }
       case TokenType.BraceOpen: {
@@ -92,7 +104,8 @@ class Parser {
     | ArrayExpression
     | MemberExpression
     | CallExpression
-    | AssignmentExpression {
+    | AssignmentExpression
+    | TernaryExpression {
     this.next(); // Skip '['
 
     const elements = [];
@@ -116,6 +129,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(arrayExpression);
+    } else if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(arrayExpression);
     }
 
     return arrayExpression;
@@ -127,7 +142,8 @@ class Parser {
     | ObjectExpression
     | MemberExpression
     | CallExpression
-    | AssignmentExpression {
+    | AssignmentExpression
+    | TernaryExpression {
     this.next(); // Skip '{'
 
     const obj: {
@@ -185,6 +201,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(objExpression);
+    } else if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(objExpression);
     }
 
     return objExpression;
@@ -200,6 +218,25 @@ class Parser {
       case KeywordType.Func:
         this.next();
         return this.parseFunctionDeclaration(this.peek());
+      case KeywordType.Return:
+        this.next();
+        return this.parseReturnStatement(this.peek());
+      case KeywordType.If:
+        this.next();
+        return this.parseIfStatement(this.peek());
+      case KeywordType.For:
+        this.next();
+        return this.parseForStatement(this.peek());
+      case KeywordType.While:
+        this.next();
+        return this.parseWhileStatement(this.peek());
+      case KeywordType.Break:
+        return this.parseBreakStatement(this.peek());
+      case KeywordType.Continue:
+        return this.parseContinueStatement(this.peek());
+      case KeywordType.Try:
+        this.next();
+        return this.parseTryCatchStatement(this.peek());
       case KeywordType.Import:
         if (
           this.peek(1).type === TokenType.BracketOpen ||
@@ -222,6 +259,17 @@ class Parser {
 
   parseVariableDeclaration(identifier: Token): VariableDeclaration {
     this.next(); // Move past identifier
+
+    if (this.peek().type !== TokenType.OperatorAssign) {
+      this.expectSemicolonOrEnd();
+
+      return new VariableDeclaration(
+        identifier.value,
+        new NilLiteral(identifier.position),
+        identifier.position,
+      );
+    }
+
     this.expect(TokenType.OperatorAssign);
     this.next(); // Move past '='
 
@@ -249,12 +297,283 @@ class Parser {
 
     this.next(); // Move past '{'
     const statement = this.parseBlockStatement(identifier);
+
     this.next(); // Move past '}'
 
     return new FunctionDeclaration(
       identifier.value,
       args,
       statement,
+      identifier.position,
+    );
+  }
+
+  parseReturnStatement(identifier: Token): ReturnStatement {
+    if (this.peek().type === TokenType.Semicolon) {
+      this.next(); // Move past ';'
+      return new ReturnStatement(
+        new NilLiteral(identifier.position),
+        identifier.position,
+      );
+    }
+
+    if (this.peek().type === TokenType.ParenthesisOpen) {
+      this.next(); // Move past '('
+
+      const valueExpression = this.parsePrimary();
+
+      if (this.peek().type === TokenType.Comma) {
+        this.next(); // Move past ','
+
+        const valuesExpression = [valueExpression];
+
+        while (this.peek().type !== TokenType.ParenthesisClose) {
+          valuesExpression.push(this.parsePrimary());
+
+          if (this.peek().type === TokenType.Comma) {
+            this.next();
+          }
+        }
+
+        this.expect(TokenType.ParenthesisClose);
+        this.next(); // Move past ')'
+        this.expectSemicolonOrEnd();
+
+        return new ReturnStatement(valuesExpression, identifier.position);
+      }
+
+      const returns = new ReturnStatement(valueExpression, identifier.position);
+
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expectSemicolonOrEnd();
+
+      return returns;
+    }
+
+    const valueExpression = this.parsePrimary();
+
+    if (this.peek().type === TokenType.Comma) {
+      this.next(); // Move past ','
+
+      const valuesExpression = [valueExpression];
+
+      while (this.peek().type !== TokenType.Semicolon) {
+        valuesExpression.push(this.parsePrimary());
+
+        if (this.peek().type === TokenType.Comma) {
+          this.next();
+        }
+      }
+
+      this.expectSemicolonOrEnd();
+
+      return new ReturnStatement(valuesExpression, identifier.position);
+    }
+
+    this.expectSemicolonOrEnd();
+
+    return new ReturnStatement(valueExpression, identifier.position);
+  }
+
+  parseIfStatement(identifier: Token): IfStatement {
+    this.expect(TokenType.ParenthesisOpen);
+    this.next(); // Move past '('
+    const test = this.parsePrimary();
+    this.expect(TokenType.ParenthesisClose);
+    this.next(); // Move past ')'
+
+    let consequent: StmtType | null = null;
+
+    if (this.peek().type === TokenType.BraceOpen) {
+      this.next(); // Move past '{'
+      consequent = this.parseBlockStatement(identifier);
+      this.expect(TokenType.BraceClose);
+      this.next(); // Move past '}'
+    } else {
+      consequent = this.parseStatement();
+    }
+
+    if (
+      this.peek().type === TokenType.Keyword &&
+      this.peek().value === KeywordType.Else
+    ) {
+      this.next(); // Move past 'else'
+      if (
+        this.peek().type === TokenType.Keyword &&
+        this.peek().value === KeywordType.If
+      ) {
+        this.next(); // Move past 'if'
+        const alternate = this.parseIfStatement(identifier);
+        return new IfStatement(
+          test,
+          consequent,
+          alternate,
+          identifier.position,
+        );
+      }
+
+      let alternate: StmtType | null = null;
+
+      if (this.peek().type === TokenType.BraceOpen) {
+        this.next(); // Move past '{'
+        alternate = this.parseBlockStatement(identifier);
+        this.expect(TokenType.BraceClose);
+        this.next(); // Move past '}'
+      } else {
+        alternate = this.parseStatement();
+      }
+
+      this.expectSemicolonOrEnd();
+
+      return new IfStatement(test, consequent, alternate, identifier.position);
+    }
+
+    this.expectSemicolonOrEnd();
+
+    return new IfStatement(test, consequent, null, identifier.position);
+  }
+
+  parseForStatement(identifier: Token): ForStatement {
+    this.expect(TokenType.ParenthesisOpen);
+    this.next(); // Move past '('
+
+    const init = this.parseStatement();
+
+    if (this.peek(-1).type !== TokenType.Semicolon) {
+      this.expect(TokenType.Semicolon);
+      this.next(); // Move past ';'
+    }
+
+    const test = this.parseExpression();
+
+    if (this.peek(-1).type !== TokenType.Semicolon) {
+      this.expect(TokenType.Semicolon);
+      this.next(); // Move past ';'
+    }
+
+    const update = this.parseExpression();
+
+    this.expect(TokenType.ParenthesisClose);
+    this.next(); // Move past ')'
+
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+    const statement = this.parseBlockStatement(identifier);
+    this.next(); // Move past '}'
+
+    this.expectSemicolonOrEnd();
+
+    return new ForStatement(init, test, update, statement, identifier.position);
+  }
+
+  parseWhileStatement(identifier: Token): WhileStatement {
+    this.expect(TokenType.ParenthesisOpen);
+    this.next(); // Move past '('
+
+    const test = this.parsePrimary();
+
+    this.expect(TokenType.ParenthesisClose);
+    this.next(); // Move past ')'
+
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+    const statement = this.parseBlockStatement(identifier);
+    this.next(); // Move past '}'
+
+    this.expectSemicolonOrEnd();
+
+    return new WhileStatement(test, statement, identifier.position);
+  }
+
+  parseBreakStatement(identifier: Token): BreakStatement {
+    this.next(); // Move past 'break'
+    this.expectSemicolonOrEnd();
+    return new BreakStatement(identifier.position);
+  }
+
+  parseContinueStatement(identifier: Token): ContinueStatement {
+    this.next(); // Move past 'continue'
+    this.expectSemicolonOrEnd();
+    return new ContinueStatement(identifier.position);
+  }
+
+  parseTryCatchStatement(identifier: Token): TryCatchStatement {
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+
+    const tryBlock = this.parseBlockStatement(identifier);
+    this.next(); // Move past '}'
+
+    if (
+      this.peek().value !== KeywordType.Catch &&
+      this.peek().value !== KeywordType.Finally
+    ) {
+      this.throwError(SyntaxCodeError.MissingCatchOrTry, {
+        line: this.peek().position.line,
+        column: this.peek().position.column,
+      });
+    }
+    if (this.peek().value === KeywordType.Finally) {
+      this.next(); // Move past 'finally'
+
+      this.expect(TokenType.BraceOpen);
+      this.next(); // Move past '{'
+      const finallyBlock = this.parseBlockStatement(identifier);
+      this.next(); // Move past '}'
+
+      return new TryCatchStatement(
+        tryBlock,
+        null,
+        finallyBlock,
+        identifier.position,
+      );
+    }
+
+    this.next(); // Move past 'catch'
+
+    let catchVariables = null;
+
+    if (this.peek().type === TokenType.ParenthesisOpen) {
+      this.next(); // Move past '('
+
+      this.expect(TokenType.Identifier);
+      catchVariables = this.peek().value;
+      this.next(); // Move past 'identifier'
+
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+    }
+
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+    const catchBlock: [string | null, BlockStatement] = [
+      catchVariables,
+      this.parseBlockStatement(identifier),
+    ];
+    this.next(); // Move past '}'
+
+    if (this.peek().value === KeywordType.Finally) {
+      this.next(); // Move past 'finally'
+
+      this.expect(TokenType.BraceOpen);
+      this.next(); // Move past '{'
+      const finallyBlock = this.parseBlockStatement(identifier);
+      this.next(); // Move past '}'
+
+      return new TryCatchStatement(
+        tryBlock,
+        catchBlock,
+        finallyBlock,
+        identifier.position,
+      );
+    }
+
+    return new TryCatchStatement(
+      tryBlock,
+      catchBlock,
+      null,
       identifier.position,
     );
   }
@@ -280,6 +599,8 @@ class Parser {
     const statement = this.parseBlockStatement(identifier);
     this.next(); // Move past '}'
 
+    this.expectSemicolonOrEnd();
+
     return new FunctionExpression(
       functionName,
       args,
@@ -290,7 +611,12 @@ class Parser {
 
   parseFunctionCall(
     identifier: Token,
-  ): FunctionCall | MemberExpression | CallExpression | AssignmentExpression {
+  ):
+    | FunctionCall
+    | MemberExpression
+    | CallExpression
+    | AssignmentExpression
+    | TernaryExpression {
     this.next(); // Move past identifier
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
@@ -311,6 +637,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(functionCall);
+    } else if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(functionCall);
     }
 
     this.expectSemicolonOrEnd();
@@ -497,10 +825,53 @@ class Parser {
     return left;
   }
 
+  parseUpdateExpression(identifier: IdentifierLiteral): UpdateExpression {
+    const operator = this.peek();
+
+    this.next(); // Move past '++' or '--'
+
+    this.expectSemicolonOrEnd();
+
+    return new UpdateExpression(
+      identifier,
+      operator.value as OperatorType,
+      operator.position,
+    );
+  }
+
+  parseTernaryExpression(condition: StmtType): TernaryExpression {
+    this.next(); // Move past '?'
+    const expressionIfTrue = this.parsePrimary();
+
+    if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(expressionIfTrue);
+    }
+
+    this.expect(TokenType.Colon);
+    this.next(); // Move past ':'
+
+    const expressionIfFalse = this.parsePrimary();
+
+    if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(expressionIfFalse);
+    }
+
+    this.expectSemicolonOrEnd();
+
+    return new TernaryExpression(
+      condition,
+      expressionIfTrue,
+      expressionIfFalse,
+      condition.position,
+    );
+  }
+
   parseUnaryExpression(operator: Token): VisitUnaryExpression {
     this.next(); // Move past '!', '+' and '-'
 
     const right = this.parsePrimary();
+
+    this.expectSemicolonOrEnd();
 
     return new VisitUnaryExpression(
       operator.value as OperatorType,
@@ -550,7 +921,11 @@ class Parser {
 
   parseMethodCall(
     identifier: Token,
-  ): CallExpression | MemberExpression | AssignmentExpression {
+  ):
+    | CallExpression
+    | MemberExpression
+    | AssignmentExpression
+    | TernaryExpression {
     this.next(); // Move past '.'
 
     const method = this.peek();
@@ -577,6 +952,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(callExpression);
+    } else if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(callExpression);
     }
 
     this.expectSemicolonOrEnd();
@@ -586,7 +963,11 @@ class Parser {
 
   parseMemberExpressions(
     identifier: StmtType,
-  ): CallExpression | MemberExpression | AssignmentExpression {
+  ):
+    | CallExpression
+    | MemberExpression
+    | AssignmentExpression
+    | TernaryExpression {
     const isMemberExpression = (token: TokenType) =>
       token === TokenType.BracketOpen || token === TokenType.Period;
 
@@ -623,12 +1004,7 @@ class Parser {
           );
         }
       } else if (tokenType === TokenType.Period) {
-        this.expect(TokenType.Identifier);
-
-        if (
-          this.peek().type === TokenType.Identifier &&
-          this.peek(1).type === TokenType.ParenthesisOpen
-        ) {
+        if (this.peek(1).type === TokenType.ParenthesisOpen) {
           const methodName = new StringLiteral(
             this.peek().value,
             this.peek().position,
@@ -679,6 +1055,8 @@ class Parser {
         expression,
         tokenType.position,
       );
+    } else if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(object);
     }
 
     // @ts-expect-error
@@ -718,6 +1096,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(strings);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(strings);
         }
         this.next();
         return strings;
@@ -727,6 +1108,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(ints);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(ints);
         }
         this.next();
         return ints;
@@ -736,6 +1120,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(floats);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(floats);
         }
         this.next();
         return floats;
@@ -745,6 +1132,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(bools);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(bools);
         }
         this.next();
         return bools;
@@ -754,6 +1144,9 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(nils);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(nils);
         }
         this.next();
         return nils;
@@ -763,7 +1156,15 @@ class Parser {
         if (this.isOperator(this.peek(1).type)) {
           this.next();
           return this.parseExpression(identifier);
-        } else if (this.peek(1).type === TokenType.ParenthesisOpen) {
+        } else if (
+          [OperatorType.PlusPlus, OperatorType.MinusMinus].includes(
+            this.peek(1).value as OperatorType,
+          )
+        ) {
+          this.next();
+          return this.parseUpdateExpression(identifier);
+        }
+        if (this.peek(1).type === TokenType.ParenthesisOpen) {
           return this.parseFunctionCall(token);
         } else if (
           this.peek(1).type === TokenType.Period &&
@@ -785,6 +1186,9 @@ class Parser {
         ) {
           this.next();
           return this.parseAssignmentExpression(identifier);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(identifier);
         }
         this.next();
         return identifier;
@@ -801,10 +1205,21 @@ class Parser {
             );
           }
           this.next();
+
           const importDeclaration = this.parseImportDeclaration(
             this.peek(),
             true,
           );
+
+          if (
+            this.peek().type === TokenType.BracketOpen ||
+            this.peek().type === TokenType.Period
+          ) {
+            return this.parseMemberExpressions(importDeclaration);
+          } else if (this.peek().type === TokenType.QuestionMark) {
+            return this.parseTernaryExpression(importDeclaration);
+          }
+
           return importDeclaration;
         } else if (token.value === KeywordType.Func) {
           if (
@@ -827,7 +1242,11 @@ class Parser {
       case TokenType.OperatorAdd:
       case TokenType.OperatorSubtract:
       case TokenType.OperatorNot: {
-        return this.parseUnaryExpression(token);
+        const unary = this.parseUnaryExpression(token);
+        if (this.peek().type === TokenType.QuestionMark) {
+          return this.parseTernaryExpression(unary);
+        }
+        return unary;
       }
       case TokenType.ParenthesisOpen: {
         const identifier = this.peek(-1);
@@ -843,6 +1262,11 @@ class Parser {
         const expr = this.parseExpression();
         this.expect(TokenType.ParenthesisClose);
         this.next(); // Skip ')'
+
+        if (this.peek().type === TokenType.QuestionMark) {
+          return this.parseTernaryExpression(expr);
+        }
+
         return expr;
       }
       default:
@@ -883,6 +1307,7 @@ class Parser {
       TokenType.OperatorLogicalAnd,
       TokenType.OperatorOr,
       TokenType.OperatorLogicalOr,
+      TokenType.OperatorPipeLine,
     ].includes(tokenType);
   }
 
@@ -915,14 +1340,11 @@ class Parser {
   throwError(code: SyntaxCodeError, format: Record<string, any>): never {
     format.position ? null : (format = { position: format });
 
-    console.log(
-      new SyntaxError(code, {
-        line: format.position.line,
-        column: format.position.column,
-        ...format,
-      }).genereteMessage([]),
-    );
-    process.exit(1);
+    throw new SyntaxError(code, {
+      line: format.position.line,
+      column: format.position.column,
+      ...format,
+    }).genereteMessage([]);
   }
 }
 

@@ -17,16 +17,23 @@ class MemberExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment): any {
     const obj = this.obj.evaluate(score);
 
     const objRef = this.property.evaluate(score);
 
     if (objRef instanceof StmtType) {
-      return obj[objRef.evaluate(score)];
+      const index = objRef.evaluate(score);
+      if (typeof index === "number") {
+        return obj[index] === undefined ? null : obj[index];
+      }
+      return obj[index] === undefined ? null : obj[index];
     }
 
-    return obj[objRef];
+    if (typeof objRef === "number") {
+      return obj[objRef] === undefined ? null : obj[objRef];
+    }
+    return obj[objRef] === undefined ? null : obj[objRef];
   }
 }
 

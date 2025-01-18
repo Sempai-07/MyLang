@@ -4,6 +4,10 @@ function ensureArgsCount(args: any[], count: number, message: string): void {
   if (args.length < count) throw message;
 }
 
+function create(args: any[]): any[] {
+  return new Array(args[0] || 0).fill(args[1] === undefined ? null : args[1]);
+}
+
 function concat(args: any[]): any[] {
   ensureArgsCount(
     args,
@@ -282,7 +286,13 @@ function unshift(args: any[]): number {
   return args[0].unshift(...args.slice(1));
 }
 
+function count(args: any[]): number {
+  ensureArgsCount(args, 1, "unshift requires at least 1 arguments: array.");
+  return args[0].length;
+}
+
 export {
+  create,
   concat,
   copyWithin,
   every,
@@ -309,4 +319,5 @@ export {
   sort,
   splice,
   unshift,
+  count,
 };

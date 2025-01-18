@@ -5,6 +5,7 @@ import { IdentifierLiteral } from "../types/IdentifierLiteral";
 import { Environment } from "../../Environment";
 import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { FunctionExpression } from "../expression/FunctionExpression";
+import { runtime } from "../../runtime/Runtime";
 
 class CallExpression extends StmtType {
   public readonly identifier: string;
@@ -33,15 +34,22 @@ class CallExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     if (!this.callee) {
       if (
         score.get(this.identifier) instanceof FunctionDeclaration ||
         score.get(this.identifier) instanceof FunctionExpression
       ) {
-        return score
+        runtime.markFunctionCallPosition();
+
+        score
           .get(this.identifier)
           .call(this.argument.map((arg) => arg.evaluate(score)));
+
+        const result = runtime.getLastFunctionExecutionResult();
+        runtime.resetLastFunctionExecutionResult();
+
+        return result;
       }
 
       if (!(this.method in score.get(this.identifier))) {
@@ -54,13 +62,27 @@ class CallExpression extends StmtType {
         methodVar instanceof FunctionDeclaration ||
         methodVar instanceof FunctionExpression
       ) {
-        return methodVar.call(this.argument.map((arg) => arg.evaluate(score)));
+        runtime.markFunctionCallPosition();
+
+        methodVar.call(this.argument.map((arg) => arg.evaluate(score)));
+
+        const result = runtime.getLastFunctionExecutionResult();
+        runtime.resetLastFunctionExecutionResult();
+
+        return result;
       }
 
-      return methodVar(
+      runtime.markFunctionCallPosition();
+
+      methodVar(
         this.argument.map((arg) => arg.evaluate(score)),
         score,
       );
+
+      const result = runtime.getLastFunctionExecutionResult();
+      runtime.resetLastFunctionExecutionResult();
+
+      return result;
     }
 
     const obj = this.callee.evaluate(score);
@@ -71,22 +93,35 @@ class CallExpression extends StmtType {
       methodRef instanceof FunctionDeclaration ||
       methodRef instanceof FunctionExpression
     ) {
-      return methodRef.call(
+      runtime.markFunctionCallPosition();
+
+      methodRef.call(
         this.argument.map((arg) => arg.evaluate(score)),
         this.callee instanceof MemberExpression
           ? this.callee.obj.evaluate(methodRef.parentEnv)
           : this.callee.evaluate(methodRef.parentEnv),
       );
+
+      const result = runtime.getLastFunctionExecutionResult();
+      runtime.resetLastFunctionExecutionResult();
+
+      return result;
     }
 
     if (typeof methodRef !== "function") {
       throw `${this.identifier}.${this.method} is not method`;
     }
 
-    return methodRef(
+    runtime.markFunctionCallPosition();
+
+    const result = methodRef(
       this.argument.map((arg) => arg.evaluate(score)),
       score,
     );
+
+    runtime.resetLastFunctionExecutionResult();
+
+    return result;
   }
 }
 

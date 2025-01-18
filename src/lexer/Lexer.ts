@@ -168,6 +168,15 @@ class Lexer {
             ),
           );
           this.next();
+        } else if (this.current(1) === OperatorType.Add) {
+          this.tokenList.push(
+            new Token(
+              OperatorType.PlusPlus,
+              TokenType.OperatorPlusPlus,
+              position,
+            ),
+          );
+          this.next();
         } else {
           this.tokenList.push(
             new Token(OperatorType.Add, TokenType.OperatorAdd, position),
@@ -181,6 +190,15 @@ class Lexer {
             new Token(
               OperatorType.AssignMinus,
               TokenType.OperatorAssignMinus,
+              position,
+            ),
+          );
+          this.next();
+        } else if (this.current(1) === OperatorType.Subtract) {
+          this.tokenList.push(
+            new Token(
+              OperatorType.MinusMinus,
+              TokenType.OperatorMinusMinus,
               position,
             ),
           );
@@ -232,7 +250,7 @@ class Lexer {
         this.next();
         break;
       case OperatorType.Not:
-        if (OperatorType.Equal === this.current(1)) {
+        if (OperatorType.Assign === this.current(1)) {
           this.tokenList.push(
             new Token(
               OperatorType.NotEqual,
@@ -307,10 +325,30 @@ class Lexer {
         }
         this.next();
         break;
+      case OperatorType.QuestionMark: {
+        this.tokenList.push(
+          new Token(
+            OperatorType.QuestionMark,
+            TokenType.QuestionMark,
+            position,
+          ),
+        );
+        this.next();
+        break;
+      }
       case OperatorType.LogicalOr:
         if (OperatorType.LogicalOr === this.current(1)) {
           this.tokenList.push(
             new Token(OperatorType.Or, TokenType.OperatorOr, position),
+          );
+          this.next();
+        } else if (OperatorType.GreaterThan === this.current(1)) {
+          this.tokenList.push(
+            new Token(
+              OperatorType.PipeLine,
+              TokenType.OperatorPipeLine,
+              position,
+            ),
           );
           this.next();
         } else {

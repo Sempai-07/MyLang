@@ -14,7 +14,7 @@ class ArrayExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  override evaluate(score: Environment) {
     const result = [];
     for (let element of this.elements) {
       result.push(element.evaluate(score));

@@ -8,7 +8,9 @@ enum TokenType {
   Keyword = "Keyword",
   Identifier = "Identifier",
   OperatorAdd = "OperatorAdd",
+  OperatorPlusPlus = "OperatorPlusPlus",
   OperatorSubtract = "OperatorSubtract",
+  OperatorMinusMinus = "OperatorMinusMinus",
   OperatorMultiply = "OperatorMultiply",
   OperatorDivide = "OperatorDivide",
   OperatorModulo = "OperatorModulo",
@@ -24,7 +26,9 @@ enum TokenType {
   OperatorLogicalAnd = "LogicalAnd",
   OperatorAnd = "OperatorAnd",
   OperatorLogicalOr = "LogicalOr",
+  OperatorPipeLine = "OperatorPipeLine",
   OperatorOr = "OperatorOr",
+  QuestionMark = "QuestionMark",
   OperatorNot = "OperatorNot",
   BraceOpen = "BraceOpen",
   BraceClose = "BraceClose",
@@ -57,7 +61,9 @@ enum TokenList {
 
 enum OperatorType {
   Add = "+",
+  PlusPlus = "++",
   Subtract = "-",
+  MinusMinus = "--",
   Multiply = "*",
   Divide = "/",
   Modulo = "%",
@@ -73,6 +79,8 @@ enum OperatorType {
   LogicalAnd = "&",
   And = "&&",
   LogicalOr = "|",
+  PipeLine = "|>",
+  QuestionMark = "?",
   Or = "||",
   Not = "!",
 }
@@ -80,8 +88,20 @@ enum OperatorType {
 enum KeywordType {
   Var = "var",
   Func = "func",
+  Return = "return",
   Import = "import",
   Export = "export",
+  If = "if",
+  Else = "else",
+  For = "for",
+  While = "while",
+  Break = "break",
+  Continue = "continue",
+  Try = "try",
+  Catch = "catch",
+  Finally = "finally",
+  Await = "await",
+  Async = "async",
 }
 
 export { TokenList, TokenType, OperatorType, KeywordType };

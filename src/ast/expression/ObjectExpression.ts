@@ -28,7 +28,7 @@ class ObjectExpression extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     let result: Record<string, any> = {};
 
     for (const property of this.properties) {

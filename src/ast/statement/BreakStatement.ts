@@ -1,7 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 
-class NilLiteral extends StmtType {
+class BreakStatement extends StmtType {
   public readonly position: Position;
 
   constructor(position: Position) {
@@ -10,9 +10,9 @@ class NilLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): null {
+  evaluate() {
     return null;
   }
 }
 
-export { NilLiteral };
+export { BreakStatement };

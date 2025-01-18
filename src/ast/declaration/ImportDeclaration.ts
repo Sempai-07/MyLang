@@ -1,4 +1,6 @@
-import { readFileSync } from "node:fs";
+// @ts-expect-error
+import requestSync from "request-sync";
+import { readFileSync, existsSync } from "node:fs";
 import { join as joinPath, parse as parsePath } from "node:path";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
@@ -24,65 +26,175 @@ class ImportDeclaration extends StmtType {
   get buildInLibs(): string[] {
     return [
       "coreio",
+      "fs",
+      "buffers",
       "strings",
       "numbers",
       "arrays",
       "objects",
       "math",
       "events",
+      "timers",
       "ds",
       "time",
       "dotenv",
+      "utils",
+      "https",
+      "json",
     ];
   }
 
   resolveJSONModule(source: string, score: Environment) {
     const fullPath = joinPath(score.get("import").base, source);
 
-    if (score.get("import").cache[fullPath])
+    if (
+      score.get("import").cache[fullPath] &&
+      !score.get("#options").disableCache
+    )
       return score.get("import").cache[fullPath];
 
     try {
       const json = JSON.parse(readFileSync(fullPath, "utf8"));
+
       score.update("import", {
         ...score.get("import"),
         cache: {
           ...score.get("import").cache,
           [fullPath]: json,
         },
+        paths: Array.from(
+          new Set([score.get("import").main, ...score.get("import").paths]),
+        ),
       });
+
       return json;
     } catch (err) {
-      throw `Failed to load JSON module: ${err}`;
+      throw `Failed to load JSON module: ${String(err).split(":").slice(1).join("").trim().toLowerCase()}`;
+    }
+  }
+
+  resolveHTTPModule(url: string, score: Environment): string {
+    if (score.get("import").cache[url] && !score.get("#options").disableCache) {
+      return score.get("import").cache[url];
+    }
+
+    const options = {
+      url,
+      method: "GET",
+    };
+
+    const res = requestSync(options);
+
+    if (res.statusCode !== 200) {
+      throw `Import Invalid: HTTP ${res.statusCode}`;
+    }
+
+    const responseData = res.body.toString("utf8");
+
+    if (responseData.startsWith("Error:")) {
+      throw responseData;
+    }
+
+    if (parsePath(url).ext === ".json") {
+      try {
+        const json = JSON.parse(responseData);
+
+        score.update("import", {
+          ...score.get("import"),
+          cache: {
+            ...score.get("import").cache,
+            [url]: json,
+          },
+          paths: Array.from(
+            new Set([score.get("import").main, ...score.get("import").paths]),
+          ),
+        });
+
+        return json;
+      } catch (err) {
+        throw `Failed to dynamic load JSON module: ${err}`;
+      }
+    } else {
+      try {
+        const context = runFile(responseData, {
+          base: score.get("import").base,
+          main: url,
+          cache: {
+            ...score.get("import").cache,
+            [url]: score.get("#exports"),
+          },
+          paths: Array.from(
+            new Set([score.get("import").main, ...score.get("import").paths]),
+          ),
+          options: score.get("#options"),
+        });
+
+        score.update("import", {
+          ...score.get("import"),
+          cache: {
+            ...score.get("import").cache,
+            [url]: responseData,
+          },
+          paths: Array.from(new Set([url, ...score.get("import").paths])),
+        });
+
+        return context.globalScore.get("#exports");
+      } catch (err) {
+        throw `Import dynamic Invalid: ${err}`;
+      }
     }
   }
 
   resolveBuildInModule(source: string, score: Environment) {
-    if (score.get("import").cache[source])
+    if (
+      score.get("import").cache[source] &&
+      !score.get("#options").disableCache
+    )
       return score.get("import").cache[source];
 
     const resolvePackage = require(`../../native/lib/${source}/index`);
+
     score.update("import", {
       ...score.get("import"),
       cache: {
         ...score.get("import").cache,
         [source]: resolvePackage,
       },
+      paths: Array.from(
+        new Set([score.get("import").main, ...score.get("import").paths]),
+      ),
     });
+
     return resolvePackage;
   }
 
   resolveFileModule(source: string, score: Environment) {
     const fullPath = joinPath(score.get("import").base, source);
 
-    if (score.get("import").cache[fullPath])
+    if (
+      score.get("import").cache[fullPath] &&
+      !score.get("#options").disableCache
+    )
       return score.get("import").cache[fullPath];
+
+    if (!existsSync(fullPath)) {
+      throw `Import Invalid: no such file ${fullPath}`;
+    }
 
     try {
       const content = readFileSync(fullPath, "utf8").toString();
+
       const context = runFile(content, {
         base: score.get("import").base,
         main: fullPath,
+        cache: {
+          ...score.get("import").cache,
+          [fullPath]: score.get("#exports"),
+        },
+        paths: Array.from(
+          new Set([score.get("import").main, ...score.get("import").paths]),
+        ),
+        options: score.get("#options"),
       });
 
       score.update("import", {
@@ -91,7 +203,11 @@ class ImportDeclaration extends StmtType {
           ...score.get("import").cache,
           [fullPath]: context.globalScore.get("#exports"),
         },
+        paths: Array.from(
+          new Set([score.get("import").main, ...score.get("import").paths]),
+        ),
       });
+
       return context.globalScore.get("#exports");
     } catch (err) {
       throw `Import Invalid: ${err}`;
@@ -100,12 +216,23 @@ class ImportDeclaration extends StmtType {
 
   handleModuleImport(module: any, name: string, score: Environment) {
     if (this.expression) return module;
-    score.create(name, module);
+    if (!score.get("#options").disableCache) score.create(name, module);
   }
 
   evaluateSinglePackage(packageName: string, score: Environment) {
     const { ext, dir, base, name } = parsePath(packageName);
     const fullPath = joinPath(dir, base);
+
+    if (
+      packageName.startsWith("http://") ||
+      packageName.startsWith("https://")
+    ) {
+      return this.handleModuleImport(
+        this.resolveHTTPModule(packageName, score),
+        name,
+        score,
+      );
+    }
 
     if (ext === ".json") {
       return this.handleModuleImport(
@@ -138,9 +265,15 @@ class ImportDeclaration extends StmtType {
     const packages: Record<string, any> = {};
 
     for (const [packageName, packageStmt] of Object.entries(this.package)) {
-      const { ext, base, name } = parsePath(packageStmt.evaluate(score));
+      const resolvePath = packageStmt.evaluate(score);
+      const { ext, base, name } = parsePath(resolvePath);
 
-      if (ext === ".json") {
+      if (
+        resolvePath.startsWith("http://") ||
+        resolvePath.startsWith("https://")
+      ) {
+        packages[packageName] = this.resolveHTTPModule(resolvePath, score);
+      } else if (ext === ".json") {
         packages[packageName] = this.resolveJSONModule(base, score);
       } else if (this.buildInLibs.includes(name)) {
         packages[packageName] = this.resolveBuildInModule(base, score);

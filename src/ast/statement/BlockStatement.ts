@@ -1,8 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
-import { NilLiteral } from "../types/NilLiteral";
 import { Environment } from "../../Environment";
-import { AssignmentExpression } from "../expression/AssignmentExpression";
+import { runtime } from "../../runtime/Runtime";
 
 class BlockStatement extends StmtType {
   public readonly body: StmtType[];
@@ -16,22 +15,21 @@ class BlockStatement extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
-    let result: unknown = new NilLiteral(this.position);
+  evaluate(score: Environment) {
+    for (let i = 0; i < this.body.length; i++) {
+      if (runtime.isReturn || runtime.isBreak) {
+        break;
+      }
 
-    const callEnvironment = new Environment(score);
+      runtime.callStack.add(score, this.body[i]!);
 
-    for (const body of this.body) {
-      if (body instanceof AssignmentExpression) {
-        const evaluate = body.evaluate(score);
-        result = evaluate;
+      if (!runtime.isContinue) {
+        runtime.resume();
+      } else {
+        runtime.resetContinue();
         continue;
       }
-      const evaluate = body.evaluate(callEnvironment);
-      result = evaluate;
     }
-
-    return result;
   }
 }
 

@@ -13,13 +13,20 @@ import { VisitUnaryExpression } from "./ast/expression/VisitUnaryExpression";
 import { FunctionCall } from "./ast/expression/FunctionCall";
 import { MemberExpression } from "./ast/expression/MemberExpression";
 import { AssignmentExpression } from "./ast/expression/AssignmentExpression";
+import { UpdateExpression } from "./ast/expression/UpdateExpression";
 import { ArrayExpression } from "./ast/expression/ArrayExpression";
 import { ObjectExpression } from "./ast/expression/ObjectExpression";
+import { TernaryExpression } from "./ast/expression/TernaryExpression";
 import { ImportDeclaration } from "./ast/declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./ast/declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./ast/declaration/FunctionDeclaration";
 import { BlockStatement } from "./ast/statement/BlockStatement";
+import { ReturnStatement } from "./ast/statement/ReturnStatement";
+import { IfStatement } from "./ast/statement/IfStatement";
+import { ForStatement } from "./ast/statement/ForStatement";
+import { WhileStatement } from "./ast/statement/WhileStatement";
+import { TryCatchStatement } from "./ast/statement/TryCatchStatement";
 import { Environment } from "./Environment";
 
 class Interpreter {
@@ -34,7 +41,7 @@ class Interpreter {
     this.globalScore.create("import", {
       base: options.base,
       main: options.main,
-      cache: {},
+      cache: options.cache || {},
       paths,
       resolve([moduleName]: [string]) {
         if (
@@ -57,12 +64,22 @@ class Interpreter {
     });
 
     this.globalScore.create("#exports", {});
+
+    this.globalScore.create("#options", options.options);
+
+    process.on("unhandledRejection", (reason) => {
+      console.error(
+        `This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason "${reason}".`,
+      );
+    });
   }
 
   run() {
+    let result = null;
     for (const body of this.ast) {
-      this.parseAst(body);
+      result = this.parseAst(body);
     }
+    return result;
   }
 
   parseAst(body: StmtType) {
@@ -79,6 +96,8 @@ class Interpreter {
       case body instanceof ArrayExpression:
       case body instanceof ObjectExpression:
       case body instanceof AssignmentExpression:
+      case body instanceof UpdateExpression:
+      case body instanceof TernaryExpression:
       case body instanceof ImportDeclaration:
       case body instanceof ExportsDeclaration:
       case body instanceof VariableDeclaration:
@@ -86,6 +105,11 @@ class Interpreter {
       case body instanceof FunctionCall:
       case body instanceof VisitUnaryExpression:
       case body instanceof BlockStatement:
+      case body instanceof ReturnStatement:
+      case body instanceof IfStatement:
+      case body instanceof ForStatement:
+      case body instanceof WhileStatement:
+      case body instanceof TryCatchStatement:
         return body.evaluate(this.globalScore);
       default:
         console.log(body);

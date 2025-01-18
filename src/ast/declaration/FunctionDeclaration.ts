@@ -29,18 +29,17 @@ class FunctionDeclaration extends StmtType {
     this.position = position;
   }
 
-  call(args: any[], callerInstance?: any): any {
-    //     if (this.params.length !== args.length) {
-    //       throw "function declared parameters are not matched with arguments";
-    //     }
-
+  call(args: any[], callerInstance?: any) {
     const callEnvironment = new Environment(this.parentEnv);
 
     for (let i = 0; i < this.params.length; i++) {
       const argument = args[i];
       const [param, defaultValue] = this.params[i]!;
 
-      callEnvironment.create(param, argument || defaultValue);
+      callEnvironment.create(
+        param,
+        argument || defaultValue.evaluate(callEnvironment),
+      );
     }
     callEnvironment.create("arguments", args);
 
@@ -53,7 +52,6 @@ class FunctionDeclaration extends StmtType {
       this.parentEnv.update(key, callEnvironment.get(key));
     }
 
-    // if function is called by an instance, this will be this instance, or it will be the global process object
     if (callerInstance) {
       callEnvironment.create("this", callerInstance);
     } else {
@@ -66,7 +64,7 @@ class FunctionDeclaration extends StmtType {
     return this.body.evaluate(callEnvironment);
   }
 
-  override evaluate(score: Environment): any {
+  override evaluate(score: Environment) {
     const func = new FunctionDeclaration(
       this.name,
       this.params,

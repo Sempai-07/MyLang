@@ -36,7 +36,7 @@ class AssignmentExpression extends StmtType {
     }
   }
 
-  evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     if (this.left instanceof IdentifierLiteral) {
       const rightValue = this.right.evaluate(score);
       switch (this.assignType) {
