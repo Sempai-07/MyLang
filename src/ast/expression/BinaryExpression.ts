@@ -4,6 +4,7 @@ import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
 import { FunctionExpression } from "./FunctionExpression";
 import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
+import { runtime } from "../../runtime/Runtime";
 import { Environment } from "../../Environment";
 
 function deepEqualTry(actual: unknown, expected: unknown) {
@@ -89,6 +90,7 @@ class BinaryExpression extends StmtType {
       }
       case OperatorType.PipeLine: {
         const callExpression = this.right.evaluate(score);
+        runtime.markFunctionCallPosition();
         if (
           !(
             callExpression instanceof FunctionExpression ||

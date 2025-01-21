@@ -3,6 +3,7 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { type BlockStatement } from "../statement/BlockStatement";
 import { Environment } from "../../Environment";
+import { runtime } from "../../runtime/Runtime";
 
 class FunctionDeclaration extends StmtType {
   public readonly id: string = randomUUID();
@@ -61,7 +62,14 @@ class FunctionDeclaration extends StmtType {
       );
     }
 
-    return this.body.evaluate(callEnvironment);
+    runtime.markFunctionCallPosition();
+
+    this.body.evaluate(callEnvironment);
+
+    const result = runtime.getLastFunctionExecutionResult();
+    runtime.resetLastFunctionExecutionResult();
+
+    return result;
   }
 
   override evaluate(score: Environment) {

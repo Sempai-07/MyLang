@@ -10,6 +10,8 @@ function processArray(arr: any[]): any[] {
       arr[index] = value?.name
         ? { [String(value.name)]() {} }[value.name]
         : { anonymous() {} }["anonymous"];
+    } else if (value === null) {
+      arr[index] = "nil";
     }
   });
 
@@ -32,6 +34,8 @@ function processObject(obj: Record<any, any>): any {
       obj[name] = value?.name
         ? { [String(value.name)]() {} }[value.name]
         : { anonymous() {} }["anonymous"];
+    } else if (value === null) {
+      obj[name] = "nil";
     }
   }
 
@@ -43,15 +47,17 @@ function printf(args: any[]): any {
   const template = args[0] ?? "";
 
   if (typeof template !== "string") {
-    const processedArgs = args.map((value) => {
+    const processedArgs = [...args].map((value) => {
       if (Array.isArray(value)) {
-        return processArray(value);
+        return processArray([...value]);
       } else if (value && typeof value === "object") {
-        return processObject(value);
+        return processObject({ ...value });
       } else if (isFunctionNode(value)) {
         return value?.name
           ? { [String(value.name)]() {} }[value.name]
           : { anonymous() {} }["anonymous"];
+      } else if (value === null) {
+        return "nil";
       }
       return value;
     });
@@ -71,15 +77,17 @@ function printf(args: any[]): any {
 }
 
 function print(args: any[]): any {
-  const processedArgs = args.map((value) => {
+  const processedArgs = [...args].map((value) => {
     if (Array.isArray(value)) {
-      return processArray(value);
+      return processArray([...value]);
     } else if (value && typeof value === "object") {
-      return processObject(value);
+      return processObject({ ...value });
     } else if (isFunctionNode(value)) {
       return value?.name
         ? { [String(value.name)]() {} }[value.name]
         : { anonymous() {} }["anonymous"];
+    } else if (value === null) {
+      return "nil";
     }
     return value;
   });

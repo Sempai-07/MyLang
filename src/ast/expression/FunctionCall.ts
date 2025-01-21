@@ -29,19 +29,12 @@ class FunctionCall extends StmtType {
     ) {
       runtime.markFunctionCallPosition();
 
-      func
+      return func
         .evaluate(func.parentEnv)
         .call(this.argument.map((arg) => arg.evaluate(func.parentEnv)));
-
-      const result = runtime.getLastFunctionExecutionResult();
-      runtime.resetLastFunctionExecutionResult();
-
-      return result;
     }
 
     if (typeof func === "function") {
-      runtime.markFunctionCallPosition();
-
       return func(
         this.argument.map((arg) => arg.evaluate(func.parentEnv)),
         score,

@@ -21,6 +21,7 @@ class WhileStatement extends StmtType {
 
   evaluate(score: Environment) {
     const bridgeEnvironment = new Environment(score);
+
     runtime.markIterationCallPosition();
 
     while (

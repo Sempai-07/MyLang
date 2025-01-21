@@ -380,7 +380,7 @@ class Parser {
   parseIfStatement(identifier: Token): IfStatement {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
-    const test = this.parsePrimary();
+    let test = this.parsePrimary();
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
 
@@ -1259,12 +1259,16 @@ class Parser {
         }
 
         this.next(); // Skip '('
+
         const expr = this.parseExpression();
+
         this.expect(TokenType.ParenthesisClose);
         this.next(); // Skip ')'
 
         if (this.peek().type === TokenType.QuestionMark) {
           return this.parseTernaryExpression(expr);
+        } else if (this.isOperator(this.peek().type)) {
+          return this.parseExpression(expr);
         }
 
         return expr;

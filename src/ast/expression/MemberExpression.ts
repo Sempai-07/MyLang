@@ -25,15 +25,15 @@ class MemberExpression extends StmtType {
     if (objRef instanceof StmtType) {
       const index = objRef.evaluate(score);
       if (typeof index === "number") {
-        return obj[index] === undefined ? null : obj[index];
+        return obj?.[index] === undefined ? null : obj[index];
       }
-      return obj[index] === undefined ? null : obj[index];
+      return obj?.[index] === undefined ? null : obj[index];
     }
 
     if (typeof objRef === "number") {
-      return obj[objRef] === undefined ? null : obj[objRef];
+      return obj?.[objRef] === undefined ? null : obj[objRef];
     }
-    return obj[objRef] === undefined ? null : obj[objRef];
+    return obj?.[objRef] === undefined ? null : obj[objRef];
   }
 }
 

@@ -15,11 +15,11 @@ class ReturnStatement extends StmtType {
   }
 
   evaluate(score: Environment) {
-    if (!(this.body instanceof StmtType)) {
-      return this.body;
-    }
     if (Array.isArray(this.body)) {
       return this.body.map((value) => value.evaluate(score));
+    }
+    if (!(this.body instanceof StmtType)) {
+      return this.body;
     }
     return this.body.evaluate(score);
   }

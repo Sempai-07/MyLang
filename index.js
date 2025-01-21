@@ -9,9 +9,16 @@ process.on("unhandledRejection", (reason, promise) => {
 });
 
 try {
-  run(fs.readFileSync("index.ml").toString(), {
-    base: process.cwd(),
-    main: path.join(process.cwd(), "./index.ml"),
+  fs.readdirSync("./examples/").forEach((value) => {
+    if (!value.endsWith(".ml")) return;
+
+    run(
+      fs.readFileSync(path.join(process.cwd(), "/examples/", value)).toString(),
+      {
+        base: process.cwd(),
+        main: path.join(process.cwd(), "/examples/", value),
+      },
+    );
   });
 } catch (err) {
   console.log(err);

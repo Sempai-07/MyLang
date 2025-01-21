@@ -4,6 +4,7 @@ import { type Position } from "../../lexer/Position";
 import { type BlockStatement } from "../statement/BlockStatement";
 import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { Environment } from "../../Environment";
+import { runtime } from "../../runtime/Runtime";
 
 class FunctionExpression extends StmtType {
   public name: string | null;
@@ -62,7 +63,15 @@ class FunctionExpression extends StmtType {
       );
     }
 
-    return this.body.evaluate(callEnvironment);
+    runtime.markFunctionCallPosition();
+
+    this.body.evaluate(callEnvironment);
+
+    const result = runtime.getLastFunctionExecutionResult();
+
+    runtime.resetLastFunctionExecutionResult();
+
+    return result;
   }
 
   evaluate(score: Environment) {

@@ -44,6 +44,7 @@ class Runtime {
     }
 
     this.callStack.pop();
+
     return null;
   }
 
@@ -82,8 +83,8 @@ class Runtime {
       ];
 
     if (
-      lastIterationCall == undefined ||
-      lastIterationCall == undefined ||
+      lastIterationCall === undefined ||
+      lastIterationCall === undefined ||
       lastIterationCall < lastFunctionCall!
     ) {
       throw "break statement can only exist in iteration block";

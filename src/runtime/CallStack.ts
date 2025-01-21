@@ -22,7 +22,7 @@ class CallStack {
 
   setCursor(cursor: number) {
     if (cursor > this.cursor) {
-      throw new Error("call stack cursor can not go back!");
+      throw "call stack cursor can not go back!";
     }
     this.cursor = cursor;
   }
