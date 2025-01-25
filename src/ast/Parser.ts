@@ -545,6 +545,7 @@ class Parser {
         column: this.peek().position.column,
       });
     }
+
     if (this.peek().value === KeywordType.Finally) {
       this.next(); // Move past 'finally'
 
@@ -722,6 +723,8 @@ class Parser {
         } else {
           defaultCase = this.parsePrimary();
         }
+      } else {
+        this.throwError(SyntaxCodeError.Unexpected, this.peek());
       }
     }
 
@@ -1221,6 +1224,8 @@ class Parser {
 
         property = new StringLiteral(this.peek().value, this.peek().position);
         this.next(); // Move past identifier
+      } else {
+        this.throwError(SyntaxCodeError.Unexpected, this.peek());
       }
 
       object = new MemberExpression(
