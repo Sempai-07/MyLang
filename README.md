@@ -164,7 +164,7 @@ var config = {
   version: "1.0.0"
 } as const;
 
-// config.appName = "NewName"; // Error: Cannot modify properties of a constant object
+config.appName = "NewName"; // Allowed: Modifying propertie of the object
 
 var data = [10, 20, 30] as readonly;
 
