@@ -54,7 +54,11 @@ class FunctionDeclaration extends StmtType {
     }
 
     if (callerInstance) {
-      callEnvironment.create("this", callerInstance);
+      callEnvironment.create(
+        "this",
+        // @ts-ignore
+        Object.assign({}, callerInstance, this.parentEnv.values),
+      );
     } else {
       callEnvironment.create(
         "this",

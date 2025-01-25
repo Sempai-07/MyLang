@@ -12,11 +12,11 @@ func args(name, name1) {
 
 coreio.print("Func args:", args("SempaiJS", "Sempa1JS"), args("SempaiJS")); // ["SempaiJS", "Sempa1JS"], ["SempaiJS"]
 
-func default(count = 1000) {
+func defaults(count = 1000) {
   return count;
 }
 
-coreio.print("Func default:", default(), default(nil), default(1)); // [1000, 1000, 1]
+coreio.print("Func default:", defaults(), defaults(nil), defaults(1)); // [1000, 1000, 1]
 
 func defaultNil(name) {
   return name;
@@ -33,7 +33,7 @@ var obj = {
   }
 }
 
-coreio.print("Func obj", obj.name(), obj.name1());
+coreio.print("Func obj", obj.name(), obj.name1()); // name, name1
 
 var name = func() {
   return "name";
@@ -43,4 +43,26 @@ var name1 = func name1() {
   return "name1";
 }
 
-coreio.print("Func variable", name(), name1());
+coreio.print("Func variable", name(), name1()); // name, name1
+
+var MyClass = func(name) {
+  this.name = name;
+  
+  return {
+   getName: func() {
+     return this.name;
+   },
+   setName: func(name) {
+     this.name = name;
+     return name;
+   }
+  }
+}
+
+var Vova = MyClass("SempaiJS");
+
+coreio.print("Name Class:", Vova.getName()); // SempaiJS
+
+Vova.setName("Hello");
+
+coreio.print("Name Class:", Vova.getName()); // Hello

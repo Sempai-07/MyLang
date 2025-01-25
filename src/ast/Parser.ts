@@ -24,6 +24,7 @@ import { ImportDeclaration } from "./declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./declaration/FunctionDeclaration";
+import { EnumDeclaration } from "./declaration/EnumDeclaration";
 import { BlockStatement } from "./statement/BlockStatement";
 import { ReturnStatement } from "./statement/ReturnStatement";
 import { ForStatement } from "./statement/ForStatement";
@@ -32,6 +33,7 @@ import { ContinueStatement } from "./statement/ContinueStatement";
 import { IfStatement } from "./statement/IfStatement";
 import { WhileStatement } from "./statement/WhileStatement";
 import { TryCatchStatement } from "./statement/TryCatchStatement";
+import { MatchStatement } from "./statement/MatchStatement";
 
 class Parser {
   private offset: number = 0;
@@ -98,14 +100,7 @@ class Parser {
     }
   }
 
-  parseArrayExpression(
-    identifier: Token,
-  ):
-    | ArrayExpression
-    | MemberExpression
-    | CallExpression
-    | AssignmentExpression
-    | TernaryExpression {
+  parseArrayExpression(identifier: Token) {
     this.next(); // Skip '['
 
     const elements = [];
@@ -124,11 +119,14 @@ class Parser {
     this.expectSemicolonOrEnd();
 
     const arrayExpression = new ArrayExpression(elements, identifier.position);
+
     if (
       this.peek().type === TokenType.BracketOpen ||
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(arrayExpression);
+    } else if (this.isOperator(this.peek().type)) {
+      return this.parseExpression(arrayExpression);
     } else if (this.peek().type === TokenType.QuestionMark) {
       return this.parseTernaryExpression(arrayExpression);
     }
@@ -136,14 +134,7 @@ class Parser {
     return arrayExpression;
   }
 
-  parseObjectExpression(
-    identifier: Token,
-  ):
-    | ObjectExpression
-    | MemberExpression
-    | CallExpression
-    | AssignmentExpression
-    | TernaryExpression {
+  parseObjectExpression(identifier: Token) {
     this.next(); // Skip '{'
 
     const obj: {
@@ -196,11 +187,14 @@ class Parser {
     this.expectSemicolonOrEnd();
 
     const objExpression = new ObjectExpression(obj, identifier.position);
+
     if (
       this.peek().type === TokenType.BracketOpen ||
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(objExpression);
+    } else if (this.isOperator(this.peek().type)) {
+      return this.parseExpression(objExpression);
     } else if (this.peek().type === TokenType.QuestionMark) {
       return this.parseTernaryExpression(objExpression);
     }
@@ -237,6 +231,9 @@ class Parser {
       case KeywordType.Try:
         this.next();
         return this.parseTryCatchStatement(this.peek());
+      case KeywordType.Match:
+        this.next();
+        return this.parseMatchStatement(this.peek());
       case KeywordType.Import:
         if (
           this.peek(1).type === TokenType.BracketOpen ||
@@ -252,6 +249,9 @@ class Parser {
       case KeywordType.Export:
         this.next();
         return this.parseExportDeclaration(this.peek());
+      case KeywordType.Enum:
+        this.next();
+        return this.parseEnumDeclaration(this.peek());
       default:
         this.throwError(SyntaxCodeError.InvalidUnexpectedToken, token.position);
     }
@@ -266,6 +266,7 @@ class Parser {
       return new VariableDeclaration(
         identifier.value,
         new NilLiteral(identifier.position),
+        { constant: false },
         identifier.position,
       );
     }
@@ -275,11 +276,40 @@ class Parser {
 
     const expression = this.parseExpression();
 
+    if (this.peek().value === KeywordType.As) {
+      this.next(); // Move past 'as
+
+      if (this.peek().value === KeywordType.Const) {
+        this.next(); // Move past 'const'
+
+        this.expectSemicolonOrEnd();
+
+        return new VariableDeclaration(
+          identifier.value,
+          expression,
+          { constant: true },
+          identifier.position,
+        );
+      } else if (this.peek().value === KeywordType.Readonly) {
+        this.next(); // Move past 'readonly'
+
+        this.expectSemicolonOrEnd();
+
+        return new VariableDeclaration(
+          identifier.value,
+          expression,
+          { constant: true, readonly: true },
+          identifier.position,
+        );
+      }
+    }
+
     this.expectSemicolonOrEnd();
 
     return new VariableDeclaration(
       identifier.value,
       expression,
+      { constant: false },
       identifier.position,
     );
   }
@@ -578,6 +608,128 @@ class Parser {
     );
   }
 
+  parseMatchStatement(identifier: Token): MatchStatement {
+    this.expect(TokenType.ParenthesisOpen);
+    this.next(); // Move past '('
+
+    const test = this.parsePrimary();
+
+    this.expect(TokenType.ParenthesisClose);
+    this.next(); // Move past ')'
+
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+
+    let defaultCase: StmtType | null = null;
+    const cases: { condition: StmtType; block: StmtType }[] = [];
+
+    while (this.peek().type !== TokenType.BraceClose) {
+      if (this.peek().value === KeywordType.Case) {
+        this.next(); // Move past 'case'
+        this.expect(TokenType.ParenthesisOpen);
+        this.next(); // Move past '('
+
+        const condition = this.parsePrimary();
+
+        this.expect(TokenType.ParenthesisClose);
+        this.next(); // Move past ')'
+
+        this.expect(TokenType.Colon);
+        this.next(); // Move past ':'
+
+        const listCase = [];
+
+        if (this.peek().value === KeywordType.Case) {
+          while (this.peek().value === KeywordType.Case) {
+            this.next(); // Move past 'case'
+            this.expect(TokenType.ParenthesisOpen);
+            this.next(); // Move past '('
+
+            const condition = this.parsePrimary();
+
+            this.expect(TokenType.ParenthesisClose);
+            this.next(); // Move past ')'
+
+            this.expect(TokenType.Colon);
+            this.next(); // Move past ':'
+
+            listCase.push(condition);
+          }
+        }
+
+        if (this.peek().type === TokenType.BraceOpen) {
+          this.next(); // Move past '{'
+          const blockStatement = this.parseBlockStatement(this.peek(-1));
+          cases.push({
+            condition,
+            block: blockStatement,
+          });
+          cases.push(
+            ...listCase.map((condition) => ({
+              condition,
+              block: blockStatement,
+            })),
+          );
+          this.next(); // Move past '}'
+        } else if (this.peek().value === KeywordType.Return) {
+          this.next(); // Move past 'return'
+          const returnStatement = this.parseReturnStatement(this.peek(-1));
+          cases.push({
+            condition,
+            block: new BlockStatement(
+              [returnStatement],
+              returnStatement.position,
+            ),
+          });
+          cases.push(
+            ...listCase.map((condition) => ({
+              condition,
+              block: new BlockStatement(
+                [returnStatement],
+                returnStatement.position,
+              ),
+            })),
+          );
+        } else {
+          const parsePrimary = this.parsePrimary();
+          cases.push({
+            condition,
+            block: parsePrimary,
+          });
+          cases.push(
+            ...listCase.map((condition) => ({
+              condition,
+              block: parsePrimary,
+            })),
+          );
+        }
+      } else if (this.peek().value === KeywordType.Default) {
+        this.next(); // Move past 'default'
+        this.expect(TokenType.Colon);
+        this.next(); // Move past ':'
+
+        if (this.peek().type === TokenType.BraceOpen) {
+          this.next(); // Move past '{'
+          defaultCase = this.parseBlockStatement(this.peek(-1));
+          this.next(); // Move past '}'
+        } else if (this.peek().value === KeywordType.Return) {
+          this.next(); // Move past 'return'
+          const returnStatement = this.parseReturnStatement(this.peek(-1));
+          defaultCase = new BlockStatement(
+            [returnStatement],
+            returnStatement.position,
+          );
+        } else {
+          defaultCase = this.parsePrimary();
+        }
+      }
+    }
+
+    this.next(); // Move past '}'
+
+    return new MatchStatement(test, cases, defaultCase, identifier.position);
+  }
+
   parseFunctionExpression(identifier: Token): FunctionExpression {
     let functionName = null;
 
@@ -609,14 +761,7 @@ class Parser {
     );
   }
 
-  parseFunctionCall(
-    identifier: Token,
-  ):
-    | FunctionCall
-    | MemberExpression
-    | CallExpression
-    | AssignmentExpression
-    | TernaryExpression {
+  parseFunctionCall(identifier: Token) {
     this.next(); // Move past identifier
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
@@ -637,6 +782,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(functionCall);
+    } else if (this.isOperator(this.peek().type)) {
+      return this.parseExpression(functionCall);
     } else if (this.peek().type === TokenType.QuestionMark) {
       return this.parseTernaryExpression(functionCall);
     }
@@ -805,6 +952,61 @@ class Parser {
     return new ExportsDeclaration(exports, identifier.position);
   }
 
+  parseEnumDeclaration(identifier: Token): EnumDeclaration {
+    this.expect(TokenType.Identifier);
+    this.next(); // Move past 'identifier'
+    this.expect(TokenType.BraceOpen);
+    this.next(); // Move past '{'
+
+    const identifierList: { name: IdentifierLiteral; value?: StmtType }[] = [];
+    const functionsList: FunctionDeclaration[] = [];
+
+    while (this.peek().type !== TokenType.BraceClose) {
+      if (this.peek().type === TokenType.Identifier) {
+        const name = new IdentifierLiteral(
+          this.peek().value,
+          this.peek().position,
+        );
+        this.next(); // Move past identifier
+
+        if (this.peek().type === TokenType.Semicolon) {
+          this.next(); // Move past ';'
+          identifierList.push({
+            name,
+          });
+          continue;
+        }
+
+        this.expect(TokenType.OperatorAssign);
+        this.next(); // Move past '='
+
+        const value = this.parsePrimary();
+
+        identifierList.push({
+          name,
+          value,
+        });
+
+        this.expectSemicolonOrEnd();
+      } else if (this.peek().value === KeywordType.Func) {
+        this.next(); // Move past 'func'
+        functionsList.push(this.parseFunctionDeclaration(this.peek()));
+        this.expectSemicolonOrEnd();
+      } else this.expect(TokenType.BraceClose);
+    }
+
+    this.next(); // Move past '}'
+
+    this.expectSemicolonOrEnd();
+
+    return new EnumDeclaration(
+      identifier.value,
+      identifierList,
+      functionsList,
+      identifier.position,
+    );
+  }
+
   parseExpression(left?: StmtType): StmtType {
     left ??= this.parsePrimary();
 
@@ -919,13 +1121,7 @@ class Parser {
     return args;
   }
 
-  parseMethodCall(
-    identifier: Token,
-  ):
-    | CallExpression
-    | MemberExpression
-    | AssignmentExpression
-    | TernaryExpression {
+  parseMethodCall(identifier: Token) {
     this.next(); // Move past '.'
 
     const method = this.peek();
@@ -952,6 +1148,8 @@ class Parser {
       this.peek().type === TokenType.Period
     ) {
       return this.parseMemberExpressions(callExpression);
+    } else if (this.isOperator(this.peek().type)) {
+      return this.parseExpression(callExpression);
     } else if (this.peek().type === TokenType.QuestionMark) {
       return this.parseTernaryExpression(callExpression);
     }
@@ -961,13 +1159,7 @@ class Parser {
     return callExpression;
   }
 
-  parseMemberExpressions(
-    identifier: StmtType,
-  ):
-    | CallExpression
-    | MemberExpression
-    | AssignmentExpression
-    | TernaryExpression {
+  parseMemberExpressions(identifier: StmtType) {
     const isMemberExpression = (token: TokenType) =>
       token === TokenType.BracketOpen || token === TokenType.Period;
 
@@ -1055,11 +1247,12 @@ class Parser {
         expression,
         tokenType.position,
       );
+    } else if (this.isOperator(this.peek().type)) {
+      return this.parseExpression(object);
     } else if (this.peek().type === TokenType.QuestionMark) {
       return this.parseTernaryExpression(object);
     }
 
-    // @ts-expect-error
     return object;
   }
 

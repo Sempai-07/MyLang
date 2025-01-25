@@ -1,33 +1,37 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { FunctionExpression } from "../expression/FunctionExpression";
-import { Environment } from "../../Environment";
+import { Environment, type IOptionsVar } from "../../Environment";
 
 class VariableDeclaration extends StmtType {
   public readonly name: string;
   public readonly value: StmtType;
+  public readonly options: IOptionsVar;
   public readonly position: Position;
 
-  constructor(name: string, value: StmtType, position: Position) {
+  constructor(
+    name: string,
+    value: StmtType,
+    options: IOptionsVar,
+    position: Position,
+  ) {
     super();
 
     this.name = name;
 
     this.value = value;
 
+    this.options = options;
+
     this.position = position;
   }
 
-  override evaluate(score: Environment) {
-    score.create(this.name, this.value);
-
-    if (this.value instanceof StmtType) {
-      if (this.value instanceof FunctionExpression) {
-        this.value.name = this.name;
-      }
-      score.update(this.name, this.value.evaluate(score));
-      return score.get(this.name);
+  evaluate(score: Environment) {
+    if (this.value instanceof FunctionExpression) {
+      this.value.name = this.name;
     }
+
+    score.create(this.name, this.value.evaluate(score), this.options);
 
     return score.get(this.name);
   }

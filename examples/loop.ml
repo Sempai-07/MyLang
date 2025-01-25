@@ -75,3 +75,26 @@ var fruits = ["Apple", "Banana", "Orange"];
 for (var i = 0; i < fruits.length; i++) {
   coreio.print("Fruit:", fruits[i]);
 }
+
+// ------- Match -------
+
+func findInt(number) {
+  match(number) {
+    case (1): return "One";
+    case (2): { return "Two"; }
+    case (3):
+    case (4):
+    case (5): return "3, 4 and 5"
+    default: return "unknown";
+  }
+}
+
+coreio.print(
+  findInt(), // unknown 
+  findInt(1), // One
+  findInt(2), // Two
+  findInt(3), // 3, 4 and 5
+  findInt(4), // 3, 4 and 5
+  findInt(5), // 3, 4 and 5
+  findInt(6), // unknown
+);

@@ -87,6 +87,9 @@ enum OperatorType {
 
 enum KeywordType {
   Var = "var",
+  As = "as",
+  Const = "const",
+  Readonly = "readonly",
   Func = "func",
   Return = "return",
   Import = "import",
@@ -102,6 +105,10 @@ enum KeywordType {
   Finally = "finally",
   Await = "await",
   Async = "async",
+  Enum = "enum",
+  Match = "match",
+  Case = "case",
+  Default = "default",
 }
 
 export { TokenList, TokenType, OperatorType, KeywordType };

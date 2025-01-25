@@ -21,12 +21,14 @@ import { ImportDeclaration } from "./ast/declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./ast/declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./ast/declaration/FunctionDeclaration";
+import { EnumDeclaration } from "./ast/declaration/EnumDeclaration";
 import { BlockStatement } from "./ast/statement/BlockStatement";
 import { ReturnStatement } from "./ast/statement/ReturnStatement";
 import { IfStatement } from "./ast/statement/IfStatement";
 import { ForStatement } from "./ast/statement/ForStatement";
 import { WhileStatement } from "./ast/statement/WhileStatement";
 import { TryCatchStatement } from "./ast/statement/TryCatchStatement";
+import { MatchStatement } from "./ast/statement/MatchStatement";
 import { Environment } from "./Environment";
 
 class Interpreter {
@@ -102,6 +104,7 @@ class Interpreter {
       case body instanceof ExportsDeclaration:
       case body instanceof VariableDeclaration:
       case body instanceof FunctionDeclaration:
+      case body instanceof EnumDeclaration:
       case body instanceof FunctionCall:
       case body instanceof VisitUnaryExpression:
       case body instanceof BlockStatement:
@@ -110,6 +113,7 @@ class Interpreter {
       case body instanceof ForStatement:
       case body instanceof WhileStatement:
       case body instanceof TryCatchStatement:
+      case body instanceof MatchStatement:
         return body.evaluate(this.globalScore);
       default:
         console.log(body);

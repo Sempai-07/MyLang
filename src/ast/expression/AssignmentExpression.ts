@@ -38,7 +38,14 @@ class AssignmentExpression extends StmtType {
 
   evaluate(score: Environment) {
     if (this.left instanceof IdentifierLiteral) {
+      if (this.left.evaluate(score)?.[Environment.SymbolEnum]) {
+        throw `Cannot assign to '${this.left.value}' because it is an enum`;
+      } else if (score.optionsVar[this.left.value]?.constant) {
+        throw `Assignment to '${this.left.value}' constant variable`;
+      }
+
       const rightValue = this.right.evaluate(score);
+
       switch (this.assignType) {
         case TokenType.OperatorAssign:
           if (rightValue instanceof FunctionExpression) {
@@ -57,6 +64,27 @@ class AssignmentExpression extends StmtType {
       }
     } else if (this.left instanceof MemberExpression) {
       const value = this.left.obj.evaluate(score);
+
+      if (
+        value?.[Environment.SymbolEnum] ||
+        score.optionsVar[(this.left.obj as unknown as { value: string }).value]
+          ?.readonly
+      ) {
+        const property =
+          "value" in this.left.property
+            ? (this.left.property as { value: string }).value
+            : (
+                (<MemberExpression>this.left).obj as unknown as {
+                  value: string;
+                }
+              ).value;
+
+        if (!Number.isNaN(Number(property))) {
+          throw `Index signature in type '${property}' only permits reading`;
+        } else {
+          throw `Cannot assign to '${property}' because it is a read-only property`;
+        }
+      }
 
       try {
         switch (this.assignType) {

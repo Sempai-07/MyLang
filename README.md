@@ -1,6 +1,6 @@
 # MyLang
 
-Welcome to **MyLang**, a modern programming language designed for flexibility, simplicity, and power. This documentation provides an extensive set of examples and explanations for all key features of MyLang to help you master its capabilities. 
+Welcome to **MyLang**, a modern programming language designed for flexibility, simplicity, and power. This documentation provides an extensive set of examples and explanations for all key features of MyLang to help you master its capabilities.
 
 ---
 
@@ -117,6 +117,58 @@ counter += 1;
 counter--;
 
 coreio.print(counter); // 0
+```
+
+---
+
+#### Constant Variables (`as const`)
+
+Using `as const`, you can declare variables or objects that cannot be reassigned. This ensures immutability for the variable itself but allows modification of its inner elements if it's an array or object.
+
+```mylang
+var constant = 10 as const;
+
+// constant = 5; // Error: Cannot reassign a constant variable
+
+var arr = [] as const; // Declaring an immutable array
+arr[0] = 100; // Allowed: Modifying elements of the array
+
+// arr = {}; // Error: Cannot reassign the array
+```
+
+#### Readonly Variables (`as readonly`)
+
+Using `as readonly`, you can declare variables where neither the variable itself nor its elements can be modified.
+
+```mylang
+var arr1 = [1, 2, 3] as readonly; // Declaring a fully immutable array
+
+// arr1 = {};      // Error: Cannot reassign a readonly variable
+// arr1[0] = 0;    // Error: Cannot modify elements of a readonly array
+```
+
+This behavior also works for objects:
+
+```mylang
+var obj = { a: 1, b: 2 } as readonly;
+
+// obj.a = 10;  // Error: Cannot modify properties of a readonly object
+// obj = {};    // Error: Cannot reassign a readonly object
+```
+
+#### Using `as const` and `as readonly`
+
+```mylang
+var config = {
+  appName: "MyLang",
+  version: "1.0.0"
+} as const;
+
+// config.appName = "NewName"; // Error: Cannot modify properties of a constant object
+
+var data = [10, 20, 30] as readonly;
+
+// data[0] = 100; // Error: Cannot modify elements of a readonly array
 ```
 
 ---
@@ -299,6 +351,115 @@ var fruits = ["Apple", "Banana", "Orange"];
 for (var i = 0; i < fruits.length; i++) {
   coreio.print(fruits[i]);
 }
+```
+
+#### Enum Methods
+
+```mylang
+coreio.print(Status.getByName("Offline")); // ["Offline", { value: 1, description: "Offline status user" }]
+coreio.print(Status.getByName("NonExistent")); // nil
+```
+
+#### Enum with Mixed Content
+
+```mylang
+enum Action {
+  SempaiJS = 7;
+  Angel = {};
+  Mz = func main() {};
+}
+
+// Action = "Invalid"; // Error: Enums are immutable
+coreio.print(Action.SempaiJS); // 7
+coreio.print(Action.Angel);    // {}
+```
+
+#### Auto-Incrementing Enums
+
+```mylang
+enum Number {
+  One = 1;
+  Two;    // 2
+  Three;  // 3
+}
+
+coreio.print(Number.One, Number.Two, Number.Three); // 1, 2, 3
+```
+
+---
+
+### Pattern Matching (`match`)
+
+MyLang provides a powerful `match` expression for pattern matching, similar to a `switch` statement in other languages.
+
+```mylang
+func findInt(number) {
+  match(number) {
+    case (1): return "One";
+    case (2): return "Two";
+    case (3):
+    case (4):
+    case (5): return "3, 4 and 5";
+    default: return "unknown";
+  }
+}
+
+coreio.print(
+  findInt(1), // One
+  findInt(2), // Two
+  findInt(3), // 3, 4 and 5
+  findInt(6)  // unknown
+);
+```
+
+### Using Enums and Match Together
+
+```mylang
+func getStatusDescription(status) {
+  match(status) {
+    case (Status.Online): return Status.Online.description;
+    case (Status.Offline): return Status.Offline.description;
+    default: return "Unknown status";
+  }
+}
+
+coreio.print(
+  getStatusDescription(Status.Online),  // Online status
+  getStatusDescription(Status.Offline), // Offline status user
+  getStatusDescription(nil)             // Unknown status
+);
+```
+
+---
+
+### Enums
+
+**Enums** in MyLang allow you to define a set of named constants and associated values or methods. Enums can contain simple values, objects, or even functions.
+
+#### Declaring an Enum
+
+```mylang
+enum Status {
+  Online = { value: 0, description: "Online status" };
+  Offline = { value: 1, description: "Offline status user" };
+
+  func getByName(val) {
+    var allStatus = objects.entries(this);
+    for (var i = 0; i < arrays.count(allStatus) - 1; i++) {
+      if (allStatus[i][0] == val) {
+        return allStatus[i];
+      }
+    }
+    return nil;
+  };
+}
+```
+
+#### Accessing Enum Values
+
+```mylang
+coreio.print(Status.Online); // { value: 0, description: "Online status" }
+coreio.print(Status.Offline); // { value: 1, description: "Offline status user" }
 ```
 
 ---
