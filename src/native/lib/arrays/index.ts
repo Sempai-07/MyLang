@@ -1,7 +1,10 @@
 import { isFunctionNode } from "../../utils";
+import { ArgumentsError, FunctionCallError } from "../../../errors/BaseError";
 
 function ensureArgsCount(args: any[], count: number, message: string): void {
-  if (args.length < count) throw message;
+  if (args.length < count) {
+    throw new ArgumentsError(message, [`mylang:arrays (${__filename})`]);
+  }
 }
 
 function create(args: any[]): any[] {
@@ -32,7 +35,10 @@ function every(args: any[]): boolean {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -56,7 +62,10 @@ function filter(args: any[]): any[] {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -70,7 +79,10 @@ function find(args: any[]): any {
   const [array, callback] = args;
 
   if (isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -88,7 +100,10 @@ function findIndex(args: any[]): number {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -108,7 +123,10 @@ function flatMap(args: any[]): any[] {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -122,7 +140,10 @@ function forEach(args: any[]): void {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -168,7 +189,10 @@ function map(args: any[]): any[] {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -200,7 +224,10 @@ function reduce(args: any[]): any {
   const [array, callback, initialValue] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -218,7 +245,10 @@ function reduceRight(args: any[]): any {
   const [array, callback, initialValue] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -248,7 +278,10 @@ function some(args: any[]): boolean {
   const [array, callback] = args;
 
   if (!isFunctionNode(callback)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>
@@ -262,7 +295,10 @@ function sort(args: any[]): any[] {
   const [array, compareFn] = args;
 
   if (!isFunctionNode(compareFn)) {
-    throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+    throw new FunctionCallError(
+      "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+      [`mylang:arrays (${__filename})`],
+    );
   }
 
   const callCallback = (...args: any[]) =>

@@ -34,7 +34,7 @@ class TryCatchStatement extends StmtType {
       if (this.catchBlock) {
         const callEnvironment = new Environment(score);
         if (this.catchBlock[0]) {
-          callEnvironment.create(this.catchBlock[0], `${err}`);
+          callEnvironment.create(this.catchBlock[0], err);
           this.catchBlock[1].evaluate(callEnvironment);
         } else this.catchBlock[1].evaluate(callEnvironment);
       }

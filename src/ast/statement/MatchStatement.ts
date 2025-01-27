@@ -4,6 +4,7 @@ import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
 import { BlockStatement } from "./BlockStatement";
 import { runtime } from "../../runtime/Runtime";
+import { BaseError } from "../../errors/BaseError";
 
 function deepEqualTry(actual: unknown, expected: unknown) {
   try {
@@ -38,30 +39,44 @@ class MatchStatement extends StmtType {
   }
 
   evaluate(score: Environment) {
-    let isMatchTry = false;
-    const test = this.test.evaluate(score);
+    try {
+      let isMatchTry = false;
+      const test = this.test.evaluate(score);
 
-    for (const { condition, block } of this.cases) {
-      if (runtime.isReturn) break;
-      if (deepEqualTry(test, condition.evaluate(score))) {
-        isMatchTry = true;
-        if (block instanceof BlockStatement) {
-          const matchEnvironment = new Environment(score);
-          block.evaluate(matchEnvironment);
-          continue;
+      for (const { condition, block } of this.cases) {
+        if (runtime.isReturn) break;
+        if (deepEqualTry(test, condition.evaluate(score))) {
+          isMatchTry = true;
+          if (block instanceof BlockStatement) {
+            const matchEnvironment = new Environment(score);
+            block.evaluate(matchEnvironment);
+            continue;
+          }
+          block.evaluate(score);
         }
-        block.evaluate(score);
       }
-    }
 
-    if (this.defaultCase && !isMatchTry) {
-      if (this.defaultCase instanceof BlockStatement) {
-        const matchEnvironment = new Environment(score);
-        this.defaultCase.evaluate(matchEnvironment);
-      } else this.defaultCase.evaluate(score);
-    }
+      if (this.defaultCase && !isMatchTry) {
+        if (this.defaultCase instanceof BlockStatement) {
+          const matchEnvironment = new Environment(score);
+          this.defaultCase.evaluate(matchEnvironment);
+        } else this.defaultCase.evaluate(score);
+      }
 
-    return null;
+      return null;
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `Match (${file}:${this.position.line}:${this.position.column})`;
+          }
+          return file;
+        });
+      }
+      throw err;
+    }
   }
 }
 

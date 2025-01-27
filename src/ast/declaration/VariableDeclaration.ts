@@ -2,6 +2,7 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { FunctionExpression } from "../expression/FunctionExpression";
 import { Environment, type IOptionsVar } from "../../Environment";
+import { BaseError } from "../../errors/BaseError";
 
 class VariableDeclaration extends StmtType {
   public readonly name: string;
@@ -27,13 +28,27 @@ class VariableDeclaration extends StmtType {
   }
 
   evaluate(score: Environment) {
-    if (this.value instanceof FunctionExpression) {
-      this.value.name = this.name;
+    try {
+      if (this.value instanceof FunctionExpression) {
+        this.value.name = this.name;
+      }
+
+      score.create(this.name, this.value.evaluate(score), this.options);
+
+      return score.get(this.name);
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `${file}:${this.position.line}:${this.position.column}`;
+          }
+          return file;
+        });
+      }
+      throw err;
     }
-
-    score.create(this.name, this.value.evaluate(score), this.options);
-
-    return score.get(this.name);
   }
 }
 

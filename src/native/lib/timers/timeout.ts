@@ -2,6 +2,11 @@ import { setTimeout, clearTimeout } from "node:timers";
 import { isFunctionNode } from "../../utils";
 import { type FunctionDeclaration } from "../../../ast/declaration/FunctionDeclaration";
 import { type FunctionExpression } from "../../../ast/expression/FunctionExpression";
+import {
+  BaseError,
+  ArgumentsError,
+  FunctionCallError,
+} from "../../../errors/BaseError";
 
 const triggerId = Symbol("TriggerId");
 const triggerData = Symbol("TriggerData");
@@ -36,7 +41,9 @@ function getTimeoutOrThrow(
 ) {
   const timeout = timeouts.get(timeoutId);
   if (!timeout || timeoutId !== timeout[triggerId]) {
-    throw `Timeout ID "${timeoutId}" not found.`;
+    throw new BaseError(`Timeout ID "${timeoutId}" not found.`, {
+      files: [`mylang:timers (${__filename})`],
+    });
   }
   return timeout;
 }
@@ -82,10 +89,16 @@ function Timeout(): TimeoutType {
       any[],
     ]) {
       if (!isFunctionNode(cb)) {
-        throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:timers (${__filename})`],
+        );
       }
       if (typeof delay !== "number" || delay < 0) {
-        throw `Invalid delay: "${delay}". Must be a non-negative number.`;
+        throw new ArgumentsError(
+          `Invalid delay: "${delay}". Must be a non-negative number.`,
+          [`mylang:timers (${__filename})`],
+        );
       }
 
       const timeoutData = setTimeout(

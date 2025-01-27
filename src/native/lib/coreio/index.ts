@@ -1,4 +1,5 @@
 import { isFunctionNode } from "../../utils";
+import { BaseError } from "../../../errors/BaseError";
 
 function processArray(arr: any[]): any[] {
   arr.forEach((value, index) => {
@@ -46,6 +47,11 @@ function printf(args: any[]): any {
   const regex = /&\{(\d+)\}/g;
   const template = args[0] ?? "";
 
+  if (args[0] instanceof BaseError) {
+    console.error(args[0].toString());
+    return;
+  }
+
   if (typeof template !== "string") {
     const processedArgs = [...args].map((value) => {
       if (Array.isArray(value)) {
@@ -77,6 +83,11 @@ function printf(args: any[]): any {
 }
 
 function print(args: any[]): any {
+  if (args[0] instanceof BaseError) {
+    console.error(args[0].toString());
+    return;
+  }
+
   const processedArgs = [...args].map((value) => {
     if (Array.isArray(value)) {
       return processArray([...value]);

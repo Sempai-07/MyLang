@@ -1,6 +1,7 @@
 import path from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { type Environment } from "../../../Environment";
+import { ArgumentsError, FileReadFaild } from "../../../errors/BaseError";
 
 // @ts-expect-error
 function DotEnv(args: [], score: Environment) {
@@ -13,19 +14,25 @@ function DotEnv(args: [], score: Environment) {
       } else if (Array.isArray(files)) {
         files.forEach((file) => this._loadFile(file));
       } else {
-        throw `Invalid argument for load: "${files}". Must be a string or array of strings.`;
+        throw new ArgumentsError(`Must be a string or array of strings.`, [
+          `mylang:dotenv (${__filename})`,
+        ]);
       }
     },
 
     _loadFile(file: string): void {
       if (typeof file !== "string" || file.trim() === "") {
-        throw `Invalid file path: "${file}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:dotenv (${__filename})`,
+        ]);
       }
 
       const fullPath = path.join(score.get("import").base, file);
 
       if (!existsSync(fullPath)) {
-        throw `File not found: "${file}".`;
+        throw new FileReadFaild(`File not found: "${file}".`, fullPath, [
+          `mylang:dotenv (${__filename})`,
+        ]);
       }
 
       const content = readFileSync(fullPath, "utf-8");
@@ -43,7 +50,11 @@ function DotEnv(args: [], score: Environment) {
           .replace(/^['"]|['"]$/g, "");
 
         if (!keyTrimmed || !value) {
-          throw `Invalid format in .env file: "${line}". Must be in "KEY=VALUE" format.`;
+          throw new FileReadFaild(
+            `Invalid format in .env file: "${line}". Must be in "KEY=VALUE" format.`,
+            fullPath,
+            [`mylang:dotenv (${__filename})`],
+          );
         }
 
         envMap.set(keyTrimmed, value);
@@ -52,34 +63,50 @@ function DotEnv(args: [], score: Environment) {
 
     get([key]: [string]): string | undefined {
       if (typeof key !== "string" || key.trim() === "") {
-        throw `Invalid key: "${key}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:dotenv (${__filename})`,
+        ]);
       }
       return envMap.get(key);
     },
 
     set([key, value]: [string, string]): void {
       if (typeof key !== "string" || key.trim() === "") {
-        throw `Invalid key: "${key}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:dotenv (${__filename})`,
+        ]);
       }
       if (typeof value !== "string") {
-        throw `Invalid value for key "${key}". Must be a string.`;
+        throw new ArgumentsError(
+          `Invalid value for key "${key}". Must be a string.`,
+          [`mylang:dotenv (${__filename})`],
+        );
       }
       envMap.set(key, value);
     },
 
     unset([key]: [string]): void {
       if (typeof key !== "string" || key.trim() === "") {
-        throw `Invalid key: "${key}". Must be a non-empty string.`;
+        throw new ArgumentsError(
+          `Invalid key: "${key}". Must be a non-empty string.`,
+          [`mylang:dotenv (${__filename})`],
+        );
       }
       if (!envMap.has(key)) {
-        throw `Key "${key}" does not exist in the environment.`;
+        throw new ArgumentsError(
+          `Key "${key}" does not exist in the environment.`,
+          [`mylang:dotenv (${__filename})`],
+        );
       }
       envMap.delete(key);
     },
 
     has([key]: [string]): boolean {
       if (typeof key !== "string" || key.trim() === "") {
-        throw `Invalid key: "${key}". Must be a non-empty string.`;
+        throw new ArgumentsError(
+          `Invalid key: "${key}". Must be a non-empty string.`,
+          [`mylang:dotenv (${__filename})`],
+        );
       }
       return envMap.has(key);
     },
@@ -94,7 +121,10 @@ function DotEnv(args: [], score: Environment) {
 
     applyToProcess([override = false]: [boolean]): void {
       if (typeof override !== "boolean") {
-        throw `Invalid override value: "${override}". Must be a boolean.`;
+        throw new ArgumentsError(
+          `Invalid override value: "${override}". Must be a boolean.`,
+          [`mylang:dotenv (${__filename})`],
+        );
       }
 
       for (const [key, value] of envMap) {

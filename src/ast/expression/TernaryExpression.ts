@@ -1,6 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
+import { BaseError } from "../../errors/BaseError";
 
 class TernaryExpression extends StmtType {
   public readonly condition: StmtType;
@@ -26,18 +27,32 @@ class TernaryExpression extends StmtType {
   }
 
   evaluate(score: Environment) {
-    let condition: any = this.condition.evaluate(score);
+    try {
+      let condition: any = this.condition.evaluate(score);
 
-    if (Array.isArray(condition)) {
-      condition = condition.length;
-    } else if (condition && typeof condition === "object") {
-      condition = Object.keys(condition).length;
-    }
+      if (Array.isArray(condition)) {
+        condition = condition.length;
+      } else if (condition && typeof condition === "object") {
+        condition = Object.keys(condition).length;
+      }
 
-    if (condition) {
-      return this.expressionIfTrue.evaluate(score);
+      if (condition) {
+        return this.expressionIfTrue.evaluate(score);
+      }
+      return this.expressionIfFalse.evaluate(score);
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `${file}:${this.position.line}:${this.position.column}`;
+          }
+          return file;
+        });
+      }
+      throw err;
     }
-    return this.expressionIfFalse.evaluate(score);
   }
 }
 

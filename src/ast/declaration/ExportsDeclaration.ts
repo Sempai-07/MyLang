@@ -14,7 +14,7 @@ class ExportsDeclaration extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment) {
+  evaluate(score: Environment) {
     for (const key of <string[]>Object.keys(this.value)) {
       score.update("#exports", {
         ...score.get("#exports"),

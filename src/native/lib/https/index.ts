@@ -1,8 +1,9 @@
 import fs from "node:fs";
 // @ts-expect-error
 import requestSync from "request-sync";
+import { BaseError } from "../../../errors/BaseError";
 
-console.warn('The module "https" is in an experimental state');
+console.warn('[WARNING]: The module "https" is in an experimental state');
 
 interface RequestOptions {
   url: string;
@@ -36,7 +37,12 @@ function request([url, options]: [
           try {
             return JSON.parse(response.body.toString("utf8"));
           } catch (err) {
-            throw `Failed to parse response body as JSON: ${err}`;
+            throw new BaseError(
+              `Failed to parse response body as JSON: ${err}`,
+              {
+                files: [`mylang:https (${__filename})`],
+              },
+            );
           }
         },
         toStr([encoding]: [string] = ["utf8"]) {
@@ -58,7 +64,9 @@ function request([url, options]: [
       },
     };
   } catch (err) {
-    throw `Failed to perform request: ${err}`;
+    throw new BaseError(`Failed to perform request: ${err}`, {
+      files: [`mylang:https (${__filename})`],
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type StmtType } from "./ast/StmtType";
+import { ImportFaildError } from "./errors/BaseError";
 import { StringLiteral } from "./ast/types/StringLiteral";
 import { IntLiteral } from "./ast/types/IntLiteral";
 import { FloatLiteral } from "./ast/types/FloatLiteral";
@@ -57,7 +58,14 @@ class Interpreter {
             return resolvedPath;
           }
         }
-        throw `Cannot find module '${moduleName}'`;
+
+        throw new ImportFaildError(`Cannot find module: "${moduleName}"`, {
+          code: "IMPORT_MODULE_FAILD",
+          cause: {
+            packageName: moduleName,
+          },
+          files: paths,
+        });
       },
     });
 

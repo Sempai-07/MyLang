@@ -1,4 +1,5 @@
 import { StmtType } from "../StmtType";
+import { BaseError } from "../../errors/BaseError";
 import { OperatorType } from "../../lexer/TokenType";
 import { type Position } from "../../lexer/Position";
 import { type Environment } from "../../Environment";
@@ -24,33 +25,52 @@ class UpdateExpression extends StmtType {
   }
 
   evaluate(score: Environment) {
-    let currentValue;
-
     try {
-      currentValue = this.argument.evaluate(score);
+      let currentValue;
+
+      try {
+        currentValue = this.argument.evaluate(score);
+      } catch (err) {
+        throw String(err);
+      }
+
+      if (typeof currentValue !== "number") {
+        throw new BaseError("Update expression only work on number", {
+          files: score.get("import").paths,
+        });
+      }
+
+      let nextValue = currentValue;
+
+      switch (this.operator) {
+        case OperatorType.PlusPlus:
+          nextValue += 1;
+          break;
+        case OperatorType.MinusMinus:
+          nextValue -= 1;
+          break;
+        default:
+          throw new BaseError(`Unrecognized operator ${this.operator}`, {
+            files: score.get("import").paths,
+          });
+      }
+
+      score.update(this.argument.value, nextValue);
+
+      return currentValue;
     } catch (err) {
-      throw String(err);
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `${file}:${this.position.line}:${this.position.column}`;
+          }
+          return file;
+        });
+      }
+      throw err;
     }
-    if (typeof currentValue !== "number") {
-      throw "Update expression only work on number";
-    }
-
-    let nextValue = currentValue;
-
-    switch (this.operator) {
-      case OperatorType.PlusPlus:
-        nextValue += 1;
-        break;
-      case OperatorType.MinusMinus:
-        nextValue -= 1;
-        break;
-      default:
-        throw `Unrecognized operator ${this.operator}`;
-    }
-
-    score.update(this.argument.value, nextValue);
-
-    return currentValue;
   }
 }
 

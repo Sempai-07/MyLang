@@ -2,6 +2,11 @@ import { setInterval, clearInterval } from "node:timers";
 import { isFunctionNode } from "../../utils";
 import { type FunctionDeclaration } from "../../../ast/declaration/FunctionDeclaration";
 import { type FunctionExpression } from "../../../ast/expression/FunctionExpression";
+import {
+  BaseError,
+  ArgumentsError,
+  FunctionCallError,
+} from "../../../errors/BaseError";
 
 const triggerId = Symbol("TriggerId");
 const triggerData = Symbol("TriggerData");
@@ -37,7 +42,9 @@ function getIntervalOrThrow(
 ) {
   const interval = intervals.get(intervalId);
   if (!interval || intervalId !== interval[triggerId]) {
-    throw `Interval ID "${intervalId}" not found.`;
+    throw new BaseError(`Interval ID "${intervalId}" not found.`, {
+      files: [`mylang:timers (${__filename})`],
+    });
   }
   return interval;
 }
@@ -92,10 +99,16 @@ function Interval(): IntervalType {
       any[],
     ]) {
       if (!isFunctionNode(cb)) {
-        throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:timers (${__filename})`],
+        );
       }
       if (typeof delay !== "number" || delay <= 0) {
-        throw `Invalid delay: "${delay}". Must be a positive number.`;
+        throw new ArgumentsError(
+          `Invalid delay: "${delay}". Must be a positive number.`,
+          [`mylang:timers (${__filename})`],
+        );
       }
 
       const intervalData = setInterval(

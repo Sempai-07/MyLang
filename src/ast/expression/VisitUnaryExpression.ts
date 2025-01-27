@@ -1,4 +1,5 @@
 import { StmtType } from "../StmtType";
+import { BaseError } from "../../errors/BaseError";
 import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
 import { Environment } from "../../Environment";
@@ -19,19 +20,35 @@ class VisitUnaryExpression extends StmtType {
   }
 
   evaluate(score: Environment) {
-    switch (this.operator) {
-      case OperatorType.Add: {
-        return +this.right.evaluate(score);
+    try {
+      switch (this.operator) {
+        case OperatorType.Add: {
+          return +this.right.evaluate(score);
+        }
+        case OperatorType.Subtract: {
+          return -this.right.evaluate(score);
+        }
+        case OperatorType.Not: {
+          return !this.right.evaluate(score);
+        }
+        default: {
+          throw new BaseError(`Invalid operator "${this.operator}"`, {
+            files: score.get("import").paths,
+          });
+        }
       }
-      case OperatorType.Subtract: {
-        return -this.right.evaluate(score);
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `${file}:${this.position.line}:${this.position.column}`;
+          }
+          return file;
+        });
       }
-      case OperatorType.Not: {
-        return !this.right.evaluate(score);
-      }
-      default: {
-        throw `Invalid operator "${this.operator}"`;
-      }
+      throw err;
     }
   }
 }

@@ -2,6 +2,7 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
 import { BlockStatement } from "./BlockStatement";
+import { BaseError } from "../../errors/BaseError";
 
 class IfStatement extends StmtType {
   public readonly test: StmtType;
@@ -27,16 +28,30 @@ class IfStatement extends StmtType {
   }
 
   evaluate(score: Environment) {
-    if (this.test.evaluate(score)) {
-      const executionEnvironment = new Environment(score);
-      return this.consequent.evaluate(executionEnvironment);
-    } else if (this.alternate) {
-      if (this.alternate instanceof BlockStatement) {
+    try {
+      if (this.test.evaluate(score)) {
         const executionEnvironment = new Environment(score);
-        return this.alternate.evaluate(executionEnvironment);
-      } else {
-        return this.alternate.evaluate(score);
+        return this.consequent.evaluate(executionEnvironment);
+      } else if (this.alternate) {
+        if (this.alternate instanceof BlockStatement) {
+          const executionEnvironment = new Environment(score);
+          return this.alternate.evaluate(executionEnvironment);
+        } else {
+          return this.alternate.evaluate(score);
+        }
       }
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `If (${file}:${this.position.line}:${this.position.column})`;
+          }
+          return file;
+        });
+      }
+      throw err;
     }
   }
 }

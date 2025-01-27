@@ -5,6 +5,7 @@ import { join as joinPath, parse as parsePath } from "node:path";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
+import { FileReadFaild, ImportFaildError } from "../../errors/BaseError";
 import { run as runFile } from "../../utils/utils";
 
 class ImportDeclaration extends StmtType {
@@ -69,7 +70,16 @@ class ImportDeclaration extends StmtType {
 
       return json;
     } catch (err) {
-      throw `Failed to load JSON module: ${String(err).split(":").slice(1).join("").trim().toLowerCase()}`;
+      throw new FileReadFaild(
+        `JSON module: ${String(err)
+          .split(":")
+          .slice(1)
+          .join("")
+          .trim()
+          .toLowerCase()}`,
+        fullPath,
+        score.get("import").paths,
+      );
     }
   }
 
@@ -86,7 +96,14 @@ class ImportDeclaration extends StmtType {
     const res = requestSync(options);
 
     if (res.statusCode !== 200) {
-      throw `Import Invalid: HTTP ${res.statusCode}`;
+      throw new ImportFaildError(`HTTP import status: ${res.statusCode}`, {
+        code: "IMPORT_HTTP_FAILD",
+        cause: {
+          url,
+          statusCode: res.statusCode,
+        },
+        files: score.get("import").paths,
+      });
     }
 
     const responseData = res.body.toString("utf8");
@@ -112,7 +129,14 @@ class ImportDeclaration extends StmtType {
 
         return json;
       } catch (err) {
-        throw `Failed to dynamic load JSON module: ${err}`;
+        throw new ImportFaildError(`dynamic load JSON module: ${err}`, {
+          code: "IMPORT_HTTP_JSON_FAILD",
+          cause: {
+            url,
+            statusCode: res.statusCode,
+          },
+          files: score.get("import").paths,
+        });
       }
     } else {
       try {
@@ -139,8 +163,18 @@ class ImportDeclaration extends StmtType {
         });
 
         return context.globalScore.get("#exports");
-      } catch (err) {
-        throw `Import dynamic Invalid: ${err}`;
+      } catch (err: any) {
+        throw new ImportFaildError(
+          `dynamic load module: ${"message" in err ? err.message : err}`,
+          {
+            code: "IMPORT_HTTP_FAILD",
+            cause: {
+              url,
+              statusCode: res.statusCode,
+            },
+            files: score.get("import").paths,
+          },
+        );
       }
     }
   }
@@ -178,7 +212,13 @@ class ImportDeclaration extends StmtType {
       return score.get("import").cache[fullPath];
 
     if (!existsSync(fullPath)) {
-      throw `Import Invalid: no such file ${fullPath}`;
+      throw new ImportFaildError(`no such file: ${fullPath}`, {
+        code: "IMPORT_FILE_FAILD",
+        cause: {
+          fullPath,
+        },
+        files: score.get("import").paths,
+      });
     }
 
     try {
@@ -209,8 +249,14 @@ class ImportDeclaration extends StmtType {
       });
 
       return context.globalScore.get("#exports");
-    } catch (err) {
-      throw `Import Invalid: ${err}`;
+    } catch (err: any) {
+      throw new ImportFaildError(`${"message" in err ? err.message : err}`, {
+        code: "IMPORT_FILE_RUN_FAILD",
+        cause: {
+          fullPath,
+        },
+        files: score.get("import").paths,
+      });
     }
   }
 
@@ -258,7 +304,13 @@ class ImportDeclaration extends StmtType {
       );
     }
 
-    throw `Cannot find module: "${name}"`;
+    throw new ImportFaildError(`Cannot find module: "${name}"`, {
+      code: "IMPORT_MODULE_FAILD",
+      cause: {
+        packageName: name,
+      },
+      files: score.get("import").paths,
+    });
   }
 
   evaluateMultiplePackages(score: Environment) {
@@ -280,7 +332,16 @@ class ImportDeclaration extends StmtType {
       } else if (ext === ".ml") {
         packages[packageName] = this.resolveFileModule(base, score);
       } else {
-        throw `No such built-in module: "${packageName}"`;
+        throw new ImportFaildError(
+          `No such built-in module: "${packageName}"`,
+          {
+            code: "IMPORT_MODULE_FAILD",
+            cause: {
+              packageName,
+            },
+            files: score.get("import").paths,
+          },
+        );
       }
 
       score.create(packageName, packages[packageName]);

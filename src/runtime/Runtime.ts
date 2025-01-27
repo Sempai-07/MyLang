@@ -1,4 +1,5 @@
 import { CallStack } from "./CallStack";
+import { BaseError } from "../errors/BaseError";
 import { BreakStatement } from "../ast/statement/BreakStatement";
 import { ReturnStatement } from "../ast/statement/ReturnStatement";
 import { ContinueStatement } from "../ast/statement/ContinueStatement";
@@ -67,7 +68,17 @@ class Runtime {
 
   finishLastFunctionCall() {
     if (this._functionCallPositionStack.length == 0) {
-      throw "return statement can only exit in function body";
+      const environment =
+        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+          // @ts-ignore
+          .values["import"]?.paths ??
+        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+          // @ts-ignore
+          .parent?.values["import"]?.paths ??
+        [];
+      throw new BaseError("return statement can only exit in function body", {
+        files: environment,
+      });
     }
     this._functionCallPositionStack.pop();
   }
@@ -87,7 +98,17 @@ class Runtime {
       lastIterationCall === undefined ||
       lastIterationCall < lastFunctionCall!
     ) {
-      throw "break statement can only exist in iteration block";
+      const environment =
+        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+        // @ts-ignore
+          .values["import"]?.paths ??
+        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+        // @ts-ignore
+          .parent?.values["import"]?.paths ??
+        [];
+      throw new BaseError("break statement can only exist in iteration block", {
+        files: environment,
+      });
     }
 
     this._iterationCallPositionStack.pop();

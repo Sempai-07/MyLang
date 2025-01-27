@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { ArgumentsError } from "../../../errors/BaseError";
 
 function BufferUtility() {
   return {
@@ -8,7 +9,9 @@ function BufferUtility() {
       number | undefined,
     ]): ReturnType<typeof BufferWrapper> {
       if (!input) {
-        throw "Invalid input for BufferUtility.from(). Input cannot be undefined.";
+        throw new ArgumentsError("Input cannot be nil.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
 
       const arrayBufferLikeInput =
@@ -28,13 +31,17 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): ReturnType<typeof BufferWrapper> {
       if (typeof size !== "number" || size < 0) {
-        throw "Invalid size for BufferUtility.alloc(). Must be a non-negative number.";
+        throw new ArgumentsError("Must be a non-negative number.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return BufferWrapper([Buffer.alloc(size, fill, encoding)]);
     },
     allocUnsafe([size]: [number]): ReturnType<typeof BufferWrapper> {
       if (typeof size !== "number" || size < 0) {
-        throw "Invalid size for BufferUtility.allocUnsafe(). Must be a non-negative number.";
+        throw new ArgumentsError("Must be a non-negative number.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return BufferWrapper([Buffer.allocUnsafe(size)]);
     },
@@ -43,13 +50,17 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): number {
       if (typeof string !== "string" && !Buffer.isBuffer(string)) {
-        throw "Invalid input for BufferUtility.byteLength(). Must be a string, BufferUtility.";
+        throw new ArgumentsError("Must be a string, BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return Buffer.byteLength(string, encoding);
     },
     compare([buf1, buf2]: [Buffer, Buffer]): number {
       if (!Buffer.isBuffer(buf1) || !Buffer.isBuffer(buf2)) {
-        throw "Invalid arguments for BufferUtility.compare(). Both arguments must be Buffers.";
+        throw new ArgumentsError("Both arguments must be Buffers.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return Buffer.compare(buf1, buf2);
     },
@@ -57,7 +68,9 @@ function BufferUtility() {
       typeof BufferWrapper
     > {
       if (!Array.isArray(list) || !list.every(Buffer.isBuffer)) {
-        throw "Invalid list for BufferUtility.concat(). Must be an array of Buffers.";
+        throw new ArgumentsError("Must be an array of Buffers.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return BufferWrapper([Buffer.concat(list, totalLength)]);
     },
@@ -66,7 +79,9 @@ function BufferUtility() {
     },
     toJSON([buffer]: [Buffer]): Object {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.toJSON(). Must be a Buffer.";
+        throw new ArgumentsError("Must be a Buffer.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.toJSON();
     },
@@ -78,7 +93,9 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): number {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid buffer for BufferUtility.write(). Must be a Buffer.";
+        throw new ArgumentsError("Must be a Buffer.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.write(
         string,
@@ -97,7 +114,9 @@ function BufferUtility() {
       ] = [Buffer.alloc(0)],
     ): string {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.toString(). Must be a BufferUtility.";
+        throw new ArgumentsError("Must be a BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.toString(encoding, start, end);
     },
@@ -107,7 +126,9 @@ function BufferUtility() {
       number | undefined,
     ]): ReturnType<typeof BufferWrapper> {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.slice(). Must be a BufferUtility.";
+        throw new ArgumentsError("Must be a BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return BufferWrapper([buffer.slice(start, end)]);
     },
@@ -118,7 +139,9 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): boolean {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.includes(). Must be a BufferUtility.";
+        throw new ArgumentsError("Must be a BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.includes(value, byteOffset, encoding);
     },
@@ -129,7 +152,9 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): number {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.indexOf(). Must be a BufferUtility.";
+        throw new ArgumentsError("Must be a BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.indexOf(value, byteOffset, encoding);
     },
@@ -140,13 +165,17 @@ function BufferUtility() {
       BufferEncoding | undefined,
     ]): number {
       if (!Buffer.isBuffer(buffer)) {
-        throw "Invalid input for BufferUtility.lastIndexOf(). Must be a BufferUtility.";
+        throw new ArgumentsError("Must be a BufferUtility.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.lastIndexOf(value, byteOffset, encoding);
     },
     equals([buf1, buf2]: [Buffer, Buffer]): boolean {
       if (!Buffer.isBuffer(buf1) || !Buffer.isBuffer(buf2)) {
-        throw "Invalid arguments for BufferUtility.equals(). Both arguments must be Buffers.";
+        throw new ArgumentsError("Both arguments must be Buffers.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buf1.equals(buf2);
     },
@@ -190,7 +219,9 @@ function BufferWrapper([buffer]: [Buffer | string]): {
   buffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 
   if (!Buffer.isBuffer(buffer)) {
-    throw "Invalid argument. Must be an instance of Buffer.";
+    throw new ArgumentsError("Must be an instance of Buffer.", [
+      `mylang:buffers (${__filename})`,
+    ]);
   }
 
   return {
@@ -240,7 +271,9 @@ function BufferWrapper([buffer]: [Buffer | string]): {
     },
     equals([otherBuffer]: [Buffer]): boolean {
       if (!Buffer.isBuffer(otherBuffer)) {
-        throw new Error("Invalid argument. Must be an instance of Buffer.");
+        throw new ArgumentsError("Must be an instance of Buffer.", [
+          `mylang:buffers (${__filename})`,
+        ]);
       }
       return buffer.equals(otherBuffer);
     },

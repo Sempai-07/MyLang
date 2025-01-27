@@ -1,3 +1,5 @@
+import { BaseError } from "./errors/BaseError";
+
 interface IOptionsVar {
   constant: boolean;
   readonly?: boolean;
@@ -17,7 +19,12 @@ class Environment {
 
   create(key: string, value: any, options?: IOptionsVar): void {
     if (this.values.hasOwnProperty(key)) {
-      throw `${key} has been initialized`;
+      throw new BaseError(`${key} has been initialized`, {
+        files:
+          this.values["import"]?.paths ??
+          this.parent?.values["import"]?.paths ??
+          [],
+      });
     }
     if (options) {
       this.optionsVar[key] = options;
@@ -29,7 +36,12 @@ class Environment {
     const matchedEnvironment = this.getEnvironmentWithKey(key);
 
     if (!matchedEnvironment) {
-      throw `${key} hasn't been defined`;
+      throw new BaseError(`${key} hasn't been defined`, {
+        files:
+          this.values["import"]?.paths ??
+          this.parent?.values["import"]?.paths ??
+          [],
+      });
     }
 
     matchedEnvironment.values = {
@@ -42,7 +54,12 @@ class Environment {
     const matchedEnvironment = this.getEnvironmentWithKey(key);
 
     if (!matchedEnvironment) {
-      throw `${key} is not defined`;
+      throw new BaseError(`${key} is not defined`, {
+        files:
+          this.values["import"]?.paths ??
+          this.parent?.values["import"]?.paths ??
+          [],
+      });
     }
 
     return matchedEnvironment.values[key];

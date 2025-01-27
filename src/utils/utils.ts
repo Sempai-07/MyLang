@@ -1,3 +1,4 @@
+import { BaseError } from "../errors/BaseError";
 import { Lexer, Parser, Interpreter } from "../index";
 
 function run(
@@ -37,6 +38,11 @@ function run(
 
     return interpreter;
   } catch (err) {
+    if (err instanceof BaseError) {
+      console.error(err.toString());
+      process.exit(0);
+    }
+
     console.log(err);
     console.log();
     console.log(` - ${options.main}`);

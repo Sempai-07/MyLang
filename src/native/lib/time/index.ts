@@ -1,3 +1,5 @@
+import { ArgumentsError } from "../../../errors/BaseError";
+
 interface TimeInstance {
   toString(): string;
   toDateString(): string;
@@ -60,7 +62,9 @@ function Time(args: any[]): TimeInstance {
 
   function validateNumber(value: any, name: string): void {
     if (typeof value !== "number" || isNaN(value)) {
-      throw `${name} must be a valid number.`;
+      throw new ArgumentsError(`${name} must be a valid number.`, [
+        `mylang:time (${__filename})`,
+      ]);
     }
   }
 

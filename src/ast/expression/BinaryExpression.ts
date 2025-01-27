@@ -6,6 +6,7 @@ import { FunctionExpression } from "./FunctionExpression";
 import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { runtime } from "../../runtime/Runtime";
 import { Environment } from "../../Environment";
+import { BaseError } from "../../errors/BaseError";
 
 function deepEqualTry(actual: unknown, expected: unknown) {
   try {
@@ -40,70 +41,88 @@ class BinaryExpression extends StmtType {
   }
 
   evaluate(score: Environment) {
-    const left = this.left.evaluate(score) as any;
+    try {
+      const left = this.left.evaluate(score) as any;
 
-    switch (this.operator) {
-      case OperatorType.Add: {
-        return left + this.right.evaluate(score);
-      }
-      case OperatorType.Subtract: {
-        return left - this.right.evaluate(score);
-      }
-      case OperatorType.Multiply: {
-        return left * this.right.evaluate(score);
-      }
-      case OperatorType.Modulo: {
-        return left % this.right.evaluate(score);
-      }
-      case OperatorType.Divide: {
-        return left / this.right.evaluate(score);
-      }
-      case OperatorType.Equal: {
-        return deepEqualTry(left, this.right.evaluate(score));
-      }
-      case OperatorType.NotEqual: {
-        return !deepEqualTry(left, this.right.evaluate(score));
-      }
-      case OperatorType.GreaterThan: {
-        return left > this.right.evaluate(score);
-      }
-      case OperatorType.LessThan: {
-        return left < this.right.evaluate(score);
-      }
-      case OperatorType.GreaterThanOrEqual: {
-        return left >= this.right.evaluate(score);
-      }
-      case OperatorType.LessThanOrEqual: {
-        return left <= this.right.evaluate(score);
-      }
-      case OperatorType.LogicalAnd: {
-        return left & this.right.evaluate(score);
-      }
-      case OperatorType.And: {
-        return left && this.right.evaluate(score);
-      }
-      case OperatorType.LogicalOr: {
-        return left | this.right.evaluate(score);
-      }
-      case OperatorType.Or: {
-        return left || this.right.evaluate(score);
-      }
-      case OperatorType.PipeLine: {
-        const callExpression = this.right.evaluate(score);
-        runtime.markFunctionCallPosition();
-        if (
-          !(
-            callExpression instanceof FunctionExpression ||
-            callExpression instanceof FunctionDeclaration
-          )
-        ) {
-          throw "Expect function, for |> operator";
+      switch (this.operator) {
+        case OperatorType.Add: {
+          return left + this.right.evaluate(score);
         }
-        return this.right.evaluate(score).call([left]);
+        case OperatorType.Subtract: {
+          return left - this.right.evaluate(score);
+        }
+        case OperatorType.Multiply: {
+          return left * this.right.evaluate(score);
+        }
+        case OperatorType.Modulo: {
+          return left % this.right.evaluate(score);
+        }
+        case OperatorType.Divide: {
+          return left / this.right.evaluate(score);
+        }
+        case OperatorType.Equal: {
+          return deepEqualTry(left, this.right.evaluate(score));
+        }
+        case OperatorType.NotEqual: {
+          return !deepEqualTry(left, this.right.evaluate(score));
+        }
+        case OperatorType.GreaterThan: {
+          return left > this.right.evaluate(score);
+        }
+        case OperatorType.LessThan: {
+          return left < this.right.evaluate(score);
+        }
+        case OperatorType.GreaterThanOrEqual: {
+          return left >= this.right.evaluate(score);
+        }
+        case OperatorType.LessThanOrEqual: {
+          return left <= this.right.evaluate(score);
+        }
+        case OperatorType.LogicalAnd: {
+          return left & this.right.evaluate(score);
+        }
+        case OperatorType.And: {
+          return left && this.right.evaluate(score);
+        }
+        case OperatorType.LogicalOr: {
+          return left | this.right.evaluate(score);
+        }
+        case OperatorType.Or: {
+          return left || this.right.evaluate(score);
+        }
+        case OperatorType.PipeLine: {
+          const callExpression = this.right.evaluate(score);
+          runtime.markFunctionCallPosition();
+          if (
+            !(
+              callExpression instanceof FunctionExpression ||
+              callExpression instanceof FunctionDeclaration
+            )
+          ) {
+            throw new BaseError("Expect function, for |> operator", {
+              files: score.get("import").paths,
+            });
+          }
+          return this.right.evaluate(score).call([left]);
+        }
+        default: {
+          throw new BaseError(`Invalid operator "${this.operator}"`, {
+            files: score.get("import").paths,
+          });
+        }
       }
-      default: {
-        throw `Invalid operator "${this.operator}"`;
+    } catch (err) {
+      if (err instanceof BaseError) {
+        err.files = Array.from(
+          new Set([score.get("import").main, ...err.files]),
+        ).map((file) => {
+          if (file === score.get("import").main) {
+            return `${file}:${this.position.line}:${this.position.column}`;
+          }
+          return file;
+        });
       }
+      throw err;
     }
   }
 }

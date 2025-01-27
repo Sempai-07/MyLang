@@ -2,6 +2,11 @@ import { EventEmitter } from "node:events";
 import { isFunctionNode } from "../../utils";
 import { type FunctionDeclaration } from "../../../ast/declaration/FunctionDeclaration";
 import { type FunctionExpression } from "../../../ast/expression/FunctionExpression";
+import {
+  BaseError,
+  ArgumentsError,
+  FunctionCallError,
+} from "../../../errors/BaseError";
 
 function Emmiter() {
   const events = new EventEmitter();
@@ -10,11 +15,16 @@ function Emmiter() {
   return {
     on([event, cb]: [string, FunctionDeclaration | FunctionExpression]): void {
       if (typeof event !== "string" || event.trim() === "") {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
 
       if (!isFunctionNode(cb)) {
-        throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:events (${__filename})`],
+        );
       }
 
       const eventHandler = (args: any[]) =>
@@ -27,10 +37,15 @@ function Emmiter() {
       FunctionDeclaration | FunctionExpression,
     ]): void {
       if (typeof event !== "string" || event.trim() === "") {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
       if (!isFunctionNode(cb)) {
-        throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:events (${__filename})`],
+        );
       }
 
       const eventHandler = (args: any[]) =>
@@ -40,15 +55,22 @@ function Emmiter() {
     },
     off([event, cb]: [string, FunctionDeclaration | FunctionExpression]): void {
       if (typeof event !== "string" || event.trim() === "") {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
       if (!isFunctionNode(cb)) {
-        throw "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.";
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:events (${__filename})`],
+        );
       }
 
       const handler = eventsTarget.get(cb.id);
       if (!handler) {
-        throw `Handler for callback ID "${cb.id}" not found.`;
+        throw new BaseError(`Handler for callback ID "${cb.id}" not found.`, {
+          files: [`mylang:events (${__filename})`],
+        });
       }
 
       events.off(event, handler);
@@ -56,11 +78,15 @@ function Emmiter() {
     },
     emit([event, ...args]: [string, ...any]): void {
       if (typeof event !== "string" || event.trim() === "") {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
 
       if (!events.eventNames().includes(event)) {
-        throw `Event "${event}" does not exist.`;
+        throw new BaseError(`Event "${event}" does not exist.`, {
+          files: [`mylang:events (${__filename})`],
+        });
       }
 
       events.emit(event, args);
@@ -70,19 +96,25 @@ function Emmiter() {
         event !== undefined &&
         (typeof event !== "string" || event.trim() === "")
       ) {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
       events.removeAllListeners(event);
     },
     listenerCount([event]: [string]): number {
       if (typeof event !== "string" || event.trim() === "") {
-        throw `Invalid event name: "${event}". Must be a non-empty string.`;
+        throw new ArgumentsError(`Must be a non-empty string.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
       return events.listenerCount(event);
     },
     setMaxListeners([n]: [number]): void {
       if (typeof n !== "number" || n < 0) {
-        throw `Invalid max listeners value: "${n}". Must be a non-negative number.`;
+        throw new ArgumentsError(`Must be a non-negative number.`, [
+          `mylang:events (${__filename})`,
+        ]);
       }
       events.setMaxListeners(n);
     },
