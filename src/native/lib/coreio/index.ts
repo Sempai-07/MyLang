@@ -6,7 +6,9 @@ function processArray(arr: any[]): any[] {
     if (Array.isArray(value)) {
       arr[index] = processArray(value);
     } else if (value && typeof value === "object") {
-      arr[index] = processObject(value);
+      if (value instanceof BaseError) {
+        arr[index] = value.toString();
+      } else arr[index] = processObject(value);
     } else if (isFunctionNode(value)) {
       arr[index] = value?.name
         ? { [String(value.name)]() {} }[value.name]
@@ -30,6 +32,10 @@ function processObject(obj: Record<any, any>): any {
     if (Array.isArray(value)) {
       obj[name] = processArray(value);
     } else if (value && typeof value === "object") {
+      if (value instanceof BaseError) {
+        obj[name] = value.toString();
+        continue;
+      }
       obj[name] = processObject(value);
     } else if (isFunctionNode(value)) {
       obj[name] = value?.name
@@ -57,6 +63,9 @@ function printf(args: any[]): any {
       if (Array.isArray(value)) {
         return processArray([...value]);
       } else if (value && typeof value === "object") {
+        if (value instanceof BaseError) {
+          return value.toString();
+        }
         return processObject({ ...value });
       } else if (isFunctionNode(value)) {
         return value?.name
@@ -92,6 +101,9 @@ function print(args: any[]): any {
     if (Array.isArray(value)) {
       return processArray([...value]);
     } else if (value && typeof value === "object") {
+      if (value instanceof BaseError) {
+        return value.toString();
+      }
       return processObject({ ...value });
     } else if (isFunctionNode(value)) {
       return value?.name
