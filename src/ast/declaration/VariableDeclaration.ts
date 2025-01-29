@@ -28,27 +28,13 @@ class VariableDeclaration extends StmtType {
   }
 
   evaluate(score: Environment) {
-    try {
-      if (this.value instanceof FunctionExpression) {
-        this.value.name = this.name;
-      }
-
-      score.create(this.name, this.value.evaluate(score), this.options);
-
-      return score.get(this.name);
-    } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `${file}:${this.position.line}:${this.position.column}`;
-          }
-          return file;
-        });
-      }
-      throw err;
+    if (this.value instanceof FunctionExpression) {
+      this.value.name = this.name;
     }
+
+    score.create(this.name, this.value.evaluate(score), this.options);
+
+    return score.get(this.name);
   }
 }
 
