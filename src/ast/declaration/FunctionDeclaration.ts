@@ -76,7 +76,7 @@ class FunctionDeclaration extends StmtType {
     return result;
   }
 
-  override evaluate(score: Environment) {
+  evaluate(score: Environment) {
     const func = new FunctionDeclaration(
       this.name,
       this.params,

@@ -19,12 +19,15 @@ class ImportDeclaration extends StmtType {
     position: Position,
   ) {
     super();
+
     this.package = packageName;
-    this.position = position;
+
     this.expression = expression;
+
+    this.position = position;
   }
 
-  get buildInLibs(): string[] {
+  get buildInLibs() {
     return [
       "coreio",
       "fs",
@@ -83,7 +86,7 @@ class ImportDeclaration extends StmtType {
     }
   }
 
-  resolveHTTPModule(url: string, score: Environment): string {
+  resolveHTTPModule(url: string, score: Environment) {
     if (score.get("import").cache[url] && !score.get("#options").disableCache) {
       return score.get("import").cache[url];
     }
@@ -350,7 +353,7 @@ class ImportDeclaration extends StmtType {
     return this.expression ? packages : null;
   }
 
-  override evaluate(score: Environment) {
+  evaluate(score: Environment) {
     if (typeof this.package === "string") {
       return this.evaluateSinglePackage(this.package, score);
     } else {

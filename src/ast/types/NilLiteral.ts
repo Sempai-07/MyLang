@@ -10,7 +10,7 @@ class NilLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): null {
+  evaluate() {
     return null;
   }
 }

@@ -13,7 +13,7 @@ class IntLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): number {
+  evaluate() {
     return parseInt(this.value);
   }
 }

@@ -13,7 +13,7 @@ class StringLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): string {
+  evaluate() {
     return this.value;
   }
 }

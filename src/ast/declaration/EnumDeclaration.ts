@@ -22,8 +22,11 @@ class EnumDeclaration extends StmtType {
   ) {
     super();
     this.name = name;
+
     this.identifierList = identifierList;
+
     this.functionsList = functionsList;
+
     this.position = position;
   }
 

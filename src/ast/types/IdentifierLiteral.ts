@@ -14,7 +14,7 @@ class IdentifierLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(score: Environment): any {
+  evaluate(score: Environment) {
     return score.get(this.value);
   }
 }

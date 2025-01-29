@@ -13,7 +13,7 @@ class FloatLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): number {
+  evaluate() {
     return parseFloat(this.value);
   }
 }

@@ -13,7 +13,7 @@ class BoolLiteral extends StmtType {
     this.position = position;
   }
 
-  override evaluate(): boolean {
+  evaluate() {
     return this.value === "true";
   }
 }
