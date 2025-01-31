@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
+import chokidar from "chokidar";
 import { packageInt } from "./package/init";
 import { packageScripts } from "./package/scripts";
 import { replMyLang } from "./package/replMyLang";
@@ -17,14 +18,46 @@ program
   .action(() => console.log(require("../package.json").version));
 
 program
-  .argument("<file>", "file for run")
-  .option("--disable-cache", "disable cache import")
+  .argument("<file>", "file to run")
+  .option("--watch <file>", "watch the file and rerun on changes")
+  .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
   .action((file, options) => {
-    runFile(fs.readFileSync(file).toString(), {
-      base: process.cwd(),
-      main: path.join(process.cwd(), file),
-      options,
-    });
+    if (options.watch) {
+      let timeout: NodeJS.Timeout | null = null;
+      const delay = parseInt(options.delay || 1000, 10);
+
+      console.info(
+        `\x1b[32mWatching '${file}' with delay ${delay}ms...\x1b[0m`,
+      );
+
+      chokidar
+        .watch(options.watch?.startsWith("--") ? "./" : options.watch)
+        .on("change", () => {
+          if (timeout) clearTimeout(timeout);
+          timeout = setTimeout(() => {
+            console.clear();
+            console.log(`\x1b[32mRestarting '${file}'\x1b[0m`);
+
+            try {
+              runFile(fs.readFileSync(file).toString(), {
+                base: process.cwd(),
+                main: path.join(process.cwd(), file),
+                options,
+              });
+              console.info(`\x1b[36mCompleted running '${file}'\x1b[0m`);
+            } catch (err) {
+              console.error(`${err}\n`);
+              console.log(`\x1b[31mFailed running '${file}'\x1b[0m`);
+            }
+          }, delay);
+        });
+    } else {
+      runFile(fs.readFileSync(file).toString(), {
+        base: process.cwd(),
+        main: path.join(process.cwd(), file),
+        options,
+      });
+    }
   });
 
 program

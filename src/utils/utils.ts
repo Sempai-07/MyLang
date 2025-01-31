@@ -14,15 +14,10 @@ function run(
   const token = new Lexer(code).analyze();
 
   if (token.errors.length > 0) {
-    console.log(`${token.errors[0]!.code}: ${token.errors[0]!.description}`);
-    console.log();
-    console.log(` - ${options.main}`);
-    console.log(
-      options.paths
-        ? options.paths.map((value) => ` - ${value}`).join("\n")
-        : "",
-    );
-    process.exit(0);
+    throw new BaseError(token.errors[0]!.description, {
+      files: options.paths!,
+      code: token.errors[0]!.code,
+    });
   }
 
   try {
@@ -39,19 +34,12 @@ function run(
     return interpreter;
   } catch (err) {
     if (err instanceof BaseError) {
-      console.error(err.toString());
-      process.exit(0);
+      throw err;
     }
-
-    console.log(err);
-    console.log();
-    console.log(` - ${options.main}`);
-    console.log(
-      options.paths
-        ? options.paths.map((value) => ` - ${value}`).join("\n") + "\n"
-        : "",
-    );
-    process.exit(0);
+    
+    throw new BaseError(`${err}`, {
+      files: options.paths!,
+    });
   }
 }
 
