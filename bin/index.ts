@@ -59,11 +59,15 @@ program
           }, delay);
         });
     } else {
-      runFile(fs.readFileSync(file).toString(), {
-        base: process.cwd(),
-        main: path.join(process.cwd(), file),
-        options,
-      });
+      try {
+        runFile(fs.readFileSync(file).toString(), {
+          base: process.cwd(),
+          main: path.join(process.cwd(), file),
+          options,
+        });
+      } catch (err) {
+        console.log(`${err}`);
+      }
     }
   });
 
