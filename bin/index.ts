@@ -13,20 +13,16 @@ const program = new Command();
 program
   .name("mylang")
   .description("CLI for mylang")
-  .version(require("../package.json").version);
+  .version(require("../../package.json").version);
 
 program
   .command("version")
   .description("version MyLang")
-  .action(() => console.log(require("../package.json").version));
+  .action(() => console.log(require("../../package.json").version));
 
 program
   .argument("<file>", "file to run")
-  .option(
-    "--watch <file>",
-    "watch the file and rerun on changes (default: ./)",
-    "./",
-  )
+  .option("--watch <file>", "watch the file and rerun on changes")
   .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
   .action((file, options) => {
     if (options.watch) {
