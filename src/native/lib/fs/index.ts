@@ -41,16 +41,14 @@ function FileSystem() {
         err: NodeJS.ErrnoException | null,
         data: Buffer | string,
       ) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-            BufferWrapper([data]),
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+          BufferWrapper([data]),
+        ]);
       fs.readFile(path, (options || {}) as any, callback);
     },
 
@@ -68,15 +66,13 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.writeFile(path, data, (options || {}) as WriteFileOptions, callback);
     },
 
@@ -94,15 +90,13 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.appendFile(path, data, (options || {}) as WriteFileOptions, callback);
     },
 
@@ -122,16 +116,14 @@ function FileSystem() {
         err: NodeJS.ErrnoException | null,
         files: string[] | fs.Dirent[],
       ) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-            files,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+          files,
+        ]);
       fs.readdir(path, (options || {}) as any, callback);
     },
 
@@ -142,15 +134,13 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.unlink(path, callback);
     },
 
@@ -158,16 +148,14 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null, stats: fs.Stats) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-            stats,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+          stats,
+        ]);
       fs.stat(path, callback);
     },
 
@@ -180,15 +168,13 @@ function FileSystem() {
       validatePath(newPath);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.rename(oldPath, newPath, callback);
     },
 
@@ -200,15 +186,13 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.mkdir(path, options || {}, callback);
     },
 
@@ -220,15 +204,13 @@ function FileSystem() {
       validatePath(path);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.rmdir(path, options || {}, callback);
     },
 
@@ -242,15 +224,13 @@ function FileSystem() {
       validatePath(dest);
       validateCallback(cb);
       const callback = (err: NodeJS.ErrnoException | null) =>
-        cb
-          .evaluate(cb.parentEnv)
-          .call([
-            err
-              ? new BaseError(`${err}`, {
-                  files: [`mylang:fs (${__filename})`],
-                })
-              : null,
-          ]);
+        cb.evaluate(cb.parentEnv).call([
+          err
+            ? new BaseError(`${err}`, {
+                files: [`mylang:fs (${__filename})`],
+              })
+            : null,
+        ]);
       fs.copyFile(src, dest, flags || 0, callback);
     },
   };

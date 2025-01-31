@@ -73,15 +73,15 @@ class ImportFaildError extends BaseError {
   constructor(
     description: string,
     options: {
-      code: string;
-      cause: Record<string, unknown>;
+      code?: string;
+      cause?: Record<string, unknown>;
       files: string[];
     },
   ) {
     super(description, {
       name: "ImportFaildError",
-      code: options.code,
-      cause: options.cause,
+      ...(options.code && { code: options.code }),
+      ...(options.cause && { cause: options.cause }),
       files: options.files,
     });
   }
@@ -91,14 +91,14 @@ class AssignmentError extends BaseError {
   constructor(
     description: string,
     options: {
-      code: string;
-      files: string[];
+      code?: string;
       cause?: Record<string, unknown>;
+      files: string[];
     },
   ) {
     super(description, {
       name: "AssignmentError",
-      code: options.code,
+      ...(options.code && { code: options.code }),
       ...(options.cause && { cause: options.cause }),
       files: options.files,
     });
@@ -130,4 +130,5 @@ export {
   AssignmentError,
   FunctionCallError,
   ArgumentsError,
+  type IErrorOptions,
 };

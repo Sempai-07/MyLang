@@ -1,4 +1,5 @@
 import { isFunctionNode } from "../../utils";
+import { BaseError } from "../../../errors/BaseError";
 
 function typeOf([args]: [any]) {
   if (args === undefined || args === null) {
@@ -18,6 +19,9 @@ function typeOf([args]: [any]) {
   }
 
   if (type === "object") {
+    if (args instanceof BaseError) {
+      return "error";
+    }
     if (Array.isArray(args)) {
       return "array";
     }

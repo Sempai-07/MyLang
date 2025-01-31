@@ -23,6 +23,7 @@ import { ExportsDeclaration } from "./ast/declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./ast/declaration/FunctionDeclaration";
 import { EnumDeclaration } from "./ast/declaration/EnumDeclaration";
+import { ThrowDeclaration } from "./ast/declaration/ThrowDeclaration";
 import { BlockStatement } from "./ast/statement/BlockStatement";
 import { ReturnStatement } from "./ast/statement/ReturnStatement";
 import { IfStatement } from "./ast/statement/IfStatement";
@@ -107,6 +108,7 @@ class Interpreter {
       case body instanceof VariableDeclaration:
       case body instanceof FunctionDeclaration:
       case body instanceof EnumDeclaration:
+      case body instanceof ThrowDeclaration:
       case body instanceof FunctionCall:
       case body instanceof VisitUnaryExpression:
       case body instanceof BlockStatement:

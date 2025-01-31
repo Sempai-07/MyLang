@@ -25,6 +25,7 @@ import { ExportsDeclaration } from "./declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./declaration/VariableDeclaration";
 import { FunctionDeclaration } from "./declaration/FunctionDeclaration";
 import { EnumDeclaration } from "./declaration/EnumDeclaration";
+import { ThrowDeclaration } from "./declaration/ThrowDeclaration";
 import { BlockStatement } from "./statement/BlockStatement";
 import { ReturnStatement } from "./statement/ReturnStatement";
 import { ForStatement } from "./statement/ForStatement";
@@ -231,6 +232,9 @@ class Parser {
       case KeywordType.Try:
         this.next();
         return this.parseTryCatchStatement(this.peek());
+      case KeywordType.Throw:
+        this.next();
+        return this.parseThrowDeclaration(this.peek(-1));
       case KeywordType.Match:
         this.next();
         return this.parseMatchStatement(this.peek());
@@ -607,6 +611,12 @@ class Parser {
       null,
       identifier.position,
     );
+  }
+
+  parseThrowDeclaration(identifier: Token): ThrowDeclaration {
+    const expression = this.parsePrimary();
+    this.expectSemicolonOrEnd();
+    return new ThrowDeclaration(expression, identifier.position);
   }
 
   parseMatchStatement(identifier: Token): MatchStatement {

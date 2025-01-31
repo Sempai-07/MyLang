@@ -2,7 +2,6 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { FunctionExpression } from "../expression/FunctionExpression";
 import { Environment, type IOptionsVar } from "../../Environment";
-import { BaseError } from "../../errors/BaseError";
 
 class VariableDeclaration extends StmtType {
   public readonly name: string;

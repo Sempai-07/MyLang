@@ -106,6 +106,7 @@ enum KeywordType {
   Await = "await",
   Async = "async",
   Enum = "enum",
+  Throw = "throw",
   Match = "match",
   Case = "case",
   Default = "default",
