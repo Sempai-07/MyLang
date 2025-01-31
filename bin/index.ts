@@ -10,7 +10,10 @@ import { run as runFile } from "../src/utils/utils";
 
 const program = new Command();
 
-program.name("mylang").description("CLI for mylang").version("0.1.0");
+program
+  .name("mylang")
+  .description("CLI for mylang")
+  .version(require("../package.json").version);
 
 program
   .command("version")
@@ -19,7 +22,11 @@ program
 
 program
   .argument("<file>", "file to run")
-  .option("--watch <file>", "watch the file and rerun on changes (default: ./)", "./")
+  .option(
+    "--watch <file>",
+    "watch the file and rerun on changes (default: ./)",
+    "./",
+  )
   .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
   .action((file, options) => {
     if (options.watch) {
