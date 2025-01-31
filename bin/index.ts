@@ -19,12 +19,12 @@ program
 
 program
   .argument("<file>", "file to run")
-  .option("--watch <file>", "watch the file and rerun on changes")
+  .option("--watch <file>", "watch the file and rerun on changes (default: ./)", "./")
   .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
   .action((file, options) => {
     if (options.watch) {
       let timeout: NodeJS.Timeout | null = null;
-      const delay = parseInt(options.delay || 1000, 10);
+      const delay = parseInt(options.delay, 10);
 
       console.info(
         `\x1b[32mWatching '${file}' with delay ${delay}ms...\x1b[0m`,
