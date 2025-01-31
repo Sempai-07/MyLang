@@ -31,7 +31,7 @@ class BaseError extends Error {
 
   override toString() {
     const filesOutput = this.files
-      ? this.files.map((value) => ` - ${value}`).join("\n")
+      ? `\n${this.files.map((value) => ` - ${value}`).join("\n")}`
       : "";
 
     let causeOutput = "";
@@ -46,8 +46,7 @@ class BaseError extends Error {
     const codeOutput = this.code ? `code: ${this.code}` : "";
 
     return (
-      `${this.name}: ${this.message}\n` +
-      `${filesOutput} ` +
+      `${this.name}: ${this.message}` + `${filesOutput} ` +
       (codeOutput || causeOutput
         ? `{\n` +
           `  ${codeOutput}${codeOutput && causeOutput ? ",\n" : ""}` +

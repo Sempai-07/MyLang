@@ -62,7 +62,7 @@ program
           options,
         });
       } catch (err) {
-        console.log(`${err}`);
+        console.error(`${err}`);
       }
     }
   });
