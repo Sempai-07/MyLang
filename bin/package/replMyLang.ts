@@ -24,6 +24,7 @@ function replMyLang() {
       console.log("Available commands:");
       console.log("  .help       Show this help message");
       console.log("  .exit       Exit the REPL");
+      return;
     } else if (input === ".exit") {
       console.log("Goodbye!");
       rl.close();
@@ -34,7 +35,7 @@ function replMyLang() {
       const token = new Lexer(line).analyze();
 
       if (token.errors.length > 0) {
-        console.log(
+        console.error(
           `${token.errors[0]!.code}: ${token.errors[0]!.description}`,
         );
         return;
@@ -55,20 +56,19 @@ function replMyLang() {
         }
 
         const result = interpreter.run();
-        console.log(result === undefined ? null : result);
+        console.log(result === undefined || result === null ? "nil" : result);
 
         callEnvironment = new Environment(interpreter.globalScore);
 
         return interpreter;
       } catch (err) {
-        console.log(err);
+        console.error(`${err}`);
         return;
       }
     } catch (err) {
-      console.log(err);
+      console.error(`BaseError: ${err}`);
     }
 
-    rl.prompt();
     return;
   });
 
