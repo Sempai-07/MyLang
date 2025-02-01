@@ -166,7 +166,7 @@ class ImportDeclaration extends StmtType {
           paths: Array.from(new Set([url, ...score.get("import").paths])),
         });
 
-        return context.globalScore.get("#exports");
+        return context.interpreter.globalScore.get("#exports");
       } catch (err: any) {
         throw new ImportFaildError(
           `dynamic load module: ${"message" in err ? err.message : err}`,
@@ -245,14 +245,14 @@ class ImportDeclaration extends StmtType {
         ...score.get("import"),
         cache: {
           ...score.get("import").cache,
-          [fullPath]: context.globalScore.get("#exports"),
+          [fullPath]: context.interpreter.globalScore.get("#exports"),
         },
         paths: Array.from(
           new Set([score.get("import").main, ...score.get("import").paths]),
         ),
       });
 
-      return context.globalScore.get("#exports");
+      return context.interpreter.globalScore.get("#exports");
     } catch (err: any) {
       throw new ImportFaildError(`${"message" in err ? err.message : err}`, {
         code: "IMPORT_FILE_RUN_FAILD",

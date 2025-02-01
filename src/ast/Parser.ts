@@ -1524,7 +1524,6 @@ class Parser {
       TokenType.OperatorLogicalAnd,
       TokenType.OperatorOr,
       TokenType.OperatorLogicalOr,
-      TokenType.OperatorPipeLine,
     ].includes(tokenType);
   }
 

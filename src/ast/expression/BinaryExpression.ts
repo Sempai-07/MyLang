@@ -2,9 +2,6 @@ import { deepEqual } from "node:assert";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { OperatorType } from "../../lexer/TokenType";
-import { FunctionExpression } from "./FunctionExpression";
-import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
-import { runtime } from "../../runtime/Runtime";
 import { Environment } from "../../Environment";
 import { BaseError } from "../../errors/BaseError";
 
@@ -89,21 +86,6 @@ class BinaryExpression extends StmtType {
         }
         case OperatorType.Or: {
           return left || this.right.evaluate(score);
-        }
-        case OperatorType.PipeLine: {
-          const callExpression = this.right.evaluate(score);
-          runtime.markFunctionCallPosition();
-          if (
-            !(
-              callExpression instanceof FunctionExpression ||
-              callExpression instanceof FunctionDeclaration
-            )
-          ) {
-            throw new BaseError("Expect function, for |> operator", {
-              files: score.get("import").paths,
-            });
-          }
-          return this.right.evaluate(score).call([left]);
         }
         default: {
           throw new BaseError(`Invalid operator "${this.operator}"`, {
