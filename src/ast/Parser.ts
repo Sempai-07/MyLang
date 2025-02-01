@@ -111,10 +111,13 @@ class Parser {
 
       if (this.peek().type === TokenType.Comma) {
         this.next(); // Skip ','
-      } else this.expect(TokenType.BracketClose);
+      } else if (this.peek().type === TokenType.BracketClose) {
+        break;
+      } else {
+        this.expect(TokenType.BracketClose);
+      }
     }
 
-    this.expect(TokenType.BracketClose);
     this.next(); // Skip ']'
 
     this.expectSemicolonOrEnd();
@@ -122,8 +125,9 @@ class Parser {
     const arrayExpression = new ArrayExpression(elements, identifier.position);
 
     if (
-      this.peek().type === TokenType.BracketOpen ||
-      this.peek().type === TokenType.Period
+      this.peek(-1).type !== TokenType.Semicolon &&
+      (this.peek().type === TokenType.BracketOpen ||
+        this.peek().type === TokenType.Period)
     ) {
       return this.parseMemberExpressions(arrayExpression);
     } else if (this.isOperator(this.peek().type)) {
@@ -190,8 +194,9 @@ class Parser {
     const objExpression = new ObjectExpression(obj, identifier.position);
 
     if (
-      this.peek().type === TokenType.BracketOpen ||
-      this.peek().type === TokenType.Period
+      this.peek(-1).type !== TokenType.Semicolon &&
+      (this.peek().type === TokenType.BracketOpen ||
+        this.peek().type === TokenType.Period)
     ) {
       return this.parseMemberExpressions(objExpression);
     } else if (this.isOperator(this.peek().type)) {
