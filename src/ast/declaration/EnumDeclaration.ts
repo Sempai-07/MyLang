@@ -58,8 +58,8 @@ class EnumDeclaration extends StmtType {
           }
         }
       }
-
-      let currentIndex = startIndex + 1;
+      
+      let currentIndex = startIndex;
 
       this.identifierList.forEach(({ name, value }) => {
         if (value) {
