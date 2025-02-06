@@ -16,10 +16,16 @@
   "files": [
     "./dist"
   ],
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "mylang",
+    "lang",
+    "programming",
+    "js",
+    "ts",
+    "Sempai-07"
+  ],
+  "author": "Sempai<zadmanthegreat@gmail.com>",
   "license": "ISC",
-  "description": "",
   "devDependencies": {
     "@types/node": "^20.17.16",
     "@types/node-fetch": "^2.6.12"
