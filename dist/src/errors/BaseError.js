@@ -31,7 +31,8 @@ class BaseError extends Error {
             causeOutput += "  }";
         }
         const codeOutput = this.code ? `code: ${this.code}` : "";
-        return (`${this.name}: ${this.message}` + `${filesOutput} ` +
+        return (`${this.name}: ${this.message}` +
+            `${filesOutput} ` +
             (codeOutput || causeOutput
                 ? `{\n` +
                     `  ${codeOutput}${codeOutput && causeOutput ? ",\n" : ""}` +

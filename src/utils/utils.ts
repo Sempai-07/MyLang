@@ -10,7 +10,7 @@ function run(
     cache?: Record<string, any>;
     options?: Record<string, any>;
   },
-): { result: any, interpreter: Interpreter } {
+): { result: any; interpreter: Interpreter } {
   const token = new Lexer(code).analyze();
 
   if (token.errors.length > 0) {
@@ -36,7 +36,7 @@ function run(
     if (err instanceof BaseError) {
       throw err;
     }
-    
+
     throw new BaseError(`${err}`, {
       files: options.paths || [options.main],
     });

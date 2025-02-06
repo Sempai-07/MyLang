@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BlockStatement = void 0;
 const StmtType_1 = require("../StmtType");
+const DeferDeclaration_1 = require("../declaration/DeferDeclaration");
 const Runtime_1 = require("../../runtime/Runtime");
 class BlockStatement extends StmtType_1.StmtType {
     body;
@@ -12,17 +13,46 @@ class BlockStatement extends StmtType_1.StmtType {
         this.position = position;
     }
     evaluate(score) {
-        for (let i = 0; i < this.body.length; i++) {
-            if (Runtime_1.runtime.isReturn || Runtime_1.runtime.isBreak) {
-                break;
+        const deferenceCall = [];
+        try {
+            for (let i = 0; i < this.body.length; i++) {
+                if (Runtime_1.runtime.isReturn || Runtime_1.runtime.isBreak) {
+                    break;
+                }
+                if (this.body[i] instanceof DeferDeclaration_1.DeferDeclaration) {
+                    deferenceCall.push([score.clone(), this.body[i]]);
+                }
+                else {
+                    Runtime_1.runtime.callStack.add(score, this.body[i]);
+                    if (!Runtime_1.runtime.isContinue) {
+                        Runtime_1.runtime.resume();
+                    }
+                    else {
+                        Runtime_1.runtime.resetContinue();
+                        continue;
+                    }
+                }
             }
-            Runtime_1.runtime.callStack.add(score, this.body[i]);
-            if (!Runtime_1.runtime.isContinue) {
-                Runtime_1.runtime.resume();
-            }
-            else {
-                Runtime_1.runtime.resetContinue();
-                continue;
+        }
+        catch (err) {
+            throw err;
+        }
+        finally {
+            if (deferenceCall.length) {
+                const _isBreak = Runtime_1.runtime.isBreak;
+                const _isReturn = Runtime_1.runtime.isReturn;
+                const _isContinue = Runtime_1.runtime.isContinue;
+                const result = Runtime_1.runtime.getLastFunctionExecutionResult();
+                Runtime_1.runtime._isBreak = false;
+                Runtime_1.runtime._isReturn = false;
+                Runtime_1.runtime._isContinue = false;
+                for (const [score, defer] of deferenceCall) {
+                    defer.evaluate(score);
+                }
+                Runtime_1.runtime._isBreak = _isBreak;
+                Runtime_1.runtime._isReturn = _isReturn;
+                Runtime_1.runtime._isContinue = _isContinue;
+                Runtime_1.runtime._lastFunctionExecutionResult = result;
             }
         }
     }

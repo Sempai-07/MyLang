@@ -21,6 +21,7 @@ const UpdateExpression_1 = require("./ast/expression/UpdateExpression");
 const ArrayExpression_1 = require("./ast/expression/ArrayExpression");
 const ObjectExpression_1 = require("./ast/expression/ObjectExpression");
 const TernaryExpression_1 = require("./ast/expression/TernaryExpression");
+const DeferDeclaration_1 = require("./ast/declaration/DeferDeclaration");
 const ImportDeclaration_1 = require("./ast/declaration/ImportDeclaration");
 const ExportsDeclaration_1 = require("./ast/declaration/ExportsDeclaration");
 const VariableDeclaration_1 = require("./ast/declaration/VariableDeclaration");
@@ -93,6 +94,7 @@ class Interpreter {
             case body instanceof AssignmentExpression_1.AssignmentExpression:
             case body instanceof UpdateExpression_1.UpdateExpression:
             case body instanceof TernaryExpression_1.TernaryExpression:
+            case body instanceof DeferDeclaration_1.DeferDeclaration:
             case body instanceof ImportDeclaration_1.ImportDeclaration:
             case body instanceof ExportsDeclaration_1.ExportsDeclaration:
             case body instanceof VariableDeclaration_1.VariableDeclaration:

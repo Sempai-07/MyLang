@@ -20,6 +20,7 @@ const UpdateExpression_1 = require("./expression/UpdateExpression");
 const ArrayExpression_1 = require("./expression/ArrayExpression");
 const ObjectExpression_1 = require("./expression/ObjectExpression");
 const TernaryExpression_1 = require("./expression/TernaryExpression");
+const DeferDeclaration_1 = require("./declaration/DeferDeclaration");
 const ImportDeclaration_1 = require("./declaration/ImportDeclaration");
 const ExportsDeclaration_1 = require("./declaration/ExportsDeclaration");
 const VariableDeclaration_1 = require("./declaration/VariableDeclaration");
@@ -215,6 +216,9 @@ class Parser {
             case TokenType_1.KeywordType.Match:
                 this.next();
                 return this.parseMatchStatement(this.peek());
+            case TokenType_1.KeywordType.Defer:
+                this.next();
+                return this.parseDeferDeclaration(this.peek(-1));
             case TokenType_1.KeywordType.Import:
                 if (this.peek(1).type === TokenType_1.TokenType.BracketOpen ||
                     this.peek(1).type === TokenType_1.TokenType.Period) {
@@ -269,6 +273,25 @@ class Parser {
         this.next();
         const statement = this.parseBlockStatement(identifier);
         this.next();
+        if (this.peek().type === TokenType_1.TokenType.ParenthesisOpen) {
+            this.next();
+            const args = this.parseArguments();
+            this.expect(TokenType_1.TokenType.ParenthesisClose);
+            this.next();
+            const functionCall = new FunctionCall_1.FunctionCall(identifier.value, args, identifier.position);
+            if (this.peek().type === TokenType_1.TokenType.BracketOpen ||
+                this.peek().type === TokenType_1.TokenType.Period) {
+                return this.parseMemberExpressions(functionCall);
+            }
+            else if (this.isOperator(this.peek().type)) {
+                return this.parseExpression(functionCall);
+            }
+            else if (this.peek().type === TokenType_1.TokenType.QuestionMark) {
+                return this.parseTernaryExpression(functionCall);
+            }
+            this.expectSemicolonOrEnd();
+            return functionCall;
+        }
         return new FunctionDeclaration_1.FunctionDeclaration(identifier.value, args, statement, identifier.position);
     }
     parseReturnStatement(identifier) {
@@ -588,6 +611,18 @@ class Parser {
         }
         this.expectSemicolonOrEnd();
         return functionCall;
+    }
+    parseDeferDeclaration(identifier) {
+        if (this.peek().type === TokenType_1.TokenType.BraceOpen) {
+            this.next();
+            const value = this.parseBlockStatement(identifier);
+            this.next();
+            this.expectSemicolonOrEnd();
+            return new DeferDeclaration_1.DeferDeclaration(value, identifier.position);
+        }
+        const value = this.parsePrimary();
+        this.expectSemicolonOrEnd();
+        return new DeferDeclaration_1.DeferDeclaration(value, identifier.position);
     }
     parseImportDeclaration(identifier, expression = false) {
         if (this.peek().type !== TokenType_1.TokenType.ParenthesisOpen && expression) {

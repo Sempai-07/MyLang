@@ -46,7 +46,8 @@ class BaseError extends Error {
     const codeOutput = this.code ? `code: ${this.code}` : "";
 
     return (
-      `${this.name}: ${this.message}` + `${filesOutput} ` +
+      `${this.name}: ${this.message}` +
+      `${filesOutput} ` +
       (codeOutput || causeOutput
         ? `{\n` +
           `  ${codeOutput}${codeOutput && causeOutput ? ",\n" : ""}` +

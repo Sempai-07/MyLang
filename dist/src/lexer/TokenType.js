@@ -112,4 +112,5 @@ var KeywordType;
     KeywordType["Match"] = "match";
     KeywordType["Case"] = "case";
     KeywordType["Default"] = "default";
+    KeywordType["Defer"] = "defer";
 })(KeywordType || (exports.KeywordType = KeywordType = {}));

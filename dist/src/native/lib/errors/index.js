@@ -14,18 +14,20 @@ function BaseError([message, options = {}]) {
     });
 }
 function FileReadFaild([message, filePath]) {
-    return new BaseError_1.FileReadFaild(message, filePath, [`mylang:errors (${__filename})`]);
+    return new BaseError_1.FileReadFaild(message, filePath, [
+        `mylang:errors (${__filename})`,
+    ]);
 }
 function ImportFaildError([message, options = {}]) {
     return new BaseError_1.ImportFaildError(message, {
         ...options,
-        files: [`mylang:errors (${__filename})`]
+        files: [`mylang:errors (${__filename})`],
     });
 }
 function AssignmentError([message, options = {}]) {
     return new BaseError_1.AssignmentError(message, {
         ...options,
-        files: [`mylang:errors (${__filename})`]
+        files: [`mylang:errors (${__filename})`],
     });
 }
 function FunctionCallError([message]) {

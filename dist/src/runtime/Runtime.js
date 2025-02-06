@@ -63,7 +63,8 @@ class Runtime {
             const environment = this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
                 .values["import"]?.paths ??
                 this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-                    .parent?.values["import"]?.paths ??
+                    .parent
+                    ?.values["import"]?.paths ??
                 [];
             throw new BaseError_1.BaseError("return statement can only exit in function body", {
                 files: environment,
@@ -80,7 +81,8 @@ class Runtime {
             const environment = this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
                 .values["import"]?.paths ??
                 this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-                    .parent?.values["import"]?.paths ??
+                    .parent
+                    ?.values["import"]?.paths ??
                 [];
             throw new BaseError_1.BaseError("break statement can only exist in iteration block", {
                 files: environment,
