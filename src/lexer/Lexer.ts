@@ -342,15 +342,6 @@ class Lexer {
             new Token(OperatorType.Or, TokenType.OperatorOr, position),
           );
           this.next();
-        } else if (OperatorType.GreaterThan === this.current(1)) {
-          this.tokenList.push(
-            new Token(
-              OperatorType.PipeLine,
-              TokenType.OperatorPipeLine,
-              position,
-            ),
-          );
-          this.next();
         } else {
           this.tokenList.push(
             new Token(

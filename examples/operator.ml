@@ -37,17 +37,6 @@ coreio.print(
   index-- // 1 (2)
 );
 
-func square(number) {
-  return number * number;
-}
-
-var result = 100
- |> func(number) { return number * 2 }
- |> func div(number) { return number / 2 }
- |> square
- 
-coreio.print("PipeLine:", result); // 200
-
 coreio.print("Ternary 1", true ? 1 : 0); // 1
 coreio.print("Ternary 2", false ? 1 : 0); // 0
 

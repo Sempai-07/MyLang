@@ -10,7 +10,7 @@ function run(
     cache?: Record<string, any>;
     options?: Record<string, any>;
   },
-): Interpreter {
+): { result: any, interpreter: Interpreter } {
   const token = new Lexer(code).analyze();
 
   if (token.errors.length > 0) {
@@ -29,16 +29,16 @@ function run(
       options: options || {},
     });
 
-    interpreter.run();
+    const result = interpreter.run();
 
-    return interpreter;
+    return { result, interpreter };
   } catch (err) {
     if (err instanceof BaseError) {
       throw err;
     }
     
     throw new BaseError(`${err}`, {
-      files: options.paths!,
+      files: options.paths || [options.main],
     });
   }
 }
