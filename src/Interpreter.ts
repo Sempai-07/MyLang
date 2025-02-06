@@ -18,6 +18,7 @@ import { UpdateExpression } from "./ast/expression/UpdateExpression";
 import { ArrayExpression } from "./ast/expression/ArrayExpression";
 import { ObjectExpression } from "./ast/expression/ObjectExpression";
 import { TernaryExpression } from "./ast/expression/TernaryExpression";
+import { DeferDeclaration } from "./ast/declaration/DeferDeclaration";
 import { ImportDeclaration } from "./ast/declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./ast/declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
@@ -103,6 +104,7 @@ class Interpreter {
       case body instanceof AssignmentExpression:
       case body instanceof UpdateExpression:
       case body instanceof TernaryExpression:
+      case body instanceof DeferDeclaration:
       case body instanceof ImportDeclaration:
       case body instanceof ExportsDeclaration:
       case body instanceof VariableDeclaration:

@@ -70,12 +70,22 @@ class Runtime {
     if (this._functionCallPositionStack.length == 0) {
       const environment =
         this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-          // @ts-ignore
-          .values["import"]?.paths ??
+        // prettier-ignore
+        // @ts-ignore
+          .values[
+          "import"
+        ]?.paths ??
         this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-          // @ts-ignore
-          .parent?.values["import"]?.paths ??
+        // prettier-ignore
+        // @ts-ignore
+          .parent
+        // prettier-ignore
+        // @ts-ignore
+          ?.values[
+          "import"
+        ]?.paths ??
         [];
+
       throw new BaseError("return statement can only exit in function body", {
         files: environment,
       });
@@ -100,11 +110,20 @@ class Runtime {
     ) {
       const environment =
         this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+        // prettier-ignore
         // @ts-ignore
-          .values["import"]?.paths ??
+          .values[
+          "import"
+        ]?.paths ??
         this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
+        // prettier-ignore
         // @ts-ignore
-          .parent?.values["import"]?.paths ??
+          .parent
+        // prettier-ignore
+        // @ts-ignore
+          ?.values[
+          "import"
+        ]?.paths ??
         [];
       throw new BaseError("break statement can only exist in iteration block", {
         files: environment,

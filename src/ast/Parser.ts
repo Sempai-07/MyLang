@@ -20,6 +20,7 @@ import { UpdateExpression } from "./expression/UpdateExpression";
 import { ArrayExpression } from "./expression/ArrayExpression";
 import { ObjectExpression } from "./expression/ObjectExpression";
 import { TernaryExpression } from "./expression/TernaryExpression";
+import { DeferDeclaration } from "./declaration/DeferDeclaration";
 import { ImportDeclaration } from "./declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./declaration/VariableDeclaration";
@@ -243,6 +244,9 @@ class Parser {
       case KeywordType.Match:
         this.next();
         return this.parseMatchStatement(this.peek());
+      case KeywordType.Defer:
+        this.next();
+        return this.parseDeferDeclaration(this.peek(-1));
       case KeywordType.Import:
         if (
           this.peek(1).type === TokenType.BracketOpen ||
@@ -809,6 +813,20 @@ class Parser {
     this.expectSemicolonOrEnd();
 
     return functionCall;
+  }
+
+  parseDeferDeclaration(identifier: Token): DeferDeclaration {
+    if (this.peek().type === TokenType.BraceOpen) {
+      this.next(); // Move past '{'
+      const value = this.parseBlockStatement(identifier);
+      this.next(); // Move past '}'
+      this.expectSemicolonOrEnd();
+      return new DeferDeclaration(value, identifier.position);
+    }
+
+    const value = this.parsePrimary();
+    this.expectSemicolonOrEnd();
+    return new DeferDeclaration(value, identifier.position);
   }
 
   parseImportDeclaration(

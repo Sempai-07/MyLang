@@ -72,6 +72,18 @@ class Environment {
     return false;
   }
 
+  clone(): Environment {
+    const newEnv = new Environment();
+    newEnv.values = { ...this.values };
+    newEnv.optionsVar = { ...this.optionsVar };
+
+    if (this.parent) {
+      newEnv.parent = this.parent.clone();
+    }
+
+    return newEnv;
+  }
+
   getRootEnv(): Environment {
     let currentEnvironment: Environment = this;
 

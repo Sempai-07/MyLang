@@ -108,6 +108,7 @@ enum KeywordType {
   Match = "match",
   Case = "case",
   Default = "default",
+  Defer = "defer",
 }
 
 export { TokenList, TokenType, OperatorType, KeywordType };
