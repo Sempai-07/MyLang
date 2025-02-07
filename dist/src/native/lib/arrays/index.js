@@ -73,7 +73,7 @@ function filter(args) {
 function find(args) {
     ensureArgsCount(args, 2, "find requires 2 arguments: array and callback.");
     const [array, callback] = args;
-    if ((0, utils_1.isFunctionNode)(callback)) {
+    if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
     const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
@@ -129,6 +129,9 @@ function join(args) {
 function lastIndexOf(args) {
     ensureArgsCount(args, 2, "lastIndexOf requires 2 arguments: array and value.");
     const [array, value, start] = args;
+    if (!start) {
+        return array.lastIndexOf(value);
+    }
     return array.lastIndexOf(value, start);
 }
 function map(args) {
@@ -191,6 +194,9 @@ function some(args) {
 function sort(args) {
     ensureArgsCount(args, 1, "sort requires at least 1 argument: array.");
     const [array, compareFn] = args;
+    if (!compareFn) {
+        return array.sort();
+    }
     if (!(0, utils_1.isFunctionNode)(compareFn)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }

@@ -58,11 +58,6 @@ function Emmiter() {
                     `mylang:events (${__filename})`,
                 ]);
             }
-            if (!events.eventNames().includes(event)) {
-                throw new BaseError_1.BaseError(`Event "${event}" does not exist.`, {
-                    files: [`mylang:events (${__filename})`],
-                });
-            }
             events.emit(event, args);
         },
         removeAllListeners([event]) {
