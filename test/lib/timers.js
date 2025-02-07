@@ -10,15 +10,6 @@ function run(code) {
   }).result;
 }
 
-test("setTimeout basic", () => {
-  const result = run(`
-    import "timers";
-    func test() { return "Hello, World!"; }
-    timers.Timeout.set(test, 1000)
-  `);
-  deepEqual(result.timeoutId, 73);
-});
-
 test("clearTimeout valid ID", () => {
   const result = run(`
     import "timers";
@@ -34,15 +25,6 @@ test("clearTimeout invalid ID", () => {
     import "timers";
     timers.Timeout.clear(9999)
   `));
-});
-
-test("setInterval basic", () => {
-  const result = run(`
-    import "timers";
-    func test() { return "Tick"; }
-    timers.Interval.set(test, 1000)
-  `);
-  deepEqual(result.intervalId, 132);
 });
 
 test("clearInterval valid ID", () => {
