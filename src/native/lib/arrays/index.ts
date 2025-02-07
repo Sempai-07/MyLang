@@ -78,7 +78,7 @@ function find(args: any[]): any {
   ensureArgsCount(args, 2, "find requires 2 arguments: array and callback.");
   const [array, callback] = args;
 
-  if (isFunctionNode(callback)) {
+  if (!isFunctionNode(callback)) {
     throw new FunctionCallError(
       "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
       [`mylang:arrays (${__filename})`],
@@ -181,6 +181,11 @@ function lastIndexOf(args: any[]): number {
     "lastIndexOf requires 2 arguments: array and value.",
   );
   const [array, value, start] = args;
+  
+  if (!start) {
+    return array.lastIndexOf(value);
+  }
+  
   return array.lastIndexOf(value, start);
 }
 
@@ -293,6 +298,10 @@ function some(args: any[]): boolean {
 function sort(args: any[]): any[] {
   ensureArgsCount(args, 1, "sort requires at least 1 argument: array.");
   const [array, compareFn] = args;
+  
+  if (!compareFn) {
+    return array.sort();
+  }
 
   if (!isFunctionNode(compareFn)) {
     throw new FunctionCallError(

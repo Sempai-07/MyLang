@@ -48,11 +48,6 @@ function entries(args: any[]): [string, any][] {
   return Object.entries(args[0]);
 }
 
-function freeze(args: any[]): Record<any, any> {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.freeze(args[0]);
-}
-
 function fromEntries(args: any[]): Record<any, any> {
   ensureArgsCount(args, 1, "requires 1 argument: iterable.");
   return Object.fromEntries(args[0]);
@@ -63,44 +58,14 @@ function getOwnPropertyNames(args: any[]): string[] {
   return Object.getOwnPropertyNames(args[0]);
 }
 
-function getPrototypeOf(args: any[]): object | null {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.getPrototypeOf(args[0]);
-}
-
 function is(args: any[]): boolean {
   ensureArgsCount(args, 2, "requires 2 arguments: value1 and value2.");
   return Object.is(args[0], args[1]);
 }
 
-function isExtensible(args: any[]): boolean {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.isExtensible(args[0]);
-}
-
-function isFrozen(args: any[]): boolean {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.isFrozen(args[0]);
-}
-
-function isSealed(args: any[]): boolean {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.isSealed(args[0]);
-}
-
 function keys(args: any[]): string[] {
   ensureArgsCount(args, 1, "requires 1 argument: object.");
   return Object.keys(args[0]);
-}
-
-function preventExtensions(args: any[]): Record<any, any> {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.preventExtensions(args[0]);
-}
-
-function seal(args: any[]): Record<any, any> {
-  ensureArgsCount(args, 1, "requires 1 argument: object.");
-  return Object.seal(args[0]);
 }
 
 function setPrototypeOf(args: any[]): Record<any, any> {
@@ -119,17 +84,10 @@ export {
   defineProperty,
   defineProperties,
   entries,
-  freeze,
   fromEntries,
   getOwnPropertyNames,
-  getPrototypeOf,
   is,
-  isExtensible,
-  isFrozen,
-  isSealed,
   keys,
-  preventExtensions,
-  seal,
   setPrototypeOf,
   values,
 };
