@@ -181,11 +181,11 @@ function lastIndexOf(args: any[]): number {
     "lastIndexOf requires 2 arguments: array and value.",
   );
   const [array, value, start] = args;
-  
+
   if (!start) {
     return array.lastIndexOf(value);
   }
-  
+
   return array.lastIndexOf(value, start);
 }
 
@@ -298,7 +298,7 @@ function some(args: any[]): boolean {
 function sort(args: any[]): any[] {
   ensureArgsCount(args, 1, "sort requires at least 1 argument: array.");
   const [array, compareFn] = args;
-  
+
   if (!compareFn) {
     return array.sort();
   }

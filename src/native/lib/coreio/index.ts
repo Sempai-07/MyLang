@@ -65,12 +65,12 @@ function printf(args: any[]): any {
       } else if (value && typeof value === "object") {
         if (value instanceof BaseError) {
           return value.toString();
+        } else if (isFunctionNode(value)) {
+          return value?.name
+            ? { [String(value.name)]() {} }[value.name]
+            : { anonymous() {} }["anonymous"];
         }
         return processObject({ ...value });
-      } else if (isFunctionNode(value)) {
-        return value?.name
-          ? { [String(value.name)]() {} }[value.name]
-          : { anonymous() {} }["anonymous"];
       } else if (value === null) {
         return "nil";
       }
@@ -103,12 +103,12 @@ function print(args: any[]): any {
     } else if (value && typeof value === "object") {
       if (value instanceof BaseError) {
         return value.toString();
+      } else if (isFunctionNode(value)) {
+        return value?.name
+          ? { [String(value.name)]() {} }[value.name]
+          : { anonymous() {} }["anonymous"];
       }
       return processObject({ ...value });
-    } else if (isFunctionNode(value)) {
-      return value?.name
-        ? { [String(value.name)]() {} }[value.name]
-        : { anonymous() {} }["anonymous"];
     } else if (value === null) {
       return "nil";
     }
