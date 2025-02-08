@@ -272,8 +272,11 @@ MyLang supports importing modules from local files or URLs.
 
 ```mylang
 import "./utils.ml";
+import (
+  utilName: "./utils.ml"
+);
 
-coreio.print(utils.add(5, 15)); // 20
+coreio.print(utils.add(5, 15), utilName.add); // 20, function
 ```
 
 #### HTTP Import
@@ -331,16 +334,6 @@ var car = {
 };
 
 coreio.print(car.getDetails()); // Toyota Corolla
-```
-
-### Pipeline Operations
-
-```mylang
-var result = 10
-  |> func(x) { return x * 2 }
-  |> func(x) { return x + 5 };
-
-coreio.print(result); // 25
 ```
 
 ### Array Iteration
