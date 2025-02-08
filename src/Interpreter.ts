@@ -29,6 +29,7 @@ import { BlockStatement } from "./ast/statement/BlockStatement";
 import { ReturnStatement } from "./ast/statement/ReturnStatement";
 import { IfStatement } from "./ast/statement/IfStatement";
 import { ForStatement } from "./ast/statement/ForStatement";
+import { ForInStatement } from "./ast/statement/ForInStatement";
 import { WhileStatement } from "./ast/statement/WhileStatement";
 import { TryCatchStatement } from "./ast/statement/TryCatchStatement";
 import { MatchStatement } from "./ast/statement/MatchStatement";
@@ -117,6 +118,7 @@ class Interpreter {
       case body instanceof ReturnStatement:
       case body instanceof IfStatement:
       case body instanceof ForStatement:
+      case body instanceof ForInStatement:
       case body instanceof WhileStatement:
       case body instanceof TryCatchStatement:
       case body instanceof MatchStatement:

@@ -95,6 +95,7 @@ enum KeywordType {
   If = "if",
   Else = "else",
   For = "for",
+  In = "in",
   While = "while",
   Break = "break",
   Continue = "continue",

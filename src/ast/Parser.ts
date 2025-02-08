@@ -30,6 +30,7 @@ import { ThrowDeclaration } from "./declaration/ThrowDeclaration";
 import { BlockStatement } from "./statement/BlockStatement";
 import { ReturnStatement } from "./statement/ReturnStatement";
 import { ForStatement } from "./statement/ForStatement";
+import { ForInStatement } from "./statement/ForInStatement";
 import { BreakStatement } from "./statement/BreakStatement";
 import { ContinueStatement } from "./statement/ContinueStatement";
 import { IfStatement } from "./statement/IfStatement";
@@ -478,11 +479,28 @@ class Parser {
     return new IfStatement(test, consequent, null, identifier.position);
   }
 
-  parseForStatement(identifier: Token): ForStatement {
+  parseForStatement(identifier: Token): ForStatement | ForInStatement {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
 
     const init = this.parseStatement();
+
+    if (this.peek().value === KeywordType.In) {
+      this.next(); // Move past 'in'
+      const iterable = this.parsePrimary();
+
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expect(TokenType.BraceOpen);
+      this.next(); // Move past '{'
+      const statement = this.parseBlockStatement(identifier);
+      this.next(); // Move past '}'
+
+      this.expectSemicolonOrEnd();
+
+      return new ForInStatement(init, iterable, statement, identifier.position);
+    }
 
     if (this.peek(-1).type !== TokenType.Semicolon) {
       this.expect(TokenType.Semicolon);

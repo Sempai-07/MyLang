@@ -32,6 +32,7 @@ const BlockStatement_1 = require("./ast/statement/BlockStatement");
 const ReturnStatement_1 = require("./ast/statement/ReturnStatement");
 const IfStatement_1 = require("./ast/statement/IfStatement");
 const ForStatement_1 = require("./ast/statement/ForStatement");
+const ForInStatement_1 = require("./ast/statement/ForInStatement");
 const WhileStatement_1 = require("./ast/statement/WhileStatement");
 const TryCatchStatement_1 = require("./ast/statement/TryCatchStatement");
 const MatchStatement_1 = require("./ast/statement/MatchStatement");
@@ -107,6 +108,7 @@ class Interpreter {
             case body instanceof ReturnStatement_1.ReturnStatement:
             case body instanceof IfStatement_1.IfStatement:
             case body instanceof ForStatement_1.ForStatement:
+            case body instanceof ForInStatement_1.ForInStatement:
             case body instanceof WhileStatement_1.WhileStatement:
             case body instanceof TryCatchStatement_1.TryCatchStatement:
             case body instanceof MatchStatement_1.MatchStatement:

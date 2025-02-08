@@ -238,6 +238,36 @@ for (var i = 0; i < 3; i++) {
 }
 ```
 
+#### For in
+
+```mylang
+var obj = {
+  key1: 1,
+  key2: 2,
+  key3: 3,
+}
+
+for (var k in obj) {
+  coreio.print(k, obj[k]); // key1 - 1, key2 - 2, key3 - 3
+}
+
+var arr = [10, 20, 30];
+
+for (var i in arr) {
+  coreio.print(i); // 10, 20, 30
+}
+
+var hash = ds.Hash();
+
+hash.set("key1", 600);
+hash.set("key2", 6000);
+hash.set("key3", 60000);
+
+for (var key in hash) {
+  coreio.print(key); // key1, key2, key3
+}
+```
+
 ---
 
 ### Error Handling

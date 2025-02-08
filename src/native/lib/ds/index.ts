@@ -29,6 +29,9 @@ function Hash() {
     size(): number {
       return hash.size;
     },
+    [Symbol.iterator]() {
+      return hash.keys();
+    },
   };
 }
 
@@ -53,6 +56,9 @@ function Bag() {
     },
     size(): number {
       return set.size;
+    },
+    [Symbol.iterator]() {
+      return set.values();
     },
   };
 }

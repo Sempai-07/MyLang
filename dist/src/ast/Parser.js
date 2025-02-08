@@ -30,6 +30,7 @@ const ThrowDeclaration_1 = require("./declaration/ThrowDeclaration");
 const BlockStatement_1 = require("./statement/BlockStatement");
 const ReturnStatement_1 = require("./statement/ReturnStatement");
 const ForStatement_1 = require("./statement/ForStatement");
+const ForInStatement_1 = require("./statement/ForInStatement");
 const BreakStatement_1 = require("./statement/BreakStatement");
 const ContinueStatement_1 = require("./statement/ContinueStatement");
 const IfStatement_1 = require("./statement/IfStatement");
@@ -364,6 +365,18 @@ class Parser {
         this.expect(TokenType_1.TokenType.ParenthesisOpen);
         this.next();
         const init = this.parseStatement();
+        if (this.peek().value === TokenType_1.KeywordType.In) {
+            this.next();
+            const iterable = this.parsePrimary();
+            this.expect(TokenType_1.TokenType.ParenthesisClose);
+            this.next();
+            this.expect(TokenType_1.TokenType.BraceOpen);
+            this.next();
+            const statement = this.parseBlockStatement(identifier);
+            this.next();
+            this.expectSemicolonOrEnd();
+            return new ForInStatement_1.ForInStatement(init, iterable, statement, identifier.position);
+        }
         if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
             this.expect(TokenType_1.TokenType.Semicolon);
             this.next();
