@@ -22,12 +22,11 @@ class FunctionCall extends StmtType_1.StmtType {
             if (func instanceof FunctionDeclaration_1.FunctionDeclaration ||
                 func instanceof FunctionExpression_1.FunctionExpression) {
                 Runtime_1.runtime.markFunctionCallPosition();
-                return func
-                    .evaluate(func.parentEnv)
-                    .call(this.argument.map((arg) => arg.evaluate(func.parentEnv)));
+                const combinedScore = score.combine(func.parentEnv);
+                return func.call(this.argument.map((arg) => arg.evaluate(combinedScore)));
             }
             if (typeof func === "function") {
-                return func(this.argument.map((arg) => arg.evaluate(func.parentEnv)), score);
+                return func(this.argument.map((arg) => arg.evaluate(score)), score);
             }
             return null;
         }

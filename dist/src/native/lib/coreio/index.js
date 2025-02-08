@@ -71,12 +71,12 @@ function printf(args) {
                 if (value instanceof BaseError_1.BaseError) {
                     return value.toString();
                 }
+                else if ((0, utils_1.isFunctionNode)(value)) {
+                    return value?.name
+                        ? { [String(value.name)]() { } }[value.name]
+                        : { anonymous() { } }["anonymous"];
+                }
                 return processObject({ ...value });
-            }
-            else if ((0, utils_1.isFunctionNode)(value)) {
-                return value?.name
-                    ? { [String(value.name)]() { } }[value.name]
-                    : { anonymous() { } }["anonymous"];
             }
             else if (value === null) {
                 return "nil";
@@ -106,12 +106,12 @@ function print(args) {
             if (value instanceof BaseError_1.BaseError) {
                 return value.toString();
             }
+            else if ((0, utils_1.isFunctionNode)(value)) {
+                return value?.name
+                    ? { [String(value.name)]() { } }[value.name]
+                    : { anonymous() { } }["anonymous"];
+            }
             return processObject({ ...value });
-        }
-        else if ((0, utils_1.isFunctionNode)(value)) {
-            return value?.name
-                ? { [String(value.name)]() { } }[value.name]
-                : { anonymous() { } }["anonymous"];
         }
         else if (value === null) {
             return "nil";

@@ -25,30 +25,36 @@ class CallExpression extends StmtType_1.StmtType {
             if (!this.callee) {
                 if (score.get(this.identifier) instanceof FunctionDeclaration_1.FunctionDeclaration ||
                     score.get(this.identifier) instanceof FunctionExpression_1.FunctionExpression) {
-                    return score
-                        .get(this.identifier)
-                        .call(this.argument.map((arg) => arg.evaluate(score)));
+                    const func = score.get(this.identifier);
+                    return func.call(this.argument.map((arg) => arg.evaluate(score.combine(func.parentEnv))));
                 }
-                if (!(this.method in score.get(this.identifier))) {
-                    throw new BaseError_1.FunctionCallError(`${this.identifier}.${this.method} is not method`, score.get("import").paths);
+                const method = this.method instanceof StmtType_1.StmtType
+                    ? this.method.evaluate(score)
+                    : this.method;
+                if (!(method in score.get(this.identifier))) {
+                    throw new BaseError_1.FunctionCallError(`${this.identifier}.${method} is not method`, score.get("import").paths);
                 }
-                const methodVar = score.get(this.identifier)[this.method];
+                const methodVar = score.get(this.identifier)[method];
                 if (methodVar instanceof FunctionDeclaration_1.FunctionDeclaration ||
                     methodVar instanceof FunctionExpression_1.FunctionExpression) {
-                    return methodVar.call(this.argument.map((arg) => arg.evaluate(score)));
+                    return methodVar.call(this.argument.map((arg) => arg.evaluate(score.combine(methodVar.parentEnv))));
                 }
                 return methodVar(this.argument.map((arg) => arg.evaluate(score)), score);
             }
             const obj = this.callee.evaluate(score);
-            const methodRef = obj?.[this.method];
+            const method = this.method instanceof StmtType_1.StmtType
+                ? this.method.evaluate(score)
+                : this.method;
+            const methodRef = obj?.[method];
             if (methodRef instanceof FunctionDeclaration_1.FunctionDeclaration ||
                 methodRef instanceof FunctionExpression_1.FunctionExpression) {
-                return methodRef.call(this.argument.map((arg) => arg.evaluate(score)), this.callee instanceof MemberExpression_1.MemberExpression
+                return methodRef.call(this.argument.map((arg) => arg.evaluate(score.combine(methodRef.parentEnv))), this.callee instanceof MemberExpression_1.MemberExpression
                     ? this.callee.obj.evaluate(methodRef.parentEnv)?.[this.callee.property.evaluate(methodRef.parentEnv)]
                     : this.callee.evaluate(score));
             }
             if (typeof methodRef !== "function") {
-                throw new BaseError_1.FunctionCallError(`${this.identifier}.${this.method} is not method`, score.get("import").paths);
+                console.log(methodRef, this.identifier, this.method, obj);
+                throw new BaseError_1.FunctionCallError(`${this.identifier}.${method} is not method`, score.get("import").paths);
             }
             return methodRef(this.argument.map((arg) => arg.evaluate(score)), score);
         }

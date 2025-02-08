@@ -868,7 +868,7 @@ class Parser {
                     this.expect(TokenType_1.TokenType.ParenthesisClose);
                     this.next();
                     this.expectSemicolonOrEnd();
-                    return new CallExpression_1.CallExpression(methodName.value, methodName.value, object, args, methodName.position);
+                    return new CallExpression_1.CallExpression("value" in identifier ? identifier.value : methodName.value, property, object, args, methodName.position);
                 }
             }
             else if (tokenType === TokenType_1.TokenType.Period) {
