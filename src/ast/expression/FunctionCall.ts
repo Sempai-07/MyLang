@@ -31,14 +31,16 @@ class FunctionCall extends StmtType {
       ) {
         runtime.markFunctionCallPosition();
 
-        return func
-          .evaluate(func.parentEnv)
-          .call(this.argument.map((arg) => arg.evaluate(func.parentEnv)));
+        const combinedScore = score.combine(func.parentEnv);
+
+        return func.call(
+          this.argument.map((arg) => arg.evaluate(combinedScore)),
+        );
       }
 
       if (typeof func === "function") {
         return func(
-          this.argument.map((arg) => arg.evaluate(func.parentEnv)),
+          this.argument.map((arg) => arg.evaluate(score)),
           score,
         );
       }

@@ -84,6 +84,19 @@ class Environment {
     return newEnv;
   }
 
+  combine(env: Environment): Environment {
+    let parent = this.parent
+      ? this.parent.combine(env.parent ?? new Environment())
+      : env.parent;
+
+    const newEnv = new Environment(parent);
+
+    newEnv.values = { ...this.values, ...env.values };
+    newEnv.optionsVar = { ...this.optionsVar, ...env.optionsVar };
+
+    return newEnv;
+  }
+
   getRootEnv(): Environment {
     let currentEnvironment: Environment = this;
 

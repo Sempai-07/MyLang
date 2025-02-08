@@ -9,14 +9,14 @@ import { FunctionCallError, BaseError } from "../../errors/BaseError";
 
 class CallExpression extends StmtType {
   public readonly identifier: string;
-  public readonly method: string;
+  public readonly method: string | StmtType;
   public readonly callee: MemberExpression | IdentifierLiteral | null;
   public readonly argument: StmtType[];
   public readonly position: Position;
 
   constructor(
     identifier: string,
-    method: string,
+    method: string | StmtType,
     callee: MemberExpression | IdentifierLiteral | null,
     argument: StmtType[],
     position: Position,
@@ -41,26 +41,36 @@ class CallExpression extends StmtType {
           score.get(this.identifier) instanceof FunctionDeclaration ||
           score.get(this.identifier) instanceof FunctionExpression
         ) {
-          return score
-            .get(this.identifier)
-            .call(this.argument.map((arg) => arg.evaluate(score)));
+          const func = score.get(this.identifier);
+          return func.call(
+            this.argument.map((arg) =>
+              arg.evaluate(score.combine(func.parentEnv)),
+            ),
+          );
         }
 
-        if (!(this.method in score.get(this.identifier))) {
+        const method =
+          this.method instanceof StmtType
+            ? this.method.evaluate(score)
+            : this.method;
+
+        if (!(method in score.get(this.identifier))) {
           throw new FunctionCallError(
-            `${this.identifier}.${this.method} is not method`,
+            `${this.identifier}.${method} is not method`,
             score.get("import").paths,
           );
         }
 
-        const methodVar = score.get(this.identifier)[this.method];
+        const methodVar = score.get(this.identifier)[method];
 
         if (
           methodVar instanceof FunctionDeclaration ||
           methodVar instanceof FunctionExpression
         ) {
           return methodVar.call(
-            this.argument.map((arg) => arg.evaluate(score)),
+            this.argument.map((arg) =>
+              arg.evaluate(score.combine(methodVar.parentEnv)),
+            ),
           );
         }
 
@@ -72,14 +82,21 @@ class CallExpression extends StmtType {
 
       const obj = this.callee.evaluate(score);
 
-      const methodRef = obj?.[this.method];
+      const method =
+        this.method instanceof StmtType
+          ? this.method.evaluate(score)
+          : this.method;
+
+      const methodRef = obj?.[method];
 
       if (
         methodRef instanceof FunctionDeclaration ||
         methodRef instanceof FunctionExpression
       ) {
         return methodRef.call(
-          this.argument.map((arg) => arg.evaluate(score)),
+          this.argument.map((arg) =>
+            arg.evaluate(score.combine(methodRef.parentEnv)),
+          ),
           this.callee instanceof MemberExpression
             ? this.callee.obj.evaluate(methodRef.parentEnv)?.[
                 this.callee.property.evaluate(methodRef.parentEnv)
@@ -89,8 +106,9 @@ class CallExpression extends StmtType {
       }
 
       if (typeof methodRef !== "function") {
+        console.log(methodRef, this.identifier, this.method, obj);
         throw new FunctionCallError(
-          `${this.identifier}.${this.method} is not method`,
+          `${this.identifier}.${method} is not method`,
           score.get("import").paths,
         );
       }

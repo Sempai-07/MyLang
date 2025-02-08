@@ -1224,8 +1224,8 @@ class Parser {
           this.expectSemicolonOrEnd();
 
           return new CallExpression(
-            methodName.value,
-            methodName.value,
+            "value" in identifier ? <string>identifier.value : methodName.value,
+            property,
             object as MemberExpression,
             args,
             methodName.position,
