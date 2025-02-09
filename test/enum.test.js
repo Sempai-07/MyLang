@@ -80,10 +80,12 @@ test("enum auto-incrementing numbers", () => {
 });
 
 test("enum assignment error", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     enum Action {
       SempaiJS = 7;
     }
     Action = "SempaiLox";
-  `));
+  `),
+  );
 });

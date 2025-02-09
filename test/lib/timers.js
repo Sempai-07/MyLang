@@ -21,10 +21,12 @@ test("clearTimeout valid ID", () => {
 });
 
 test("clearTimeout invalid ID", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     import "timers";
     timers.Timeout.clear(9999)
-  `));
+  `),
+  );
 });
 
 test("clearInterval valid ID", () => {
@@ -38,10 +40,12 @@ test("clearInterval valid ID", () => {
 });
 
 test("clearInterval invalid ID", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     import "timers";
     timers.Interval.clear(9999)
-  `));
+  `),
+  );
 });
 
 test("Timeout ref and unref", () => {

@@ -1,4 +1,4 @@
-const {test} = require("node:test");
+const { test } = require("node:test");
 const path = require("node:path");
 const { deepEqual, throws } = require("node:assert");
 const runFile = require("../dist/src/utils/utils").run;

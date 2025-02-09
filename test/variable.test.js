@@ -1,4 +1,4 @@
-const {test} = require("node:test");
+const { test } = require("node:test");
 const path = require("node:path");
 const { deepEqual, throws } = require("node:assert");
 const runFile = require("../dist/src/utils/utils").run;
@@ -89,10 +89,12 @@ test("nested array assignment", () => {
 });
 
 test("constant assignment error", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     var constant = 10 as const;
     constant = 5;
-  `));
+  `),
+  );
 });
 
 test("readonly array mutation", () => {
@@ -106,15 +108,19 @@ test("readonly array mutation", () => {
 });
 
 test("readonly array re-assignment error", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     var arr1 = [1, 2, 3] as readonly;
     arr1 = {};
-  `));
+  `),
+  );
 });
 
 test("readonly array modification error", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     var arr1 = [1, 2, 3] as readonly;
     arr1[0] = 0;
-  `));
+  `),
+  );
 });

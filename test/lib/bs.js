@@ -75,7 +75,14 @@ test("Hash - keys, values, entries", () => {
     var entries = hash.entries();
     [keys, values, entries]
   `);
-  deepEqual(result, [["key1", "key2"], ["value1", "value2"], [["key1", "value1"], ["key2", "value2"]]]);
+  deepEqual(result, [
+    ["key1", "key2"],
+    ["value1", "value2"],
+    [
+      ["key1", "value1"],
+      ["key2", "value2"],
+    ],
+  ]);
 });
 
 test("Hash - size of the map", () => {
@@ -158,7 +165,7 @@ test("Bag - values in the set", () => {
     var values = bag.values();
     [values]
   `);
-  deepEqual(result, [ [1, 2] ]);
+  deepEqual(result, [[1, 2]]);
 });
 
 test("Bag - add same value multiple times", () => {

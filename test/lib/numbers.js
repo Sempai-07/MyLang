@@ -79,7 +79,7 @@ test("constants maxValue", () => {
     import "numbers";
     numbers.constants.maxValue
   `);
-  deepEqual(result, 1.7976931348623157e+308);
+  deepEqual(result, 1.7976931348623157e308);
 });
 
 test("constants minValue", () => {

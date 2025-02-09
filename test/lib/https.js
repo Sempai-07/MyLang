@@ -39,8 +39,12 @@ test("request with body", () => {
 });
 
 test("request invalid URL", () => {
-  throws(() => run(`
+  throws(
+    () =>
+      run(`
     import "https";
     https.request("invalid-url", "GET");
-  `), { message: /Failed to perform request/ });
+  `),
+    { message: /Failed to perform request/ },
+  );
 });

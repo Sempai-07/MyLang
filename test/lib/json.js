@@ -27,8 +27,10 @@ test("stringify function", () => {
 });
 
 test("parse invalid JSON", () => {
-  throws(() => run(`
+  throws(() =>
+    run(`
     import "json";
     json.parse('{"name": "Alice", "age": }');
-  `));
+  `),
+  );
 });
