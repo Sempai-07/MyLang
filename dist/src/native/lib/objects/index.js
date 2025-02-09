@@ -11,6 +11,9 @@ exports.is = is;
 exports.keys = keys;
 exports.setPrototypeOf = setPrototypeOf;
 exports.values = values;
+exports.omit = omit;
+exports.pick = pick;
+const utils_1 = require("../../utils");
 const BaseError_1 = require("../../../errors/BaseError");
 function ensureArgsCount(args, count, message) {
     if (args.length < count) {
@@ -66,4 +69,48 @@ function setPrototypeOf(args) {
 function values(args) {
     ensureArgsCount(args, 1, "requires 1 argument: object.");
     return Object.values(args[0]);
+}
+function pick(args) {
+    ensureArgsCount(args, 2, "requires at least 2 arguments: object, keys or filter function.");
+    const [obj, keysOrFn] = args;
+    if (typeof obj !== "object" || obj === null) {
+        throw new BaseError_1.ArgumentsError("First argument to pick must be an object.", [`mylang:objects (${__filename})`]);
+    }
+    let result = create([Object.getPrototypeOf(obj) || null]);
+    if ((0, utils_1.isFunctionNode)(keysOrFn)) {
+        for (const key in obj) {
+            if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+                result[key] = obj[key];
+            }
+        }
+    }
+    else if (Array.isArray(keysOrFn)) {
+        for (const key of keysOrFn) {
+            if (key in obj) {
+                result[key] = obj[key];
+            }
+        }
+    }
+    return result;
+}
+function omit(args) {
+    ensureArgsCount(args, 2, "requires at least 2 arguments: object, keys or filter function.");
+    const [obj, keysOrFn] = args;
+    if (typeof obj !== "object" || obj === null) {
+        throw new BaseError_1.ArgumentsError("First argument to omit must be an object.", [`mylang:objects (${__filename})`]);
+    }
+    let result = create([Object.getPrototypeOf(obj) || null, Object.getOwnPropertyDescriptors(obj)]);
+    if ((0, utils_1.isFunctionNode)(keysOrFn)) {
+        for (const key in obj) {
+            if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+                delete result[key];
+            }
+        }
+    }
+    else if (Array.isArray(keysOrFn)) {
+        for (const key of keysOrFn) {
+            delete result[key];
+        }
+    }
+    return result;
 }

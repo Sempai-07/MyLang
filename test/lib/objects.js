@@ -56,7 +56,10 @@ test("entries function", () => {
     var obj = { a: 1, b: 2 };
     objects.entries(obj);
   `);
-  deepEqual(result, [["a", 1], ["b", 2]]);
+  deepEqual(result, [
+    ["a", 1],
+    ["b", 2],
+  ]);
 });
 
 test("fromEntries function", () => {
@@ -113,4 +116,44 @@ test("values function", () => {
     objects.values(obj);
   `);
   deepEqual(result, [1, 2]);
+});
+
+test("pick function", () => {
+  const result = run(`
+    import "objects";
+    
+    var obj = { key1: 1, key2: 2 };
+    
+    var newObjFunc = objects.pick(obj, func(value, key) {
+      if (key == "key2") {
+        return false;
+      }
+      return true;
+    });
+    
+    var newObjArr = objects.pick(obj, ["key1"]);
+    
+    [newObjFunc, newObjArr];
+  `);
+  deepEqual(result, [{ key1: 1 }, { key1: 1 }]);
+});
+
+test("omit function", () => {
+  const result = run(`
+    import "objects";
+    
+    var obj = { key1: 1, key2: 2 };
+    
+    var newObjFunc = objects.omit(obj, func(value, key) {
+      if (key == "key2") {
+        return false;
+      }
+      return true;
+    });
+    
+    var newObjArr = objects.omit(obj, ["key1"]);
+    
+    [newObjFunc, newObjArr];
+  `);
+  deepEqual(result, [{ key2: 2 }, { key2: 2 }]);
 });
