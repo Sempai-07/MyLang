@@ -1479,6 +1479,9 @@ class Parser {
             this.next();
             return this.parseFunctionExpression(token);
           }
+        } else if (token.value === KeywordType.Match) {
+          this.next();
+          return this.parseMatchStatement(this.peek());
         }
         this.throwError(SyntaxCodeError.Unexpected, token);
       }

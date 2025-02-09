@@ -33,25 +33,24 @@ class MatchStatement extends StmtType_1.StmtType {
             let isMatchTry = false;
             const test = this.test.evaluate(score);
             for (const { condition, block } of this.cases) {
-                if (Runtime_1.runtime.isReturn)
+                if (Runtime_1.runtime.isReturn || Runtime_1.runtime.isBreak)
                     break;
                 if (deepEqualTry(test, condition.evaluate(score))) {
                     isMatchTry = true;
                     if (block instanceof BlockStatement_1.BlockStatement) {
                         const matchEnvironment = new Environment_1.Environment(score);
-                        block.evaluate(matchEnvironment);
-                        continue;
+                        return block.evaluate(matchEnvironment);
                     }
-                    block.evaluate(score);
+                    return block.evaluate(score);
                 }
             }
             if (this.defaultCase && !isMatchTry) {
                 if (this.defaultCase instanceof BlockStatement_1.BlockStatement) {
                     const matchEnvironment = new Environment_1.Environment(score);
-                    this.defaultCase.evaluate(matchEnvironment);
+                    return this.defaultCase.evaluate(matchEnvironment);
                 }
                 else
-                    this.defaultCase.evaluate(score);
+                    return this.defaultCase.evaluate(score);
             }
             return null;
         }

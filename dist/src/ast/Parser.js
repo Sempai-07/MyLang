@@ -1063,6 +1063,10 @@ class Parser {
                         return this.parseFunctionExpression(token);
                     }
                 }
+                else if (token.value === TokenType_1.KeywordType.Match) {
+                    this.next();
+                    return this.parseMatchStatement(this.peek());
+                }
                 this.throwError(SyntaxError_1.SyntaxCodeError.Unexpected, token);
             }
             case TokenType_1.TokenType.BracketOpen: {

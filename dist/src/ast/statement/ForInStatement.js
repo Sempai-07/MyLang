@@ -58,7 +58,6 @@ class ForInStatement extends StmtType_1.StmtType {
                 throw new BaseError_1.BaseError(`${(0, index_1.typeOf)([iterable])} is not iterable`);
             }
             Runtime_1.runtime.resetIsBreak();
-            return;
         }
         catch (err) {
             if (err instanceof BaseError_1.BaseError) {
