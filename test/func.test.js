@@ -81,21 +81,22 @@ test("function variables", () => {
 test("class with methods", () => {
   const result = run(`
     var MyClass = func(name) {
-      this.name = name;
+      var username = name;
 
       return {
         getName: func() {
-          return this.name;
+          return username;
         },
         setName: func(name) {
-          this.name = name;
-          return name;
+          username = name;
+          return username;
         }
       };
     };
 
     var Vova = MyClass("SempaiJS");
+    
     [Vova.getName(), Vova.setName("Hello"), Vova.getName()]
   `);
-  deepEqual(result, ["SempaiJS", "Hello", "SempaiJS"]);
+  deepEqual(result, ["SempaiJS", "Hello", "Hello"]);
 });
