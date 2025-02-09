@@ -25,9 +25,9 @@ class Environment {
         }
         this.values[key] = value;
     }
-    update(key, value, ensure) {
+    update(key, value) {
         const matchedEnvironment = this.getEnvironmentWithKey(key);
-        if (!matchedEnvironment && !ensure) {
+        if (!matchedEnvironment) {
             throw new BaseError_1.BaseError(`${key} hasn't been defined`, {
                 files: this.values["import"]?.paths ??
                     this.parent?.values["import"]?.paths ??
@@ -49,6 +49,18 @@ class Environment {
             });
         }
         return matchedEnvironment.values[key];
+    }
+    ensure(key, value) {
+        const matchedEnvironment = this.getEnvironmentWithKey(key);
+        if (!matchedEnvironment) {
+            this.values[key] = value;
+        }
+        else {
+            matchedEnvironment.values = {
+                ...matchedEnvironment.values,
+                [key]: value,
+            };
+        }
     }
     has(key) {
         if (this.values.hasOwnProperty(key)) {

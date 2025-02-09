@@ -46,6 +46,7 @@ class ImportDeclaration extends StmtType {
       "https",
       "json",
       "errors",
+      "iter",
     ];
   }
 

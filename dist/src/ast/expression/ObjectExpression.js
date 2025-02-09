@@ -6,6 +6,7 @@ const IdentifierLiteral_1 = require("../types/IdentifierLiteral");
 const StringLiteral_1 = require("../types/StringLiteral");
 const FunctionExpression_1 = require("../expression/FunctionExpression");
 const BaseError_1 = require("../../errors/BaseError");
+const index_1 = require("../../native/lib/iter/index");
 class ObjectExpression extends StmtType_1.StmtType {
     position;
     properties;
@@ -42,8 +43,19 @@ class ObjectExpression extends StmtType_1.StmtType {
                         property.value instanceof FunctionExpression_1.FunctionExpression) {
                         property.value.name = (property.key).value;
                     }
-                    result[String(property.key.evaluate(score))] =
-                        property.value.evaluate(score);
+                    const key = property.key.evaluate(score);
+                    if (key === index_1.symbol) {
+                        Object.defineProperty(result, key, {
+                            value: property.value.evaluate(score),
+                            enumerable: true,
+                            configurable: true,
+                            writable: false,
+                        });
+                    }
+                    else {
+                        result[String(key)] =
+                            property.value.evaluate(score);
+                    }
                 }
             }
             return result;

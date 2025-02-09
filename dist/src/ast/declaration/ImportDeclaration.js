@@ -37,6 +37,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
             "https",
             "json",
             "errors",
+            "iter",
         ];
     }
     resolveJSONModule(source, score) {

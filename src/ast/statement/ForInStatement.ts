@@ -7,6 +7,7 @@ import { IdentifierLiteral } from "../types/IdentifierLiteral";
 import { BaseError } from "../../errors/BaseError";
 import { runtime } from "../../runtime/Runtime";
 import { typeOf } from "../../native/lib/utils/index";
+import { symbol } from "../../native/lib/iter/index";
 
 class ForInStatement extends StmtType {
   public readonly variable: StmtType;
@@ -31,10 +32,10 @@ class ForInStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(scope: Environment) {
+  evaluate(score: Environment) {
     try {
       runtime.markIterationCallPosition();
-      const bridgeEnvironment = new Environment(scope);
+      const bridgeEnvironment = new Environment(score);
 
       this.variable.evaluate(bridgeEnvironment);
       let variable: string | null = null;
@@ -51,10 +52,24 @@ class ForInStatement extends StmtType {
 
       const iterable = this.iterable.evaluate(bridgeEnvironment);
 
-      if (typeOf([iterable]) === "array") {
+      if (iterable?.[symbol]) {
+        const iterator = iterable[symbol].call([iterable], iterable);
+        let result = iterator.next();
+
+        while (!result.done) {
+          const value = result.value;
+
+          if (runtime.isBreak || runtime.isReturn) break;
+
+          bridgeEnvironment.ensure(variable, value);
+          this.body.evaluate(new Environment(bridgeEnvironment));
+
+          result = iterator.next();
+        }
+      } else if (typeOf([iterable]) === "array") {
         for (const value of iterable) {
           if (runtime.isBreak || runtime.isReturn) break;
-          bridgeEnvironment.update(variable, value, true);
+          bridgeEnvironment.ensure(variable, value);
           this.body.evaluate(new Environment(bridgeEnvironment));
         }
       } else if (typeOf([iterable]) === "object") {
@@ -62,7 +77,7 @@ class ForInStatement extends StmtType {
           ? iterable
           : Object.keys(iterable)) {
           if (runtime.isBreak || runtime.isReturn) break;
-          bridgeEnvironment.update(variable, key, true);
+          bridgeEnvironment.update(variable, key);
           this.body.evaluate(new Environment(bridgeEnvironment));
         }
       } else {
@@ -72,9 +87,9 @@ class ForInStatement extends StmtType {
     } catch (err) {
       if (err instanceof BaseError) {
         err.files = Array.from(
-          new Set([scope.get("import").main, ...err.files]),
+          new Set([score.get("import").main, ...err.files]),
         ).map((file) =>
-          file === scope.get("import").main
+          file === score.get("import").main
             ? `ForIn (${file}:${this.position.line}:${this.position.column})`
             : file,
         );

@@ -5,6 +5,7 @@ import { type Environment } from "../../Environment";
 import { StringLiteral } from "../types/StringLiteral";
 import { FunctionExpression } from "../expression/FunctionExpression";
 import { BaseError } from "../../errors/BaseError";
+import { symbol } from "../../native/lib/iter/index";
 
 class ObjectExpression extends StmtType {
   public readonly position: Position;
@@ -63,8 +64,17 @@ class ObjectExpression extends StmtType {
               property.key
             )).value;
           }
-          result[String((<StmtType>property.key).evaluate(score))] =
-            property.value!.evaluate(score);
+          const key = (<StmtType>property.key).evaluate(score);
+          if (key === symbol) {
+            Object.defineProperty(result, key, {
+              value: property.value!.evaluate(score),
+              enumerable: true,
+              configurable: true,
+              writable: false,
+            });
+          } else {
+            result[String(key)] = property.value!.evaluate(score);
+          }
         }
       }
 

@@ -32,10 +32,10 @@ class Environment {
     this.values[key] = value;
   }
 
-  update(key: string, value: any, ensure?: boolean): void {
+  update(key: string, value: any): void {
     const matchedEnvironment = this.getEnvironmentWithKey(key);
 
-    if (!matchedEnvironment && !ensure) {
+    if (!matchedEnvironment) {
       throw new BaseError(`${key} hasn't been defined`, {
         files:
           this.values["import"]?.paths ??
@@ -44,8 +44,8 @@ class Environment {
       });
     }
 
-    matchedEnvironment!.values = {
-      ...matchedEnvironment!.values,
+    matchedEnvironment.values = {
+      ...matchedEnvironment.values,
       [key]: value,
     };
   }
@@ -63,6 +63,19 @@ class Environment {
     }
 
     return matchedEnvironment.values[key];
+  }
+
+  ensure(key: string, value: any): void {
+    const matchedEnvironment = this.getEnvironmentWithKey(key);
+
+    if (!matchedEnvironment) {
+      this.values[key] = value;
+    } else {
+      matchedEnvironment.values = {
+        ...matchedEnvironment.values,
+        [key]: value,
+      };
+    }
   }
 
   has(key: string): boolean {

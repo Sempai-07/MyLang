@@ -55,11 +55,7 @@ class FunctionExpression extends StmtType {
     }
 
     if (callerInstance) {
-      callEnvironment.create(
-        "this",
-        // @ts-ignore
-        Object.assign(callerInstance, this.parentEnv.values),
-      );
+      callEnvironment.create("this", callerInstance);
     } else {
       callEnvironment.create(
         "this",

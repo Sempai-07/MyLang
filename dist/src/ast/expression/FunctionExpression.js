@@ -35,7 +35,7 @@ class FunctionExpression extends StmtType_1.StmtType {
             this.parentEnv.update(key, callEnvironment.get(key));
         }
         if (callerInstance) {
-            callEnvironment.create("this", Object.assign(callerInstance, this.parentEnv.values));
+            callEnvironment.create("this", callerInstance);
         }
         else {
             callEnvironment.create("this", this.parentEnv.getRootEnv().get("process"));

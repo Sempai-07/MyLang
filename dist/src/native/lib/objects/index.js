@@ -74,7 +74,9 @@ function pick(args) {
     ensureArgsCount(args, 2, "requires at least 2 arguments: object, keys or filter function.");
     const [obj, keysOrFn] = args;
     if (typeof obj !== "object" || obj === null) {
-        throw new BaseError_1.ArgumentsError("First argument to pick must be an object.", [`mylang:objects (${__filename})`]);
+        throw new BaseError_1.ArgumentsError("First argument to pick must be an object.", [
+            `mylang:objects (${__filename})`,
+        ]);
     }
     let result = create([Object.getPrototypeOf(obj) || null]);
     if ((0, utils_1.isFunctionNode)(keysOrFn)) {
@@ -97,9 +99,14 @@ function omit(args) {
     ensureArgsCount(args, 2, "requires at least 2 arguments: object, keys or filter function.");
     const [obj, keysOrFn] = args;
     if (typeof obj !== "object" || obj === null) {
-        throw new BaseError_1.ArgumentsError("First argument to omit must be an object.", [`mylang:objects (${__filename})`]);
+        throw new BaseError_1.ArgumentsError("First argument to omit must be an object.", [
+            `mylang:objects (${__filename})`,
+        ]);
     }
-    let result = create([Object.getPrototypeOf(obj) || null, Object.getOwnPropertyDescriptors(obj)]);
+    let result = create([
+        Object.getPrototypeOf(obj) || null,
+        Object.getOwnPropertyDescriptors(obj),
+    ]);
     if ((0, utils_1.isFunctionNode)(keysOrFn)) {
         for (const key in obj) {
             if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
