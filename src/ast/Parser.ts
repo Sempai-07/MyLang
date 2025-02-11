@@ -1149,10 +1149,23 @@ class Parser {
     return args;
   }
 
-  parseArgumentsAndDefault(): [string, StmtType][] {
-    const args: [string, StmtType][] = [];
+  parseArgumentsAndDefault(): [string, StmtType, true?][] {
+    const args: [string, StmtType, true?][] = [];
 
     while (this.peek().type !== TokenType.ParenthesisClose) {
+      if (this.peek().type === TokenType.OperatorRest) {
+        this.next(); // Move past '...'
+        this.expect(TokenType.Identifier);
+        const param = this.peek();
+        this.next(); // Move past identifier
+        args.push([param.value, new NilLiteral(param.position), true]);
+
+        if (this.peek().type !== TokenType.ParenthesisClose) {
+          this.throwError(SyntaxCodeError.RestInvalid, this.peek());
+        }
+        break;
+      }
+
       this.expect(TokenType.Identifier);
       const param = this.peek();
       this.next(); // Move past identifier
@@ -1599,7 +1612,7 @@ class Parser {
       line: format.position.line,
       column: format.position.column,
       ...format,
-    }).genereteMessage([]);
+    });
   }
 }
 

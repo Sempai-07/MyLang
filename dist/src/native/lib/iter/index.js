@@ -18,7 +18,7 @@ function Iterator([collection]) {
                 for (const value of collection) {
                     yield value;
                 }
-            }
+            },
         };
     }
     if ((0, index_1.typeOf)([collection]) === "object") {
@@ -28,7 +28,10 @@ function Iterator([collection]) {
             next: function () {
                 if (index < keys.length) {
                     let key = keys[index++];
-                    return { value: { key, value: collection[key] }, done: false };
+                    return {
+                        value: { key, value: collection[key] },
+                        done: false,
+                    };
                 }
                 return { value: null, done: true };
             },
@@ -36,11 +39,11 @@ function Iterator([collection]) {
                 for (const key of keys) {
                     yield { key, value: collection[key] };
                 }
-            }
+            },
         };
     }
     throw new BaseError_1.BaseError("Unsupported type for iteration", {
-        files: [`mylang:iter (${__filename})`]
+        files: [`mylang:iter (${__filename})`],
     });
 }
 const symbol = Symbol.iterator;

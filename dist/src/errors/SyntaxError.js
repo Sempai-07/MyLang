@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SyntaxMessageError = exports.SyntaxCodeError = exports.SyntaxError = void 0;
 const utils_1 = require("../utils");
+const BaseError_1 = require("./BaseError");
 var SyntaxCodeError;
 (function (SyntaxCodeError) {
     SyntaxCodeError["InvalidUnexpectedToken"] = "INVALID_UNEXPECTED_TOKEN";
@@ -13,6 +14,7 @@ var SyntaxCodeError;
     SyntaxCodeError["InvalidDynamicImportUsage"] = "INVALID_DYNAMIC_IMPORT_USAGE";
     SyntaxCodeError["MissingCatchOrTry"] = "MISSING_CATCH_OR_TRY";
     SyntaxCodeError["ValidAwait"] = "VALID_AWAIT";
+    SyntaxCodeError["RestInvalid"] = "REST_INVALID";
 })(SyntaxCodeError || (exports.SyntaxCodeError = SyntaxCodeError = {}));
 const SyntaxMessageError = {
     [SyntaxCodeError.InvalidUnexpectedToken]: "Invalid or unexpected token at ${line}:${column}",
@@ -24,19 +26,17 @@ const SyntaxMessageError = {
     [SyntaxCodeError.InvalidDynamicImportUsage]: "Invalid use of import() at ${line}:${column}",
     [SyntaxCodeError.MissingCatchOrTry]: "Missing catch or finally after try at ${line}:${column}",
     [SyntaxCodeError.ValidAwait]: "await is only valid in async functions at ${line}:${column}",
+    [SyntaxCodeError.RestInvalid]: "Rest parameter must be last formal parameter at ${line}:${column}",
 };
 exports.SyntaxMessageError = SyntaxMessageError;
-class SyntaxError {
-    code;
-    description;
+class SyntaxError extends BaseError_1.BaseError {
     constructor(code, format) {
-        this.description = format
+        super(format
             ? (0, utils_1.formatMessage)(SyntaxMessageError[code], format)
-            : SyntaxMessageError[code];
-        this.code = code;
-    }
-    genereteMessage(paths = []) {
-        return `SyntaxError: ${this.description}${paths.map((path) => `\n - ${path}`).join("")}`;
+            : SyntaxMessageError[code], {
+            code,
+            name: "SyntaxError",
+        });
     }
 }
 exports.SyntaxError = SyntaxError;

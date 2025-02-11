@@ -78,6 +78,16 @@ test("function variables", () => {
   deepEqual(result, ["name", "name1"]);
 });
 
+test("function variables", () => {
+  const result = run(`
+    func rest(arg, ...args) {
+      return arg, args;
+    }
+    rest(1, 2, 3, 4, 5, 6);
+  `);
+  deepEqual(result, [1, [2, 3, 4, 5, 6]]);
+});
+
 test("class with methods", () => {
   const result = run(`
     var MyClass = func(name) {

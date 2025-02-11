@@ -12,6 +12,12 @@ func args(name, name1) {
 
 coreio.print("Func args:", args("SempaiJS", "Sempa1JS"), args("SempaiJS")); // ["SempaiJS", "Sempa1JS"], ["SempaiJS"]
 
+func rest(arg, ...args) {
+  return arg, args;
+}
+
+coreio.print(rest(1, 2, 3, 4, 5, 6)); // [1, [2, 3, 4, 5, 6]]
+
 func defaults(count = 1000) {
   return count;
 }
@@ -44,6 +50,12 @@ var name1 = func name1() {
 }
 
 coreio.print("Func variable", name(), name1()); // name, name1
+
+var rest = func(arg, ...args) {
+  return arg, args;
+}
+
+coreio.print(rest(1, 2, 3, 4, 5, 6)); // [1, [2, 3, 4, 5, 6]]
 
 var MyClass = func(name) {
   this.name = name;

@@ -53,8 +53,7 @@ class ObjectExpression extends StmtType_1.StmtType {
                         });
                     }
                     else {
-                        result[String(key)] =
-                            property.value.evaluate(score);
+                        result[String(key)] = property.value.evaluate(score);
                     }
                 }
             }

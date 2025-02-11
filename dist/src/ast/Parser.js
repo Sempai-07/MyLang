@@ -819,6 +819,17 @@ class Parser {
     parseArgumentsAndDefault() {
         const args = [];
         while (this.peek().type !== TokenType_1.TokenType.ParenthesisClose) {
+            if (this.peek().type === TokenType_1.TokenType.OperatorRest) {
+                this.next();
+                this.expect(TokenType_1.TokenType.Identifier);
+                const param = this.peek();
+                this.next();
+                args.push([param.value, new NilLiteral_1.NilLiteral(param.position), true]);
+                if (this.peek().type !== TokenType_1.TokenType.ParenthesisClose) {
+                    this.throwError(SyntaxError_1.SyntaxCodeError.RestInvalid, this.peek());
+                }
+                break;
+            }
             this.expect(TokenType_1.TokenType.Identifier);
             const param = this.peek();
             this.next();
@@ -1167,7 +1178,7 @@ class Parser {
             line: format.position.line,
             column: format.position.column,
             ...format,
-        }).genereteMessage([]);
+        });
     }
 }
 exports.Parser = Parser;

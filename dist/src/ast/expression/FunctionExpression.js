@@ -24,8 +24,14 @@ class FunctionExpression extends StmtType_1.StmtType {
         const callEnvironment = new Environment_1.Environment(this.parentEnv);
         for (let i = 0; i < this.params.length; i++) {
             const argument = args[i];
-            const [param, defaultValue] = this.params[i];
-            callEnvironment.create(param, argument || defaultValue.evaluate(callEnvironment));
+            const [param, defaultValue, rest] = this.params[i];
+            if (!rest) {
+                callEnvironment.create(param, argument || defaultValue.evaluate(callEnvironment));
+            }
+            else {
+                callEnvironment.create(param, args.slice(i));
+                break;
+            }
         }
         callEnvironment.create("arguments", args);
         for (const key of Object.keys(callEnvironment)) {

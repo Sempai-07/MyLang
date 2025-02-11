@@ -1,4 +1,5 @@
 import { formatMessage } from "../utils";
+import { BaseError } from "./BaseError";
 
 enum SyntaxCodeError {
   InvalidUnexpectedToken = "INVALID_UNEXPECTED_TOKEN",
@@ -10,6 +11,7 @@ enum SyntaxCodeError {
   InvalidDynamicImportUsage = "INVALID_DYNAMIC_IMPORT_USAGE",
   MissingCatchOrTry = "MISSING_CATCH_OR_TRY",
   ValidAwait = "VALID_AWAIT",
+  RestInvalid = "REST_INVALID",
 }
 
 const SyntaxMessageError = {
@@ -31,21 +33,21 @@ const SyntaxMessageError = {
     "Missing catch or finally after try at ${line}:${column}",
   [SyntaxCodeError.ValidAwait]:
     "await is only valid in async functions at ${line}:${column}",
+  [SyntaxCodeError.RestInvalid]:
+    "Rest parameter must be last formal parameter at ${line}:${column}",
 } as const;
 
-class SyntaxError {
-  public readonly code: SyntaxCodeError;
-  public readonly description: string;
-
+class SyntaxError extends BaseError {
   constructor(code: SyntaxCodeError, format?: Record<string, any>) {
-    this.description = format
-      ? formatMessage(SyntaxMessageError[code], format)
-      : SyntaxMessageError[code];
-    this.code = code;
-  }
-
-  genereteMessage(paths: string[] = []): string {
-    return `SyntaxError: ${this.description}${paths.map((path) => `\n - ${path}`).join("")}`;
+    super(
+      format
+        ? formatMessage(SyntaxMessageError[code], format)
+        : SyntaxMessageError[code],
+      {
+        code,
+        name: "SyntaxError",
+      },
+    );
   }
 }
 

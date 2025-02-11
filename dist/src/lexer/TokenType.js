@@ -41,6 +41,7 @@ var TokenType;
     TokenType["ParenthesisClose"] = "ParenthesisClose";
     TokenType["Comma"] = "Comma";
     TokenType["Period"] = "Period";
+    TokenType["OperatorRest"] = "OperatorRest";
     TokenType["QuoteDouble"] = "QuoteDouble";
     TokenType["QuoteSingle"] = "QuoteSingle";
     TokenType["Semicolon"] = "Semicolon";
@@ -85,6 +86,8 @@ var OperatorType;
     OperatorType["QuestionMark"] = "?";
     OperatorType["Or"] = "||";
     OperatorType["Not"] = "!";
+    OperatorType["Period"] = ".";
+    OperatorType["Rest"] = "...";
 })(OperatorType || (exports.OperatorType = OperatorType = {}));
 var KeywordType;
 (function (KeywordType) {

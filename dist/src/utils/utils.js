@@ -2,13 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.run = run;
 const BaseError_1 = require("../errors/BaseError");
+const SyntaxError_1 = require("../errors/SyntaxError");
 const index_1 = require("../index");
 function run(code, options) {
     const token = new index_1.Lexer(code).analyze();
     if (token.errors.length > 0) {
-        throw new BaseError_1.BaseError(token.errors[0].description, {
+        throw new BaseError_1.BaseError(token.errors[0].message, {
             files: options.paths,
-            code: token.errors[0].code,
+            ...(token.errors[0].code && { code: token.errors[0].code }),
         });
     }
     try {
@@ -23,6 +24,9 @@ function run(code, options) {
     }
     catch (err) {
         if (err instanceof BaseError_1.BaseError) {
+            if (err instanceof SyntaxError_1.SyntaxError) {
+                err.files = options.paths || [options.main];
+            }
             throw err;
         }
         throw new BaseError_1.BaseError(`${err}`, {

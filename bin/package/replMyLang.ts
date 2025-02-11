@@ -36,7 +36,7 @@ function replMyLang() {
 
       if (token.errors.length > 0) {
         console.error(
-          `${token.errors[0]!.code}: ${token.errors[0]!.description}`,
+          `${token.errors[0]!.code}: ${token.errors[0]!.message}`,
         );
         return;
       }

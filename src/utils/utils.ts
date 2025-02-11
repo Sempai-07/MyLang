@@ -1,4 +1,5 @@
 import { BaseError } from "../errors/BaseError";
+import { SyntaxError } from "../errors/SyntaxError";
 import { Lexer, Parser, Interpreter } from "../index";
 
 function run(
@@ -14,9 +15,9 @@ function run(
   const token = new Lexer(code).analyze();
 
   if (token.errors.length > 0) {
-    throw new BaseError(token.errors[0]!.description, {
+    throw new BaseError(token.errors[0]!.message, {
       files: options.paths!,
-      code: token.errors[0]!.code,
+      ...(token.errors[0]!.code && { code: token.errors[0]!.code }),
     });
   }
 
@@ -34,6 +35,9 @@ function run(
     return { result, interpreter };
   } catch (err) {
     if (err instanceof BaseError) {
+      if (err instanceof SyntaxError) {
+        err.files = options.paths || [options.main];
+      }
       throw err;
     }
 

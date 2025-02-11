@@ -37,6 +37,7 @@ enum TokenType {
   ParenthesisClose = "ParenthesisClose",
   Comma = "Comma",
   Period = "Period",
+  OperatorRest = "OperatorRest",
   QuoteDouble = "QuoteDouble",
   QuoteSingle = "QuoteSingle",
   Semicolon = "Semicolon",
@@ -81,6 +82,8 @@ enum OperatorType {
   QuestionMark = "?",
   Or = "||",
   Not = "!",
+  Period = ".",
+  Rest = "...",
 }
 
 enum KeywordType {

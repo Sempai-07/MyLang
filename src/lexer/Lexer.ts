@@ -353,6 +353,23 @@ class Lexer {
         }
         this.next();
         break;
+      case OperatorType.Period:
+        if (
+          OperatorType.Period === this.current(1) &&
+          OperatorType.Period === this.current(2)
+        ) {
+          this.tokenList.push(
+            new Token(OperatorType.Rest, TokenType.OperatorRest, position),
+          );
+          this.next();
+          this.next();
+        } else {
+          this.tokenList.push(
+            new Token(OperatorType.Period, TokenType.Period, position),
+          );
+        }
+        this.next();
+        break;
       default:
         this.addError(SyntaxCodeError.UnexpectedOperator, {
           operator,

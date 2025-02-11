@@ -8,14 +8,14 @@ import { runtime } from "../../runtime/Runtime";
 class FunctionDeclaration extends StmtType {
   public readonly id: string = randomUUID();
   public readonly name: string;
-  public readonly params: [string, StmtType][];
+  public readonly params: [string, StmtType, true?][];
   public readonly body: BlockStatement;
   public parentEnv: Environment = new Environment();
   public readonly position: Position;
 
   constructor(
     name: string,
-    params: [string, StmtType][],
+    params: [string, StmtType, true?][],
     body: BlockStatement,
     position: Position,
   ) {
@@ -35,12 +35,17 @@ class FunctionDeclaration extends StmtType {
 
     for (let i = 0; i < this.params.length; i++) {
       const argument = args[i];
-      const [param, defaultValue] = this.params[i]!;
+      const [param, defaultValue, rest] = this.params[i]!;
 
-      callEnvironment.create(
-        param,
-        argument || defaultValue.evaluate(callEnvironment),
-      );
+      if (!rest) {
+        callEnvironment.create(
+          param,
+          argument || defaultValue.evaluate(callEnvironment),
+        );
+      } else {
+        callEnvironment.create(param, args.slice(i));
+        break;
+      }
     }
     callEnvironment.create("arguments", args);
 
