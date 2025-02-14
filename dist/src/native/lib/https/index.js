@@ -5,7 +5,11 @@ const tslib_1 = require("tslib");
 const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
 const request_sync_1 = tslib_1.__importDefault(require("request-sync"));
 const BaseError_1 = require("../../../errors/BaseError");
-console.warn('[WARNING]: The module "https" is in an experimental state');
+const WarningError_1 = require("../../../errors/WarningError");
+(0, WarningError_1.emitWarning)('module "https" is in an experimental state', {
+    name: "ModuleExperimental",
+    code: "WARN001",
+});
 function request([url, options]) {
     const config = {
         url,

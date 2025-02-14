@@ -2,8 +2,12 @@ import fs from "node:fs";
 // @ts-expect-error
 import requestSync from "request-sync";
 import { BaseError } from "../../../errors/BaseError";
+import { emitWarning } from "../../../errors/WarningError";
 
-console.warn('[WARNING]: The module "https" is in an experimental state');
+emitWarning('module "https" is in an experimental state', {
+  name: "ModuleExperimental",
+  code: "WARN001",
+});
 
 interface RequestOptions {
   url: string;
