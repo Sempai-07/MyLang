@@ -47,6 +47,7 @@ class ImportDeclaration extends StmtType {
       "json",
       "errors",
       "iter",
+      "path",
     ];
   }
 
