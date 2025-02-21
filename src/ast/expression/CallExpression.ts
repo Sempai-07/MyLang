@@ -106,7 +106,6 @@ class CallExpression extends StmtType {
       }
 
       if (typeof methodRef !== "function") {
-        console.log(methodRef, this.identifier, this.method, obj);
         throw new FunctionCallError(
           `${this.identifier}.${method} is not method`,
           score.get("import").paths,
