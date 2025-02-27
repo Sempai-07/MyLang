@@ -33,7 +33,7 @@ function toBigInt(value) {
     }
     catch (e) {
         throw new BaseError_1.ArgumentsError(`Invalid BigInt value: ${value}`, [
-            `mylang:bigint (${__filename})`,
+            `mylang:numbers/bigint (${__filename})`,
         ]);
     }
 }
@@ -57,7 +57,7 @@ function divide(args) {
     const [a, b] = [toBigInt(args[0]), toBigInt(args[1])];
     if (b === 0n) {
         throw new BaseError_1.ArgumentsError("Division by zero", [
-            `mylang:bigint (${__filename})`,
+            `mylang:numbers/bigint (${__filename})`,
         ]);
     }
     return a / b;
@@ -67,7 +67,7 @@ function mod(args) {
     const [a, b] = [toBigInt(args[0]), toBigInt(args[1])];
     if (b === 0n) {
         throw new BaseError_1.ArgumentsError("Modulo by zero", [
-            `mylang:bigint (${__filename})`,
+            `mylang:numbers/bigint (${__filename})`,
         ]);
     }
     return a % b;
@@ -77,7 +77,7 @@ function pow(args) {
     const [base, exponent] = [toBigInt(args[0]), toBigInt(args[1])];
     if (exponent < 0n) {
         throw new BaseError_1.ArgumentsError("Negative exponents are not supported", [
-            `mylang:bigint (${__filename})`,
+            `mylang:numbers/bigint (${__filename})`,
         ]);
     }
     return base ** exponent;
@@ -140,7 +140,7 @@ function sqrt(args) {
     ensureArgsCount(args, 1, "requires 1 argument: value.");
     const value = toBigInt(args[0]);
     if (value < 0n) {
-        throw new BaseError_1.ArgumentsError("Square root of negative numbers is not supported", [`mylang:bigint (${__filename})`]);
+        throw new BaseError_1.ArgumentsError("Square root of negative numbers is not supported", [`mylang:numbers/bigint (${__filename})`]);
     }
     return BigInt(Math.floor(Math.sqrt(Number(value))));
 }
@@ -148,7 +148,7 @@ function log(args) {
     ensureArgsCount(args, 1, "requires 1 argument: value.");
     const value = toBigInt(args[0]);
     if (value <= 0n) {
-        throw new BaseError_1.ArgumentsError("Logarithm of non-positive numbers is not supported", [`mylang:bigint (${__filename})`]);
+        throw new BaseError_1.ArgumentsError("Logarithm of non-positive numbers is not supported", [`mylang:numbers/bigint (${__filename})`]);
     }
     return Math.log(Number(value));
 }
