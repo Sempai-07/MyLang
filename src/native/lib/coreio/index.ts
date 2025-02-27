@@ -1,3 +1,4 @@
+import { input } from "./input";
 import { isFunctionNode } from "../../utils";
 import { BaseError } from "../../../errors/BaseError";
 
@@ -119,4 +120,4 @@ function print(args: any[]): any {
   return;
 }
 
-export { printf, print };
+export { printf, print, input };

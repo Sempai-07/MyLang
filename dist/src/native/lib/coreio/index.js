@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.input = void 0;
 exports.printf = printf;
 exports.print = print;
+const input_1 = require("./input");
+Object.defineProperty(exports, "input", { enumerable: true, get: function () { return input_1.input; } });
 const utils_1 = require("../../utils");
 const BaseError_1 = require("../../../errors/BaseError");
 function processArray(arr) {
