@@ -308,7 +308,7 @@ class ImportDeclaration extends StmtType {
 
     const runLibSource = joinPath(process.cwd(), ".module", source);
     const context = runFile(readFileSync(runFileSource).toString(), {
-      base: score.get("import").base,
+      base: joinPath(process.cwd(), ".module", source.replace(":", "/")),
       main: runLibSource,
       cache: {
         ...score.get("import").cache,

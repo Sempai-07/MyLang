@@ -53,7 +53,6 @@ class CallExpression extends StmtType_1.StmtType {
                     : this.callee.evaluate(score));
             }
             if (typeof methodRef !== "function") {
-                console.log(methodRef, this.identifier, this.method, obj);
                 throw new BaseError_1.FunctionCallError(`${this.identifier}.${method} is not method`, score.get("import").paths);
             }
             return methodRef(this.argument.map((arg) => arg.evaluate(score)), score);
