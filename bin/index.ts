@@ -6,6 +6,7 @@ import chokidar from "chokidar";
 import { packageInt } from "./package/init";
 import { packageScripts } from "./package/scripts";
 import { replMyLang } from "./package/replMyLang";
+import { installPackage } from "./package/install";
 import { run as runFile } from "../src/utils/utils";
 
 const program = new Command();
@@ -83,6 +84,12 @@ program
   .command("repl")
   .description("start a custom REPL session")
   .action(() => replMyLang());
+
+program
+  .command("install")
+  .description("install a specific package")
+  .argument("[pkg]", "package to install")
+  .action((pkg) => installPackage(pkg));
 
 // program
 //   .command("install")

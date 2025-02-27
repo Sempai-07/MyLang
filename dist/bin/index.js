@@ -9,6 +9,7 @@ const chokidar_1 = tslib_1.__importDefault(require("chokidar"));
 const init_1 = require("./package/init");
 const scripts_1 = require("./package/scripts");
 const replMyLang_1 = require("./package/replMyLang");
+const install_1 = require("./package/install");
 const utils_1 = require("../src/utils/utils");
 const program = new commander_1.Command();
 program
@@ -78,4 +79,9 @@ program
     .command("repl")
     .description("start a custom REPL session")
     .action(() => (0, replMyLang_1.replMyLang)());
+program
+    .command("install")
+    .description("install a specific package")
+    .argument("[pkg]", "package to install")
+    .action((pkg) => (0, install_1.installPackage)(pkg));
 program.parse(process.argv);

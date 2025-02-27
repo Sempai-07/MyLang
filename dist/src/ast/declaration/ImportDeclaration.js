@@ -209,6 +209,52 @@ class ImportDeclaration extends StmtType_1.StmtType {
             });
         }
     }
+    resolvePackageModule(source, score) {
+        if (score.get("import").cache[source] &&
+            !score.get("#options").disableCache)
+            return score.get("import").cache[source];
+        const myLangJSON = JSON.parse((0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "mylang.json")).toString());
+        const dependenciesSource = myLangJSON.dependencies[source.split(":")[1]];
+        if (!dependenciesSource) {
+            throw new BaseError_1.ImportFaildError(`No resolve module: "${source}"`, {
+                code: "IMPORT_MODULE_FAILD",
+                cause: {
+                    packageName: source,
+                },
+                files: score.get("import").paths,
+            });
+        }
+        const runFileSource = (0, node_path_1.join)(process.cwd(), ".module", source.replace(":", "/"), myLangJSON.main);
+        if (!(0, node_fs_1.existsSync)(runFileSource)) {
+            throw new BaseError_1.ImportFaildError(`File main "${runFileSource}" not found`, {
+                code: "IMPORT_FILE_RUN_FAILD",
+                cause: {
+                    fullPath: runFileSource,
+                },
+                files: score.get("import").paths,
+            });
+        }
+        const runLibSource = (0, node_path_1.join)(process.cwd(), ".module", source);
+        const context = (0, utils_1.run)((0, node_fs_1.readFileSync)(runFileSource).toString(), {
+            base: score.get("import").base,
+            main: runLibSource,
+            cache: {
+                ...score.get("import").cache,
+                [source]: score.get("#exports"),
+            },
+            paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
+            options: score.get("#options"),
+        });
+        score.update("import", {
+            ...score.get("import"),
+            cache: {
+                ...score.get("import").cache,
+                [source]: context.interpreter.globalScore.get("#exports"),
+            },
+            paths: Array.from(new Set([source, ...score.get("import").paths])),
+        });
+        return context.interpreter.globalScore.get("#exports");
+    }
     handleModuleImport(module, name, score) {
         if (this.expression)
             return module;
@@ -230,6 +276,9 @@ class ImportDeclaration extends StmtType_1.StmtType {
         }
         if (ext === ".ml") {
             return this.handleModuleImport(this.resolveFileModule(fullPath, score), name, score);
+        }
+        if (packageName.split(":")[1]) {
+            return this.handleModuleImport(this.resolvePackageModule(packageName, score), packageName.split(":")[1], score);
         }
         throw new BaseError_1.ImportFaildError(`Cannot find module: "${name}"`, {
             code: "IMPORT_MODULE_FAILD",

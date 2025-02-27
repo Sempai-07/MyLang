@@ -266,6 +266,72 @@ class ImportDeclaration extends StmtType {
     }
   }
 
+  resolvePackageModule(source: string, score: Environment) {
+    if (
+      score.get("import").cache[source] &&
+      !score.get("#options").disableCache
+    )
+      return score.get("import").cache[source];
+
+    const myLangJSON = JSON.parse(
+      readFileSync(joinPath(process.cwd(), "mylang.json")).toString(),
+    );
+
+    const dependenciesSource = myLangJSON.dependencies[source.split(":")[1]!];
+
+    if (!dependenciesSource) {
+      throw new ImportFaildError(`No resolve module: "${source}"`, {
+        code: "IMPORT_MODULE_FAILD",
+        cause: {
+          packageName: source,
+        },
+        files: score.get("import").paths,
+      });
+    }
+
+    const runFileSource = joinPath(
+      process.cwd(),
+      ".module",
+      source.replace(":", "/"),
+      myLangJSON.main,
+    );
+
+    if (!existsSync(runFileSource)) {
+      throw new ImportFaildError(`File main "${runFileSource}" not found`, {
+        code: "IMPORT_FILE_RUN_FAILD",
+        cause: {
+          fullPath: runFileSource,
+        },
+        files: score.get("import").paths,
+      });
+    }
+
+    const runLibSource = joinPath(process.cwd(), ".module", source);
+    const context = runFile(readFileSync(runFileSource).toString(), {
+      base: score.get("import").base,
+      main: runLibSource,
+      cache: {
+        ...score.get("import").cache,
+        [source]: score.get("#exports"),
+      },
+      paths: Array.from(
+        new Set([score.get("import").main, ...score.get("import").paths]),
+      ),
+      options: score.get("#options"),
+    });
+
+    score.update("import", {
+      ...score.get("import"),
+      cache: {
+        ...score.get("import").cache,
+        [source]: context.interpreter.globalScore.get("#exports"),
+      },
+      paths: Array.from(new Set([source, ...score.get("import").paths])),
+    });
+
+    return context.interpreter.globalScore.get("#exports");
+  }
+
   handleModuleImport(module: any, name: string, score: Environment) {
     if (this.expression) return module;
     if (!score.get("#options").disableCache) score.create(name, module);
@@ -306,6 +372,14 @@ class ImportDeclaration extends StmtType {
       return this.handleModuleImport(
         this.resolveFileModule(fullPath, score),
         name,
+        score,
+      );
+    }
+
+    if (packageName.split(":")[1]) {
+      return this.handleModuleImport(
+        this.resolvePackageModule(packageName, score),
+        packageName.split(":")[1]!,
         score,
       );
     }
