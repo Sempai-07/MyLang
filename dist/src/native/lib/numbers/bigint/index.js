@@ -19,6 +19,7 @@ exports.toNumberFromBigInt = toNumberFromBigInt;
 exports.toSafeNumber = toSafeNumber;
 exports.sqrt = sqrt;
 exports.log = log;
+const WarningError_1 = require("../../../../errors/WarningError");
 const BaseError_1 = require("../../../../errors/BaseError");
 function ensureArgsCount(args, count, message) {
     if (args.length < count) {
@@ -132,7 +133,10 @@ function toSafeNumber(args) {
     const value = toBigInt(args[0]);
     if (value > BigInt(Number.MAX_SAFE_INTEGER) ||
         value < BigInt(Number.MIN_SAFE_INTEGER)) {
-        console.warn("Number is outside the safe integer range, precision may be lost.");
+        (0, WarningError_1.emitWarning)('Number is outside the safe integer range, precision may be loste', {
+            name: "ConvertNumber",
+            code: "WARN002",
+        });
     }
     return Number(value);
 }

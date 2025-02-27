@@ -1,3 +1,4 @@
+import { emitWarning } from "../../../../errors/WarningError";
 import { ArgumentsError } from "../../../../errors/BaseError";
 
 function ensureArgsCount(args: any[], count: number, message: string): void {
@@ -130,8 +131,12 @@ function toSafeNumber(args: any[]): number {
     value > BigInt(Number.MAX_SAFE_INTEGER) ||
     value < BigInt(Number.MIN_SAFE_INTEGER)
   ) {
-    console.warn(
-      "Number is outside the safe integer range, precision may be lost.",
+    emitWarning(
+      "Number is outside the safe integer range, precision may be loste",
+      {
+        name: "ConvertNumber",
+        code: "WARN002",
+      },
     );
   }
   return Number(value);
