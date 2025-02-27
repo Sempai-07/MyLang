@@ -27,14 +27,18 @@
   "author": "Sempai<zadmanthegreat@gmail.com>",
   "license": "ISC",
   "devDependencies": {
+    "@types/cli-progress": "^3.11.6",
     "@types/node": "^20.17.16",
-    "@types/node-fetch": "^2.6.12"
+    "@types/node-fetch": "^2.6.12",
+    "@types/readline-sync": "^1.4.8"
   },
   "dependencies": {
     "chokidar": "^4.0.3",
+    "cli-progress": "^3.12.0",
     "commander": "^12.1.0",
     "minimatch": "^10.0.1",
     "node-fetch": "^2.7.0",
+    "readline-sync": "^1.4.10",
     "request-sync": "^0.0.7",
     "tslib": "^2.8.1"
   }
