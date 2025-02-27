@@ -25,6 +25,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
             "buffers",
             "strings",
             "numbers",
+            "numbers/bigint",
             "arrays",
             "objects",
             "math",
@@ -271,8 +272,8 @@ class ImportDeclaration extends StmtType_1.StmtType {
         if (ext === ".json") {
             return this.handleModuleImport(this.resolveJSONModule(fullPath, score), name, score);
         }
-        if (ext === "" && this.buildInLibs.includes(name)) {
-            return this.handleModuleImport(this.resolveBuildInModule(fullPath, score), name, score);
+        if (ext === "" && this.buildInLibs.includes(packageName)) {
+            return this.handleModuleImport(this.resolveBuildInModule(fullPath, score), packageName.includes("/") ? packageName.split("/")[1] : packageName, score);
         }
         if (ext === ".ml") {
             return this.handleModuleImport(this.resolveFileModule(fullPath, score), name, score);

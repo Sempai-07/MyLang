@@ -34,6 +34,7 @@ class ImportDeclaration extends StmtType {
       "buffers",
       "strings",
       "numbers",
+      "numbers/bigint",
       "arrays",
       "objects",
       "math",
@@ -360,10 +361,10 @@ class ImportDeclaration extends StmtType {
       );
     }
 
-    if (ext === "" && this.buildInLibs.includes(name)) {
+    if (ext === "" && this.buildInLibs.includes(packageName)) {
       return this.handleModuleImport(
         this.resolveBuildInModule(fullPath, score),
-        name,
+        packageName.includes("/") ? packageName.split("/")[1]! : packageName,
         score,
       );
     }
