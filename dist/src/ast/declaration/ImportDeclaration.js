@@ -21,6 +21,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
     get buildInLibs() {
         return [
             "coreio",
+            "os",
             "fs",
             "buffers",
             "strings",
