@@ -19,11 +19,16 @@ class BlockStatement extends StmtType_1.StmtType {
                 if (Runtime_1.runtime.isReturn || Runtime_1.runtime.isBreak) {
                     break;
                 }
-                if (this.body[i] instanceof DeferDeclaration_1.DeferDeclaration) {
-                    deferenceCall.push([score.clone(), this.body[i]]);
+                const blockStatement = this.body[i];
+                if (blockStatement instanceof DeferDeclaration_1.DeferDeclaration) {
+                    if (blockStatement.value instanceof BlockStatement) {
+                        deferenceCall.push([score, blockStatement]);
+                        continue;
+                    }
+                    deferenceCall.push([score.clone(), blockStatement]);
                 }
                 else {
-                    Runtime_1.runtime.callStack.add(score, this.body[i]);
+                    Runtime_1.runtime.callStack.add(score, blockStatement);
                     if (!Runtime_1.runtime.isContinue) {
                         Runtime_1.runtime.resume();
                     }

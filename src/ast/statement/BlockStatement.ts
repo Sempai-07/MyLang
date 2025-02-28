@@ -25,10 +25,16 @@ class BlockStatement extends StmtType {
           break;
         }
 
-        if (this.body[i] instanceof DeferDeclaration) {
-          deferenceCall.push([score.clone(), this.body[i] as DeferDeclaration]);
+        const blockStatement = this.body[i]!;
+
+        if (blockStatement instanceof DeferDeclaration) {
+          if (blockStatement.value instanceof BlockStatement) {
+            deferenceCall.push([score, blockStatement]);
+            continue;
+          }
+          deferenceCall.push([score.clone(), blockStatement]);
         } else {
-          runtime.callStack.add(score, this.body[i]!);
+          runtime.callStack.add(score, blockStatement);
 
           if (!runtime.isContinue) {
             runtime.resume();

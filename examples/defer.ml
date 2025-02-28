@@ -53,5 +53,5 @@ testDefer();
 // Output:
 // Start
 // End
-// Defer 2
 // Defer 1
+// Defer 2
