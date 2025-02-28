@@ -13,6 +13,7 @@ exports.setPrototypeOf = setPrototypeOf;
 exports.values = values;
 exports.omit = omit;
 exports.pick = pick;
+exports.clone = clone;
 const utils_1 = require("../../utils");
 const BaseError_1 = require("../../../errors/BaseError");
 function ensureArgsCount(args, count, message) {
@@ -120,4 +121,8 @@ function omit(args) {
         }
     }
     return result;
+}
+function clone(args) {
+    ensureArgsCount(args, 1, "requires at least 2 arguments: object");
+    return structuredClone(args[0]);
 }

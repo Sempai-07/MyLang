@@ -157,3 +157,27 @@ test("omit function", () => {
   `);
   deepEqual(result, [{ key2: 2 }, { key2: 2 }]);
 });
+
+test("clone function", () => {
+  const result = run(`
+   import "coreio";
+   import "objects";
+   
+   var a = {
+     key1: 1,
+     key2: { 
+       key3: 2,
+     }
+   };
+   var b = objects.clone(a);
+   
+   a.key1 = 2;
+   a.key2.key3 = 1;
+   
+   [a, b]
+  `);
+  deepEqual(result, [
+    { key1: 2, key2: { key3: 1 } },
+    { key1: 1, key2: { key3: 2 } },
+  ]);
+});

@@ -145,6 +145,11 @@ function omit(args: any[]): Record<any, any> {
   return result;
 }
 
+function clone(args: any[]): Record<any, any> {
+  ensureArgsCount(args, 1, "requires at least 2 arguments: object");
+  return structuredClone(args[0]!);
+}
+
 export {
   assign,
   create,
@@ -159,4 +164,5 @@ export {
   values,
   omit,
   pick,
+  clone,
 };

@@ -133,7 +133,7 @@ function toSafeNumber(args) {
     const value = toBigInt(args[0]);
     if (value > BigInt(Number.MAX_SAFE_INTEGER) ||
         value < BigInt(Number.MIN_SAFE_INTEGER)) {
-        (0, WarningError_1.emitWarning)('Number is outside the safe integer range, precision may be loste', {
+        (0, WarningError_1.emitWarning)("Number is outside the safe integer range, precision may be loste", {
             name: "ConvertNumber",
             code: "WARN002",
         });
