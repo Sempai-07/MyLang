@@ -23,13 +23,22 @@ class ForStatement extends StmtType_1.StmtType {
         try {
             const bridgeEnvironment = new Environment_1.Environment(score);
             Runtime_1.runtime.markIterationCallPosition();
-            this.init.evaluate(bridgeEnvironment);
-            while (!Runtime_1.runtime.isBreak &&
-                !Runtime_1.runtime.isReturn &&
-                this.test.evaluate(bridgeEnvironment)) {
-                const executionEnvironment = new Environment_1.Environment(bridgeEnvironment);
-                this.body.evaluate(executionEnvironment);
-                this.update.evaluate(executionEnvironment);
+            this.init?.evaluate(bridgeEnvironment);
+            if (this.test) {
+                while (!Runtime_1.runtime.isBreak &&
+                    !Runtime_1.runtime.isReturn &&
+                    this.test.evaluate(bridgeEnvironment)) {
+                    const executionEnvironment = new Environment_1.Environment(bridgeEnvironment);
+                    this.body.evaluate(executionEnvironment);
+                    this.update?.evaluate(executionEnvironment);
+                }
+            }
+            else {
+                while (!Runtime_1.runtime.isBreak && !Runtime_1.runtime.isReturn) {
+                    const executionEnvironment = new Environment_1.Environment(bridgeEnvironment);
+                    this.body.evaluate(executionEnvironment);
+                    this.update?.evaluate(executionEnvironment);
+                }
             }
             Runtime_1.runtime.resetIsBreak();
         }

@@ -483,7 +483,137 @@ class Parser {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
 
+    if (this.peek().type === TokenType.Semicolon) {
+      if (
+        this.peek(1).type === TokenType.Semicolon &&
+        this.peek(2).type === TokenType.ParenthesisClose
+      ) {
+        this.next(); // Move past ';'
+        this.next(); // Move past ';'
+        this.next(); // Move past ')'
+
+        this.expect(TokenType.BraceOpen);
+        this.next(); // Move past '{'
+        const statement = this.parseBlockStatement(identifier);
+        this.next(); // Move past '}'
+
+        this.expectSemicolonOrEnd();
+
+        return new ForStatement(
+          null,
+          null,
+          null,
+          statement,
+          identifier.position,
+        );
+      } else if (
+        this.peek(1).type === TokenType.Semicolon &&
+        this.peek(2).type !== TokenType.ParenthesisClose
+      ) {
+        this.next(); // Move past ';'
+        this.next(); // Move past ';'
+
+        if (this.peek(-1).type !== TokenType.Semicolon) {
+          this.expect(TokenType.Semicolon);
+          this.next(); // Move past ';'
+        }
+
+        const update = this.parseExpression();
+
+        this.expect(TokenType.ParenthesisClose);
+        this.next(); // Move past ')'
+
+        this.expect(TokenType.BraceOpen);
+        this.next(); // Move past '{'
+        const statement = this.parseBlockStatement(identifier);
+        this.next(); // Move past '}'
+
+        this.expectSemicolonOrEnd();
+
+        return new ForStatement(
+          null,
+          null,
+          update,
+          statement,
+          identifier.position,
+        );
+      } else if (this.peek().type === TokenType.Semicolon) {
+        this.next(); // Move past ';'
+        const test = this.parseStatement();
+        if (
+          this.peek().type === TokenType.Semicolon &&
+          this.peek(1).type === TokenType.ParenthesisClose
+        ) {
+          this.next(); // Move past ';'
+          this.expect(TokenType.ParenthesisClose);
+          this.next(); // Move past ')'
+
+          this.expect(TokenType.BraceOpen);
+          this.next(); // Move past '{'
+          const statement = this.parseBlockStatement(identifier);
+          this.next(); // Move past '}'
+
+          this.expectSemicolonOrEnd();
+
+          return new ForStatement(
+            null,
+            test,
+            null,
+            statement,
+            identifier.position,
+          );
+        } else {
+          if (this.peek(-1).type !== TokenType.Semicolon) {
+            this.expect(TokenType.Semicolon);
+            this.next(); // Move past ';'
+          }
+
+          const update = this.parseExpression();
+
+          this.expect(TokenType.ParenthesisClose);
+          this.next(); // Move past ')'
+
+          this.expect(TokenType.BraceOpen);
+          this.next(); // Move past '{'
+          const statement = this.parseBlockStatement(identifier);
+          this.next(); // Move past '}'
+
+          this.expectSemicolonOrEnd();
+
+          return new ForStatement(
+            null,
+            test,
+            update,
+            statement,
+            identifier.position,
+          );
+        }
+      }
+    }
+
     const init = this.parseStatement();
+
+    if (this.peek().type === TokenType.Semicolon) {
+      if (this.peek(1).type === TokenType.ParenthesisClose) {
+        this.next(); // Move past ';'
+        this.next(); // Move past ')'
+
+        this.expect(TokenType.BraceOpen);
+        this.next(); // Move past '{'
+        const statement = this.parseBlockStatement(identifier);
+        this.next(); // Move past '}'
+
+        this.expectSemicolonOrEnd();
+
+        return new ForStatement(
+          init,
+          null,
+          null,
+          statement,
+          identifier.position,
+        );
+      }
+    }
 
     if (this.peek().value === KeywordType.In) {
       this.next(); // Move past 'in'
@@ -505,6 +635,56 @@ class Parser {
     if (this.peek(-1).type !== TokenType.Semicolon) {
       this.expect(TokenType.Semicolon);
       this.next(); // Move past ';'
+    }
+
+    if (
+      this.peek(-1).type === TokenType.Semicolon &&
+      this.peek().type !== TokenType.ParenthesisClose
+    ) {
+      const test = this.parseExpression();
+      if (this.peek(-1).type !== TokenType.Semicolon) {
+        this.expect(TokenType.Semicolon);
+        this.next(); // Move past ';'
+      }
+
+      if (this.peek().type !== TokenType.ParenthesisClose) {
+        if (this.peek(-1).type !== TokenType.Semicolon) {
+          this.expect(TokenType.Semicolon);
+          this.next(); // Move past ';'
+        }
+
+        const update = this.parseExpression();
+
+        this.expect(TokenType.ParenthesisClose);
+        this.next(); // Move past ')'
+
+        this.expect(TokenType.BraceOpen);
+        this.next(); // Move past '{'
+        const statement = this.parseBlockStatement(identifier);
+        this.next(); // Move past '}'
+
+        this.expectSemicolonOrEnd();
+
+        return new ForStatement(
+          init,
+          test,
+          update,
+          statement,
+          identifier.position,
+        );
+      }
+
+      this.expect(TokenType.ParenthesisClose);
+      this.next(); // Move past ')'
+
+      this.expect(TokenType.BraceOpen);
+      this.next(); // Move past '{'
+      const statement = this.parseBlockStatement(identifier);
+      this.next(); // Move past '}'
+
+      this.expectSemicolonOrEnd();
+
+      return new ForStatement(init, test, null, statement, identifier.position);
     }
 
     const test = this.parseExpression();

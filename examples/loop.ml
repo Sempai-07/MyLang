@@ -77,6 +77,60 @@ for (var i = 0; i < fruits.length; i++) {
   coreio.print("Fruit:", fruits[i]);
 }
 
+var a = 0;
+
+for (;;) {
+  a++;
+  coreio.print(";;", a);
+  if (a == 5) {
+    break
+   }
+}
+
+for (var a = 0;;) {
+  a++;
+  coreio.print("a;;", a);
+  if (a == 5) {
+    break
+   }
+}
+
+for (var a = 0; a < 5;) {
+  a++;
+  coreio.print("a;<;", a);
+}
+
+for (var a = 0; a < 5;) {
+  a++;
+  coreio.print("a;<;", a);
+}
+
+for (var a = 0; a < 5; a++) {
+  coreio.print("a;<;+", a);
+}
+
+a = 0;
+
+for (;;a++) {
+  coreio.print(";;+", a);
+  if (a == 5) {
+    break
+   }
+}
+
+a = 0;
+
+for (;a < 5;) {
+  a++;
+  coreio.print(";<;", a);
+}
+
+a = 0;
+
+for (;a < 5; a++) {
+  coreio.print(";<;+", a);
+}
+
 // ------- In -------
 
 var obj = {

@@ -6,16 +6,16 @@ import { BaseError } from "../../errors/BaseError";
 import { runtime } from "../../runtime/Runtime";
 
 class ForStatement extends StmtType {
-  public readonly init: StmtType;
-  public readonly test: StmtType;
-  public readonly update: StmtType;
+  public readonly init: StmtType | null;
+  public readonly test: StmtType | null;
+  public readonly update: StmtType | null;
   public readonly body: BlockStatement;
   public readonly position: Position;
 
   constructor(
-    init: StmtType,
-    test: StmtType,
-    update: StmtType,
+    init: StmtType | null,
+    test: StmtType | null,
+    update: StmtType | null,
     body: BlockStatement,
     position: Position,
   ) {
@@ -37,16 +37,24 @@ class ForStatement extends StmtType {
       const bridgeEnvironment = new Environment(score);
       runtime.markIterationCallPosition();
 
-      this.init.evaluate(bridgeEnvironment);
+      this.init?.evaluate(bridgeEnvironment);
 
-      while (
-        !runtime.isBreak &&
-        !runtime.isReturn &&
-        this.test.evaluate(bridgeEnvironment)
-      ) {
-        const executionEnvironment = new Environment(bridgeEnvironment);
-        this.body.evaluate(executionEnvironment);
-        this.update.evaluate(executionEnvironment);
+      if (this.test) {
+        while (
+          !runtime.isBreak &&
+          !runtime.isReturn &&
+          this.test.evaluate(bridgeEnvironment)
+        ) {
+          const executionEnvironment = new Environment(bridgeEnvironment);
+          this.body.evaluate(executionEnvironment);
+          this.update?.evaluate(executionEnvironment);
+        }
+      } else {
+        while (!runtime.isBreak && !runtime.isReturn) {
+          const executionEnvironment = new Environment(bridgeEnvironment);
+          this.body.evaluate(executionEnvironment);
+          this.update?.evaluate(executionEnvironment);
+        }
       }
 
       runtime.resetIsBreak();

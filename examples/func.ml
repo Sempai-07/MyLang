@@ -51,11 +51,11 @@ var name1 = func name1() {
 
 coreio.print("Func variable", name(), name1()); // name, name1
 
-var rest = func(arg, ...args) {
+var rest1 = func(arg, ...args) {
   return arg, args;
 }
 
-coreio.print(rest(1, 2, 3, 4, 5, 6)); // [1, [2, 3, 4, 5, 6]]
+coreio.print(rest1(1, 2, 3, 4, 5, 6)); // [1, [2, 3, 4, 5, 6]]
 
 var MyClass = func(name) {
   this.name = name;

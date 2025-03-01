@@ -364,7 +364,82 @@ class Parser {
     parseForStatement(identifier) {
         this.expect(TokenType_1.TokenType.ParenthesisOpen);
         this.next();
+        if (this.peek().type === TokenType_1.TokenType.Semicolon) {
+            if (this.peek(1).type === TokenType_1.TokenType.Semicolon &&
+                this.peek(2).type === TokenType_1.TokenType.ParenthesisClose) {
+                this.next();
+                this.next();
+                this.next();
+                this.expect(TokenType_1.TokenType.BraceOpen);
+                this.next();
+                const statement = this.parseBlockStatement(identifier);
+                this.next();
+                this.expectSemicolonOrEnd();
+                return new ForStatement_1.ForStatement(null, null, null, statement, identifier.position);
+            }
+            else if (this.peek(1).type === TokenType_1.TokenType.Semicolon &&
+                this.peek(2).type !== TokenType_1.TokenType.ParenthesisClose) {
+                this.next();
+                this.next();
+                if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
+                    this.expect(TokenType_1.TokenType.Semicolon);
+                    this.next();
+                }
+                const update = this.parseExpression();
+                this.expect(TokenType_1.TokenType.ParenthesisClose);
+                this.next();
+                this.expect(TokenType_1.TokenType.BraceOpen);
+                this.next();
+                const statement = this.parseBlockStatement(identifier);
+                this.next();
+                this.expectSemicolonOrEnd();
+                return new ForStatement_1.ForStatement(null, null, update, statement, identifier.position);
+            }
+            else if (this.peek().type === TokenType_1.TokenType.Semicolon) {
+                this.next();
+                const test = this.parseStatement();
+                if (this.peek().type === TokenType_1.TokenType.Semicolon &&
+                    this.peek(1).type === TokenType_1.TokenType.ParenthesisClose) {
+                    this.next();
+                    this.expect(TokenType_1.TokenType.ParenthesisClose);
+                    this.next();
+                    this.expect(TokenType_1.TokenType.BraceOpen);
+                    this.next();
+                    const statement = this.parseBlockStatement(identifier);
+                    this.next();
+                    this.expectSemicolonOrEnd();
+                    return new ForStatement_1.ForStatement(null, test, null, statement, identifier.position);
+                }
+                else {
+                    if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
+                        this.expect(TokenType_1.TokenType.Semicolon);
+                        this.next();
+                    }
+                    const update = this.parseExpression();
+                    this.expect(TokenType_1.TokenType.ParenthesisClose);
+                    this.next();
+                    this.expect(TokenType_1.TokenType.BraceOpen);
+                    this.next();
+                    const statement = this.parseBlockStatement(identifier);
+                    this.next();
+                    this.expectSemicolonOrEnd();
+                    return new ForStatement_1.ForStatement(null, test, update, statement, identifier.position);
+                }
+            }
+        }
         const init = this.parseStatement();
+        if (this.peek().type === TokenType_1.TokenType.Semicolon) {
+            if (this.peek(1).type === TokenType_1.TokenType.ParenthesisClose) {
+                this.next();
+                this.next();
+                this.expect(TokenType_1.TokenType.BraceOpen);
+                this.next();
+                const statement = this.parseBlockStatement(identifier);
+                this.next();
+                this.expectSemicolonOrEnd();
+                return new ForStatement_1.ForStatement(init, null, null, statement, identifier.position);
+            }
+        }
         if (this.peek().value === TokenType_1.KeywordType.In) {
             this.next();
             const iterable = this.parsePrimary();
@@ -380,6 +455,37 @@ class Parser {
         if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
             this.expect(TokenType_1.TokenType.Semicolon);
             this.next();
+        }
+        if (this.peek(-1).type === TokenType_1.TokenType.Semicolon &&
+            this.peek().type !== TokenType_1.TokenType.ParenthesisClose) {
+            const test = this.parseExpression();
+            if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
+                this.expect(TokenType_1.TokenType.Semicolon);
+                this.next();
+            }
+            if (this.peek().type !== TokenType_1.TokenType.ParenthesisClose) {
+                if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
+                    this.expect(TokenType_1.TokenType.Semicolon);
+                    this.next();
+                }
+                const update = this.parseExpression();
+                this.expect(TokenType_1.TokenType.ParenthesisClose);
+                this.next();
+                this.expect(TokenType_1.TokenType.BraceOpen);
+                this.next();
+                const statement = this.parseBlockStatement(identifier);
+                this.next();
+                this.expectSemicolonOrEnd();
+                return new ForStatement_1.ForStatement(init, test, update, statement, identifier.position);
+            }
+            this.expect(TokenType_1.TokenType.ParenthesisClose);
+            this.next();
+            this.expect(TokenType_1.TokenType.BraceOpen);
+            this.next();
+            const statement = this.parseBlockStatement(identifier);
+            this.next();
+            this.expectSemicolonOrEnd();
+            return new ForStatement_1.ForStatement(init, test, null, statement, identifier.position);
         }
         const test = this.parseExpression();
         if (this.peek(-1).type !== TokenType_1.TokenType.Semicolon) {
