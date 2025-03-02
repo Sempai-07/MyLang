@@ -9,6 +9,7 @@ coreio.print(start); // { add: [function add] }
 coreio.print(start.add(5, 10)); // 15
 
 import(
+  "coreio",
   "./start.ml",
   startImport: "./start.ml",
   startHTTP: "http://start.ml", // or https

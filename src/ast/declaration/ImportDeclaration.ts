@@ -399,7 +399,10 @@ class ImportDeclaration extends StmtType {
     const packages: Record<string, any> = {};
 
     for (const [packageName, packageStmt] of Object.entries(this.package)) {
-      const resolvePath = packageStmt.evaluate(score);
+      const resolvePath =
+        packageStmt instanceof StmtType
+          ? packageStmt.evaluate(score)
+          : packageStmt;
       const { ext, base, name } = parsePath(resolvePath);
 
       if (

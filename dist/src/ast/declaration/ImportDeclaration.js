@@ -293,7 +293,9 @@ class ImportDeclaration extends StmtType_1.StmtType {
     evaluateMultiplePackages(score) {
         const packages = {};
         for (const [packageName, packageStmt] of Object.entries(this.package)) {
-            const resolvePath = packageStmt.evaluate(score);
+            const resolvePath = packageStmt instanceof StmtType_1.StmtType
+                ? packageStmt.evaluate(score)
+                : packageStmt;
             const { ext, base, name } = (0, node_path_1.parse)(resolvePath);
             if (resolvePath.startsWith("http://") ||
                 resolvePath.startsWith("https://")) {

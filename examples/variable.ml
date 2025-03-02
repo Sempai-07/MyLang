@@ -57,4 +57,4 @@ var (
   v = a as const
 );
 
-coreio.print(a, b, c, v); // nil, 1, 2, null
+coreio.print(a, b, c, v); // nil, 1, 2, nil
