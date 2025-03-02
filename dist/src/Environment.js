@@ -25,7 +25,7 @@ class Environment {
         }
         this.values[key] = value;
     }
-    update(key, value) {
+    update(key, value, options) {
         const matchedEnvironment = this.getEnvironmentWithKey(key);
         if (!matchedEnvironment) {
             throw new BaseError_1.BaseError(`${key} hasn't been defined`, {
@@ -33,6 +33,9 @@ class Environment {
                     this.parent?.values["import"]?.paths ??
                     [],
             });
+        }
+        if (options) {
+            matchedEnvironment.optionsVar[key] = options;
         }
         matchedEnvironment.values = {
             ...matchedEnvironment.values,

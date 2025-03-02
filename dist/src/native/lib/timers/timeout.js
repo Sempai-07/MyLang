@@ -48,7 +48,7 @@ function Timeout() {
             if (typeof delay !== "number" || delay < 0) {
                 throw new BaseError_1.ArgumentsError(`Invalid delay: "${delay}". Must be a non-negative number.`, [`mylang:timers (${__filename})`]);
             }
-            const timeoutData = (0, node_timers_1.setTimeout)(() => cb.evaluate(cb.parentEnv).call(args), delay);
+            const timeoutData = (0, node_timers_1.setTimeout)(() => cb.evaluate(cb.parentEnv).call(args.map((value) => ({ value }))), delay);
             const timeoutId = Number(timeoutData);
             const info = TimeoutInfo({
                 timeoutId,

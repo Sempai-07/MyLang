@@ -280,7 +280,7 @@ class Parser {
       return new VariableDeclaration(
         identifier.value,
         new NilLiteral(identifier.position),
-        { constant: false },
+        null,
         identifier.position,
       );
     }
@@ -323,7 +323,7 @@ class Parser {
     return new VariableDeclaration(
       identifier.value,
       expression,
-      { constant: false },
+      null,
       identifier.position,
     );
   }

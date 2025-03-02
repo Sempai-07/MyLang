@@ -102,7 +102,7 @@ function Timeout(): TimeoutType {
       }
 
       const timeoutData = setTimeout(
-        () => cb.evaluate(cb.parentEnv).call(args),
+        () => cb.evaluate(cb.parentEnv).call(args.map((value) => ({ value }))),
         delay,
       );
       const timeoutId = Number(timeoutData);

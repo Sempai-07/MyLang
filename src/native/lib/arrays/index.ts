@@ -42,7 +42,9 @@ function every(args: any[]): boolean {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.every(callCallback);
 }
@@ -69,7 +71,9 @@ function filter(args: any[]): any[] {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.filter(callCallback);
 }
@@ -86,7 +90,9 @@ function find(args: any[]): any {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.find(callCallback);
 }
@@ -107,7 +113,9 @@ function findIndex(args: any[]): number {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.findIndex(callCallback);
 }
@@ -130,7 +138,9 @@ function flatMap(args: any[]): any[] {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.flatMap(callCallback);
 }
@@ -147,7 +157,9 @@ function forEach(args: any[]): void {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   array.forEach(callCallback);
 }
@@ -201,7 +213,9 @@ function map(args: any[]): any[] {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.map(callCallback);
 }
@@ -236,7 +250,9 @@ function reduce(args: any[]): any {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.reduce(callCallback, initialValue);
 }
@@ -257,7 +273,9 @@ function reduceRight(args: any[]): any {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.reduceRight(callCallback, initialValue);
 }
@@ -290,7 +308,9 @@ function some(args: any[]): boolean {
   }
 
   const callCallback = (...args: any[]) =>
-    callback.evaluate(callback.parentEnv).call(args);
+    callback
+      .evaluate(callback.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.some(callCallback);
 }
@@ -311,7 +331,9 @@ function sort(args: any[]): any[] {
   }
 
   const callCallback = (...args: any[]) =>
-    compareFn.evaluate(compareFn.parentEnv).call(args);
+    compareFn
+      .evaluate(compareFn.parentEnv)
+      .call(args.map((value) => ({ value })));
 
   return array.sort(callCallback);
 }

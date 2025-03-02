@@ -25,14 +25,14 @@ class FunctionDeclaration extends StmtType_1.StmtType {
             const argument = args[i];
             const [param, defaultValue, rest] = this.params[i];
             if (!rest) {
-                callEnvironment.create(param, argument || defaultValue.evaluate(callEnvironment));
+                callEnvironment.create(param, argument?.value || defaultValue.evaluate(callEnvironment), argument?.options);
             }
             else {
-                callEnvironment.create(param, args.slice(i));
+                callEnvironment.create(param, args.slice(i).map(({ value }) => value));
                 break;
             }
         }
-        callEnvironment.create("arguments", args);
+        callEnvironment.create("arguments", args.map(({ value }) => value));
         for (const key of Object.keys(callEnvironment)) {
             if (!this.parentEnv.has(key) ||
                 this.parentEnv.get(key) instanceof FunctionDeclaration)

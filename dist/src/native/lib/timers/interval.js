@@ -48,7 +48,7 @@ function Interval() {
             if (typeof delay !== "number" || delay <= 0) {
                 throw new BaseError_1.ArgumentsError(`Invalid delay: "${delay}". Must be a positive number.`, [`mylang:timers (${__filename})`]);
             }
-            const intervalData = (0, node_timers_1.setInterval)(() => cb.evaluate(cb.parentEnv).call(args), delay);
+            const intervalData = (0, node_timers_1.setInterval)(() => cb.evaluate(cb.parentEnv).call(args.map((value) => ({ value }))), delay);
             const intervalId = Number(intervalData);
             const info = IntervalInfo({
                 intervalId,

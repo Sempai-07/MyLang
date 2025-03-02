@@ -124,3 +124,104 @@ test("readonly array modification error", () => {
   `),
   );
 });
+
+test("constant heir assignment", () => {
+  const result = run(`
+    var constant = 10 as const;
+    var constant2 = constant;
+    constant2 = 5;
+    constant2
+  `);
+  deepEqual(result, 5);
+});
+
+test("readonly heir assignment error", () => {
+  throws(() =>
+    run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2 = arr1;
+    var arr3 = arr2;
+    arr3[0] = 0;
+  `),
+  );
+});
+
+test("readonly heir assignment variable error", () => {
+  throws(() =>
+    run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2;
+    arr2 = arr1;
+    var arr3 = arr2;
+    arr3[0] = 0;
+  `),
+  );
+});
+
+test("readonly heir assignment variable cancellations", () => {
+  const result = run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2 = arr1;
+    arr2 = [];
+    var arr3 = arr2;
+    arr3[0] = 0;
+    [arr1, arr2, arr3]
+  `);
+  deepEqual(result, [[1, 2, 3], [0], [0]]);
+});
+
+test("readonly assignment variable function parameters", () => {
+  throws(() =>
+    run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2;
+    arr2 = arr1;
+    
+    func setObj(arr) {
+      arr[0] = 1;
+    }
+    
+    setObj(arr);
+  `),
+  );
+});
+
+test("readonly assignment variable function rest parameters", () => {
+  const result = run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2;
+    arr2 = arr1;
+    
+    func setObj(...arr) {
+      arr[0][0] = 6;
+    }
+    
+    setObj(arr1);
+    
+    [arr1, arr2];
+  `);
+  deepEqual(result, [
+    [6, 2, 3],
+    [6, 2, 3],
+  ]);
+});
+
+test("readonly assignment variable function arguments", () => {
+  const result = run(`
+    var arr1 = [1, 2, 3] as readonly;
+    var arr2;
+    arr2 = arr1;
+    
+    func setObj(...arr) {
+      arguments[0][0] = 6;
+    }
+    
+    setObj(arr1);
+    
+    [arr1, arr2];
+  `);
+  deepEqual(result, [
+    [6, 2, 3],
+    [6, 2, 3],
+  ]);
+});

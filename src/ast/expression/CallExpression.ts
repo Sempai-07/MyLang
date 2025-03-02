@@ -68,9 +68,18 @@ class CallExpression extends StmtType {
           methodVar instanceof FunctionExpression
         ) {
           return methodVar.call(
-            this.argument.map((arg) =>
-              arg.evaluate(score.combine(methodVar.parentEnv)),
-            ),
+            this.argument.map((arg) => {
+              const combineScore = score.combine(methodVar.parentEnv);
+              const result = arg.evaluate(combineScore);
+              if (arg instanceof IdentifierLiteral) {
+                const variableOpts = combineScore.optionsVar[arg.value];
+                return {
+                  ...(variableOpts && { options: variableOpts }),
+                  value: result,
+                };
+              }
+              return { value: result };
+            }),
           );
         }
 
@@ -94,9 +103,18 @@ class CallExpression extends StmtType {
         methodRef instanceof FunctionExpression
       ) {
         return methodRef.call(
-          this.argument.map((arg) =>
-            arg.evaluate(score.combine(methodRef.parentEnv)),
-          ),
+          this.argument.map((arg) => {
+            const combineScore = score.combine(methodRef.parentEnv);
+            const result = arg.evaluate(combineScore);
+            if (arg instanceof IdentifierLiteral) {
+              const variableOpts = combineScore.optionsVar[arg.value];
+              return {
+                ...(variableOpts && { options: variableOpts }),
+                value: result,
+              };
+            }
+            return { value: result };
+          }),
           this.callee instanceof MemberExpression
             ? this.callee.obj.evaluate(methodRef.parentEnv)?.[
                 this.callee.property.evaluate(methodRef.parentEnv)

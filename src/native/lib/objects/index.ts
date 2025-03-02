@@ -96,7 +96,11 @@ function pick(args: any[]): Record<any, any> {
 
   if (isFunctionNode(keysOrFn)) {
     for (const key in obj) {
-      if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+      if (
+        keysOrFn
+          .evaluate(keysOrFn.parentEnv)
+          .call([{ value: obj[key] }, { value: key }, { value: obj }])
+      ) {
         result[key] = obj[key];
       }
     }
@@ -132,7 +136,11 @@ function omit(args: any[]): Record<any, any> {
 
   if (isFunctionNode(keysOrFn)) {
     for (const key in obj) {
-      if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+      if (
+        keysOrFn
+          .evaluate(keysOrFn.parentEnv)
+          .call([{ value: obj[key] }, { value: key }, { value: obj }])
+      ) {
         delete result[key];
       }
     }

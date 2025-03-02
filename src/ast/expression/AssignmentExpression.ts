@@ -72,7 +72,17 @@ class AssignmentExpression extends StmtType {
             if (rightValue instanceof FunctionExpression) {
               rightValue.name = this.left.value;
             }
-            score.update(this.left.value, rightValue);
+            if (this.right instanceof IdentifierLiteral) {
+              score.update(this.left.value, rightValue, {
+                ...score.optionsVar[this.right.value],
+                constant: false,
+              });
+              break;
+            }
+            score.update(this.left.value, rightValue, {
+              constant: false,
+              readonly: false,
+            });
             break;
           case TokenType.OperatorAssignPlus:
             score.update(

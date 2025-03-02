@@ -53,7 +53,9 @@ function every(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.every(callCallback);
 }
 function fill(args) {
@@ -67,7 +69,9 @@ function filter(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.filter(callCallback);
 }
 function find(args) {
@@ -76,7 +80,9 @@ function find(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.find(callCallback);
 }
 function findIndex(args) {
@@ -85,7 +91,9 @@ function findIndex(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.findIndex(callCallback);
 }
 function flat(args) {
@@ -99,7 +107,9 @@ function flatMap(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.flatMap(callCallback);
 }
 function forEach(args) {
@@ -108,7 +118,9 @@ function forEach(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     array.forEach(callCallback);
 }
 function includes(args) {
@@ -140,7 +152,9 @@ function map(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.map(callCallback);
 }
 function pop(args) {
@@ -157,7 +171,9 @@ function reduce(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.reduce(callCallback, initialValue);
 }
 function reduceRight(args) {
@@ -166,7 +182,9 @@ function reduceRight(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.reduceRight(callCallback, initialValue);
 }
 function reverse(args) {
@@ -188,7 +206,9 @@ function some(args) {
     if (!(0, utils_1.isFunctionNode)(callback)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => callback.evaluate(callback.parentEnv).call(args);
+    const callCallback = (...args) => callback
+        .evaluate(callback.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.some(callCallback);
 }
 function sort(args) {
@@ -200,7 +220,9 @@ function sort(args) {
     if (!(0, utils_1.isFunctionNode)(compareFn)) {
         throw new BaseError_1.FunctionCallError("Invalid callback. Must be a FunctionDeclaration or FunctionExpression.", [`mylang:arrays (${__filename})`]);
     }
-    const callCallback = (...args) => compareFn.evaluate(compareFn.parentEnv).call(args);
+    const callCallback = (...args) => compareFn
+        .evaluate(compareFn.parentEnv)
+        .call(args.map((value) => ({ value })));
     return array.sort(callCallback);
 }
 function splice(args) {

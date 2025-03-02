@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CallExpression = void 0;
 const StmtType_1 = require("../StmtType");
 const MemberExpression_1 = require("./MemberExpression");
+const IdentifierLiteral_1 = require("../types/IdentifierLiteral");
 const FunctionDeclaration_1 = require("../declaration/FunctionDeclaration");
 const FunctionExpression_1 = require("../expression/FunctionExpression");
 const BaseError_1 = require("../../errors/BaseError");
@@ -37,7 +38,18 @@ class CallExpression extends StmtType_1.StmtType {
                 const methodVar = score.get(this.identifier)[method];
                 if (methodVar instanceof FunctionDeclaration_1.FunctionDeclaration ||
                     methodVar instanceof FunctionExpression_1.FunctionExpression) {
-                    return methodVar.call(this.argument.map((arg) => arg.evaluate(score.combine(methodVar.parentEnv))));
+                    return methodVar.call(this.argument.map((arg) => {
+                        const combineScore = score.combine(methodVar.parentEnv);
+                        const result = arg.evaluate(combineScore);
+                        if (arg instanceof IdentifierLiteral_1.IdentifierLiteral) {
+                            const variableOpts = combineScore.optionsVar[arg.value];
+                            return {
+                                ...(variableOpts && { options: variableOpts }),
+                                value: result,
+                            };
+                        }
+                        return { value: result };
+                    }));
                 }
                 return methodVar(this.argument.map((arg) => arg.evaluate(score)), score);
             }
@@ -48,7 +60,18 @@ class CallExpression extends StmtType_1.StmtType {
             const methodRef = obj?.[method];
             if (methodRef instanceof FunctionDeclaration_1.FunctionDeclaration ||
                 methodRef instanceof FunctionExpression_1.FunctionExpression) {
-                return methodRef.call(this.argument.map((arg) => arg.evaluate(score.combine(methodRef.parentEnv))), this.callee instanceof MemberExpression_1.MemberExpression
+                return methodRef.call(this.argument.map((arg) => {
+                    const combineScore = score.combine(methodRef.parentEnv);
+                    const result = arg.evaluate(combineScore);
+                    if (arg instanceof IdentifierLiteral_1.IdentifierLiteral) {
+                        const variableOpts = combineScore.optionsVar[arg.value];
+                        return {
+                            ...(variableOpts && { options: variableOpts }),
+                            value: result,
+                        };
+                    }
+                    return { value: result };
+                }), this.callee instanceof MemberExpression_1.MemberExpression
                     ? this.callee.obj.evaluate(methodRef.parentEnv)?.[this.callee.property.evaluate(methodRef.parentEnv)]
                     : this.callee.evaluate(score));
             }

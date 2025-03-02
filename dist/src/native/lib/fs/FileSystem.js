@@ -32,32 +32,37 @@ function FileSystem() {
             validateCallback(cb);
             node_fs_1.default.readFile(path, options || {}, (err, data) => cb
                 .evaluate(cb.parentEnv)
-                .call([handleError(err), (0, index_1.BufferWrapper)([data])]));
+                .call([
+                { value: handleError(err) },
+                { value: (0, index_1.BufferWrapper)([data]) },
+            ]));
         },
         write([path, data, options, cb]) {
             validateArgs([path], ["string"]);
             validateCallback(cb);
-            node_fs_1.default.writeFile(path, data, options || {}, (err) => cb.evaluate(cb.parentEnv).call([handleError(err)]));
+            node_fs_1.default.writeFile(path, data, options || {}, (err) => cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]));
         },
         append([path, data, options, cb]) {
             validateArgs([path], ["string"]);
             validateCallback(cb);
-            node_fs_1.default.appendFile(path, data, options || {}, (err) => cb.evaluate(cb.parentEnv).call([handleError(err)]));
+            node_fs_1.default.appendFile(path, data, options || {}, (err) => cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]));
         },
         remove([path, cb]) {
             validateArgs([path], ["string"]);
             validateCallback(cb);
-            node_fs_1.default.unlink(path, (err) => cb.evaluate(cb.parentEnv).call([handleError(err)]));
+            node_fs_1.default.unlink(path, (err) => cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]));
         },
         stat([path, cb]) {
             validateArgs([path], ["string"]);
             validateCallback(cb);
-            node_fs_1.default.stat(path, (err, stats) => cb.evaluate(cb.parentEnv).call([handleError(err), stats]));
+            node_fs_1.default.stat(path, (err, stats) => cb
+                .evaluate(cb.parentEnv)
+                .call([{ value: handleError(err) }, { value: stats }]));
         },
         rename([oldPath, newPath, cb]) {
             validateArgs([oldPath, newPath], ["string", "string"]);
             validateCallback(cb);
-            node_fs_1.default.rename(oldPath, newPath, (err) => cb.evaluate(cb.parentEnv).call([handleError(err)]));
+            node_fs_1.default.rename(oldPath, newPath, (err) => cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]));
         },
     };
 }

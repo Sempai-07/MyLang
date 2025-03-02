@@ -112,7 +112,7 @@ function Interval(): IntervalType {
       }
 
       const intervalData = setInterval(
-        () => cb.evaluate(cb.parentEnv).call(args),
+        () => cb.evaluate(cb.parentEnv).call(args.map((value) => ({ value }))),
         delay,
       );
       const intervalId = Number(intervalData);

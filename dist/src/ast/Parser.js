@@ -242,7 +242,7 @@ class Parser {
         this.next();
         if (this.peek().type !== TokenType_1.TokenType.OperatorAssign) {
             this.expectSemicolonOrEnd();
-            return new VariableDeclaration_1.VariableDeclaration(identifier.value, new NilLiteral_1.NilLiteral(identifier.position), { constant: false }, identifier.position);
+            return new VariableDeclaration_1.VariableDeclaration(identifier.value, new NilLiteral_1.NilLiteral(identifier.position), null, identifier.position);
         }
         this.expect(TokenType_1.TokenType.OperatorAssign);
         this.next();
@@ -261,7 +261,7 @@ class Parser {
             }
         }
         this.expectSemicolonOrEnd();
-        return new VariableDeclaration_1.VariableDeclaration(identifier.value, expression, { constant: false }, identifier.position);
+        return new VariableDeclaration_1.VariableDeclaration(identifier.value, expression, null, identifier.position);
     }
     parseFunctionDeclaration(identifier) {
         this.next();

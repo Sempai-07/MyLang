@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { type BlockStatement } from "../statement/BlockStatement";
-import { Environment } from "../../Environment";
+import { Environment, type IOptionsVar } from "../../Environment";
 import { runtime } from "../../runtime/Runtime";
 
 class FunctionDeclaration extends StmtType {
@@ -30,7 +30,7 @@ class FunctionDeclaration extends StmtType {
     this.position = position;
   }
 
-  call(args: any[], callerInstance?: any) {
+  call(args: { options?: IOptionsVar; value: any }[], callerInstance?: any) {
     const callEnvironment = new Environment(this.parentEnv);
 
     for (let i = 0; i < this.params.length; i++) {
@@ -40,14 +40,21 @@ class FunctionDeclaration extends StmtType {
       if (!rest) {
         callEnvironment.create(
           param,
-          argument || defaultValue.evaluate(callEnvironment),
+          argument?.value || defaultValue.evaluate(callEnvironment),
+          argument?.options,
         );
       } else {
-        callEnvironment.create(param, args.slice(i));
+        callEnvironment.create(
+          param,
+          args.slice(i).map(({ value }) => value),
+        );
         break;
       }
     }
-    callEnvironment.create("arguments", args);
+    callEnvironment.create(
+      "arguments",
+      args.map(({ value }) => value),
+    );
 
     for (const key of Object.keys(callEnvironment)) {
       if (

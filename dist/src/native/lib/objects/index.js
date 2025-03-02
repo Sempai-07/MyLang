@@ -82,7 +82,9 @@ function pick(args) {
     let result = create([Object.getPrototypeOf(obj) || null]);
     if ((0, utils_1.isFunctionNode)(keysOrFn)) {
         for (const key in obj) {
-            if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+            if (keysOrFn
+                .evaluate(keysOrFn.parentEnv)
+                .call([{ value: obj[key] }, { value: key }, { value: obj }])) {
                 result[key] = obj[key];
             }
         }
@@ -110,7 +112,9 @@ function omit(args) {
     ]);
     if ((0, utils_1.isFunctionNode)(keysOrFn)) {
         for (const key in obj) {
-            if (keysOrFn.evaluate(keysOrFn.parentEnv).call([obj[key], key, obj])) {
+            if (keysOrFn
+                .evaluate(keysOrFn.parentEnv)
+                .call([{ value: obj[key] }, { value: key }, { value: obj }])) {
                 delete result[key];
             }
         }

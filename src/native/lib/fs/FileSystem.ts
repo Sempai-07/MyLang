@@ -47,7 +47,10 @@ function FileSystem() {
       fs.readFile(path, options || {}, (err, data) =>
         cb
           .evaluate(cb.parentEnv)
-          .call([handleError(err), BufferWrapper([data])]),
+          .call([
+            { value: handleError(err) },
+            { value: BufferWrapper([data]) },
+          ]),
       );
     },
 
@@ -60,7 +63,7 @@ function FileSystem() {
       validateArgs([path], ["string"]);
       validateCallback(cb);
       fs.writeFile(path, data, options || {}, (err) =>
-        cb.evaluate(cb.parentEnv).call([handleError(err)]),
+        cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]),
       );
     },
 
@@ -73,7 +76,7 @@ function FileSystem() {
       validateArgs([path], ["string"]);
       validateCallback(cb);
       fs.appendFile(path, data, options || {}, (err) =>
-        cb.evaluate(cb.parentEnv).call([handleError(err)]),
+        cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]),
       );
     },
 
@@ -81,7 +84,7 @@ function FileSystem() {
       validateArgs([path], ["string"]);
       validateCallback(cb);
       fs.unlink(path, (err) =>
-        cb.evaluate(cb.parentEnv).call([handleError(err)]),
+        cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]),
       );
     },
 
@@ -89,7 +92,9 @@ function FileSystem() {
       validateArgs([path], ["string"]);
       validateCallback(cb);
       fs.stat(path, (err, stats) =>
-        cb.evaluate(cb.parentEnv).call([handleError(err), stats]),
+        cb
+          .evaluate(cb.parentEnv)
+          .call([{ value: handleError(err) }, { value: stats }]),
       );
     },
 
@@ -101,7 +106,7 @@ function FileSystem() {
       validateArgs([oldPath, newPath], ["string", "string"]);
       validateCallback(cb);
       fs.rename(oldPath, newPath, (err) =>
-        cb.evaluate(cb.parentEnv).call([handleError(err)]),
+        cb.evaluate(cb.parentEnv).call([{ value: handleError(err) }]),
       );
     },
   };

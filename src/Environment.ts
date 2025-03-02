@@ -32,7 +32,7 @@ class Environment {
     this.values[key] = value;
   }
 
-  update(key: string, value: any): void {
+  update(key: string, value: any, options?: IOptionsVar): void {
     const matchedEnvironment = this.getEnvironmentWithKey(key);
 
     if (!matchedEnvironment) {
@@ -43,7 +43,9 @@ class Environment {
           [],
       });
     }
-
+    if (options) {
+      matchedEnvironment.optionsVar[key] = options;
+    }
     matchedEnvironment.values = {
       ...matchedEnvironment.values,
       [key]: value,
