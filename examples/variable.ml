@@ -49,3 +49,12 @@ var arr1 = [1, 2, 3] as readonly; // Or object
 // arr1 = {} Error
 
 // arr1[0] = 0 Error
+
+var (
+  a,
+  b = 1,
+  c = 2 as readonly,
+  v = a as const
+);
+
+coreio.print(a, b, c, v); // nil, 1, 2, null

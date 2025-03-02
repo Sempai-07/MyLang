@@ -12,6 +12,7 @@ enum SyntaxCodeError {
   MissingCatchOrTry = "MISSING_CATCH_OR_TRY",
   ValidAwait = "VALID_AWAIT",
   RestInvalid = "REST_INVALID",
+  AlreadyAsInvalid = "ALREADY_AS_INVALID",
 }
 
 const SyntaxMessageError = {
@@ -35,6 +36,8 @@ const SyntaxMessageError = {
     "await is only valid in async functions at ${line}:${column}",
   [SyntaxCodeError.RestInvalid]:
     "Rest parameter must be last formal parameter at ${line}:${column}",
+  [SyntaxCodeError.AlreadyAsInvalid]:
+    "Cannot assign type ${currentAsType} because the variable '${name}' is already of type ${varType} at ${line}:${column}",
 } as const;
 
 class SyntaxError extends BaseError {

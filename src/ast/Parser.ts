@@ -24,6 +24,7 @@ import { DeferDeclaration } from "./declaration/DeferDeclaration";
 import { ImportDeclaration } from "./declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./declaration/VariableDeclaration";
+import { CombinedVariableDeclaration } from "./declaration/CombinedVariableDeclaration";
 import { FunctionDeclaration } from "./declaration/FunctionDeclaration";
 import { EnumDeclaration } from "./declaration/EnumDeclaration";
 import { ThrowDeclaration } from "./declaration/ThrowDeclaration";
@@ -37,6 +38,7 @@ import { IfStatement } from "./statement/IfStatement";
 import { WhileStatement } from "./statement/WhileStatement";
 import { TryCatchStatement } from "./statement/TryCatchStatement";
 import { MatchStatement } from "./statement/MatchStatement";
+import { type IOptionsVar } from "../Environment";
 
 class Parser {
   private offset: number = 0;
@@ -271,8 +273,104 @@ class Parser {
     }
   }
 
-  parseVariableDeclaration(identifier: Token): VariableDeclaration {
-    this.next(); // Move past identifier
+  parseVariableDeclaration(
+    identifier: Token,
+  ): VariableDeclaration | CombinedVariableDeclaration {
+    if (this.peek().type === TokenType.ParenthesisOpen) {
+      this.next(); // Move past '('
+
+      const variableList: {
+        name: string;
+        value: StmtType;
+        options?: IOptionsVar;
+      }[] = [];
+
+      while (this.peek().type !== TokenType.ParenthesisClose) {
+        this.expect(TokenType.Identifier);
+        const name = this.peek();
+        this.next(); // Move past identifier
+        if (this.peek().type === TokenType.OperatorAssign) {
+          this.next(); // Move past '='
+          const value = this.parsePrimary();
+
+          if (this.peek().value === KeywordType.As) {
+            this.next(); // Move past 'as'
+            if (this.peek().value === KeywordType.Const) {
+              this.next(); // Move past 'const'
+              variableList.push({
+                name: name.value,
+                value,
+                options: {
+                  constant: true,
+                },
+              });
+            } else if (this.peek().value === KeywordType.Readonly) {
+              this.next(); // Move past 'readonly'
+              variableList.push({
+                name: name.value,
+                value,
+                options: {
+                  constant: true,
+                  readonly: true,
+                },
+              });
+            }
+          } else {
+            variableList.push({
+              name: name.value,
+              value,
+            });
+          }
+        } else {
+          variableList.push({
+            name: name.value,
+            value: new NilLiteral(name.position),
+          });
+        }
+
+        if (this.peek().type === TokenType.Comma) {
+          this.next(); // Move past ','
+        } else this.expect(TokenType.ParenthesisClose);
+      }
+
+      this.next(); // Move past ')'
+
+      let allOptionsVar: IOptionsVar | null = null;
+
+      if (this.peek().value === KeywordType.As) {
+        this.next(); // Move past 'as'
+        if (this.peek().value === KeywordType.Const) {
+          this.next(); // Move past 'const'
+          allOptionsVar = { constant: true };
+        } else if (this.peek().value === KeywordType.Readonly) {
+          this.next(); // Move past 'readonly'
+          allOptionsVar = { constant: true, readonly: true };
+        }
+      }
+
+      if (allOptionsVar) {
+        variableList.forEach(({ name, options }) => {
+          if (options) {
+            this.throwError(SyntaxCodeError.AlreadyAsInvalid, {
+              name,
+              varType: options.readonly ? "readonly" : "const",
+              currentAsType: allOptionsVar.readonly ? "readonly" : "const",
+              position: this.peek(-1).position,
+            });
+          }
+        });
+      }
+
+      this.expectSemicolonOrEnd();
+
+      return new CombinedVariableDeclaration(
+        variableList,
+        allOptionsVar,
+        identifier.position,
+      );
+    }
+
+    this.next(); // Move past Identifier
 
     if (this.peek().type !== TokenType.OperatorAssign) {
       this.expectSemicolonOrEnd();

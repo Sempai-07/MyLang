@@ -15,6 +15,7 @@ var SyntaxCodeError;
     SyntaxCodeError["MissingCatchOrTry"] = "MISSING_CATCH_OR_TRY";
     SyntaxCodeError["ValidAwait"] = "VALID_AWAIT";
     SyntaxCodeError["RestInvalid"] = "REST_INVALID";
+    SyntaxCodeError["AlreadyAsInvalid"] = "ALREADY_AS_INVALID";
 })(SyntaxCodeError || (exports.SyntaxCodeError = SyntaxCodeError = {}));
 const SyntaxMessageError = {
     [SyntaxCodeError.InvalidUnexpectedToken]: "Invalid or unexpected token at ${line}:${column}",
@@ -27,6 +28,7 @@ const SyntaxMessageError = {
     [SyntaxCodeError.MissingCatchOrTry]: "Missing catch or finally after try at ${line}:${column}",
     [SyntaxCodeError.ValidAwait]: "await is only valid in async functions at ${line}:${column}",
     [SyntaxCodeError.RestInvalid]: "Rest parameter must be last formal parameter at ${line}:${column}",
+    [SyntaxCodeError.AlreadyAsInvalid]: "Cannot assign type ${currentAsType} because the variable '${name}' is already of type ${varType} at ${line}:${column}",
 };
 exports.SyntaxMessageError = SyntaxMessageError;
 class SyntaxError extends BaseError_1.BaseError {

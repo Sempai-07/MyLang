@@ -25,6 +25,7 @@ const DeferDeclaration_1 = require("./ast/declaration/DeferDeclaration");
 const ImportDeclaration_1 = require("./ast/declaration/ImportDeclaration");
 const ExportsDeclaration_1 = require("./ast/declaration/ExportsDeclaration");
 const VariableDeclaration_1 = require("./ast/declaration/VariableDeclaration");
+const CombinedVariableDeclaration_1 = require("./ast/declaration/CombinedVariableDeclaration");
 const FunctionDeclaration_1 = require("./ast/declaration/FunctionDeclaration");
 const EnumDeclaration_1 = require("./ast/declaration/EnumDeclaration");
 const ThrowDeclaration_1 = require("./ast/declaration/ThrowDeclaration");
@@ -99,6 +100,7 @@ class Interpreter {
             case body instanceof ImportDeclaration_1.ImportDeclaration:
             case body instanceof ExportsDeclaration_1.ExportsDeclaration:
             case body instanceof VariableDeclaration_1.VariableDeclaration:
+            case body instanceof CombinedVariableDeclaration_1.CombinedVariableDeclaration:
             case body instanceof FunctionDeclaration_1.FunctionDeclaration:
             case body instanceof EnumDeclaration_1.EnumDeclaration:
             case body instanceof ThrowDeclaration_1.ThrowDeclaration:

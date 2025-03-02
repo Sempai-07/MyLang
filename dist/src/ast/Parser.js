@@ -24,6 +24,7 @@ const DeferDeclaration_1 = require("./declaration/DeferDeclaration");
 const ImportDeclaration_1 = require("./declaration/ImportDeclaration");
 const ExportsDeclaration_1 = require("./declaration/ExportsDeclaration");
 const VariableDeclaration_1 = require("./declaration/VariableDeclaration");
+const CombinedVariableDeclaration_1 = require("./declaration/CombinedVariableDeclaration");
 const FunctionDeclaration_1 = require("./declaration/FunctionDeclaration");
 const EnumDeclaration_1 = require("./declaration/EnumDeclaration");
 const ThrowDeclaration_1 = require("./declaration/ThrowDeclaration");
@@ -239,6 +240,87 @@ class Parser {
         }
     }
     parseVariableDeclaration(identifier) {
+        if (this.peek().type === TokenType_1.TokenType.ParenthesisOpen) {
+            this.next();
+            const variableList = [];
+            while (this.peek().type !== TokenType_1.TokenType.ParenthesisClose) {
+                this.expect(TokenType_1.TokenType.Identifier);
+                const name = this.peek();
+                this.next();
+                if (this.peek().type === TokenType_1.TokenType.OperatorAssign) {
+                    this.next();
+                    const value = this.parsePrimary();
+                    if (this.peek().value === TokenType_1.KeywordType.As) {
+                        this.next();
+                        if (this.peek().value === TokenType_1.KeywordType.Const) {
+                            this.next();
+                            variableList.push({
+                                name: name.value,
+                                value,
+                                options: {
+                                    constant: true,
+                                },
+                            });
+                        }
+                        else if (this.peek().value === TokenType_1.KeywordType.Readonly) {
+                            this.next();
+                            variableList.push({
+                                name: name.value,
+                                value,
+                                options: {
+                                    constant: true,
+                                    readonly: true,
+                                },
+                            });
+                        }
+                    }
+                    else {
+                        variableList.push({
+                            name: name.value,
+                            value,
+                        });
+                    }
+                }
+                else {
+                    variableList.push({
+                        name: name.value,
+                        value: new NilLiteral_1.NilLiteral(name.position),
+                    });
+                }
+                if (this.peek().type === TokenType_1.TokenType.Comma) {
+                    this.next();
+                }
+                else
+                    this.expect(TokenType_1.TokenType.ParenthesisClose);
+            }
+            this.next();
+            let allOptionsVar = null;
+            if (this.peek().value === TokenType_1.KeywordType.As) {
+                this.next();
+                if (this.peek().value === TokenType_1.KeywordType.Const) {
+                    this.next();
+                    allOptionsVar = { constant: true };
+                }
+                else if (this.peek().value === TokenType_1.KeywordType.Readonly) {
+                    this.next();
+                    allOptionsVar = { constant: true, readonly: true };
+                }
+            }
+            if (allOptionsVar) {
+                variableList.forEach(({ name, options }) => {
+                    if (options) {
+                        this.throwError(SyntaxError_1.SyntaxCodeError.AlreadyAsInvalid, {
+                            name,
+                            varType: options.readonly ? "readonly" : "const",
+                            currentAsType: allOptionsVar.readonly ? "readonly" : "const",
+                            position: this.peek(-1).position,
+                        });
+                    }
+                });
+            }
+            this.expectSemicolonOrEnd();
+            return new CombinedVariableDeclaration_1.CombinedVariableDeclaration(variableList, allOptionsVar, identifier.position);
+        }
         this.next();
         if (this.peek().type !== TokenType_1.TokenType.OperatorAssign) {
             this.expectSemicolonOrEnd();

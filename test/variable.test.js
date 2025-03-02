@@ -225,3 +225,60 @@ test("readonly assignment variable function arguments", () => {
     [6, 2, 3],
   ]);
 });
+
+test("group variables create", () => {
+  const result = run(`
+   var (
+     a,
+     b = 1,
+     c = 2 as readonly,
+     v = a
+   );
+   
+   [a, b, c, v]
+  `);
+  deepEqual(result, [null, 1, 2, null]);
+});
+
+test("group variables assignment const", () => {
+  throws(() =>
+    run(`
+    var (
+      a,
+      b = 1,
+      c = 2 as const,
+      v = a
+    );
+   
+    c = 10;
+  `),
+  );
+});
+
+test("group variables assignment readonly", () => {
+  throws(() =>
+    run(`
+    var (
+      a,
+      b = 1,
+      c = {} as readonly,
+      v = a
+    );
+   
+    c.price = 10;
+  `),
+  );
+});
+
+test("group variables assignment already const/readonly", () => {
+  throws(() =>
+    run(`
+    var (
+      a,
+      b = 1 as readonly,
+      c = b as readonly,
+      v = a
+    );
+  `),
+  );
+});

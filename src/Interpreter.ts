@@ -22,6 +22,7 @@ import { DeferDeclaration } from "./ast/declaration/DeferDeclaration";
 import { ImportDeclaration } from "./ast/declaration/ImportDeclaration";
 import { ExportsDeclaration } from "./ast/declaration/ExportsDeclaration";
 import { VariableDeclaration } from "./ast/declaration/VariableDeclaration";
+import { CombinedVariableDeclaration } from "./ast/declaration/CombinedVariableDeclaration";
 import { FunctionDeclaration } from "./ast/declaration/FunctionDeclaration";
 import { EnumDeclaration } from "./ast/declaration/EnumDeclaration";
 import { ThrowDeclaration } from "./ast/declaration/ThrowDeclaration";
@@ -109,6 +110,7 @@ class Interpreter {
       case body instanceof ImportDeclaration:
       case body instanceof ExportsDeclaration:
       case body instanceof VariableDeclaration:
+      case body instanceof CombinedVariableDeclaration:
       case body instanceof FunctionDeclaration:
       case body instanceof EnumDeclaration:
       case body instanceof ThrowDeclaration:
