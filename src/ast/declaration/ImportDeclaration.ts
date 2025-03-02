@@ -67,10 +67,12 @@ class ImportDeclaration extends StmtType {
 
       score.update("import", {
         ...score.get("import"),
-        cache: {
-          ...score.get("import").cache,
-          [fullPath]: json,
-        },
+        ...(!score.get("#options").disableCache && {
+          cache: {
+            ...score.get("import").cache,
+            [fullPath]: json,
+          },
+        }),
         paths: Array.from(
           new Set([score.get("import").main, ...score.get("import").paths]),
         ),
@@ -126,10 +128,12 @@ class ImportDeclaration extends StmtType {
 
         score.update("import", {
           ...score.get("import"),
-          cache: {
-            ...score.get("import").cache,
-            [url]: json,
-          },
+          ...(!score.get("#options").disableCache && {
+            cache: {
+              ...score.get("import").cache,
+              [url]: json,
+            },
+          }),
           paths: Array.from(
             new Set([score.get("import").main, ...score.get("import").paths]),
           ),
@@ -151,10 +155,12 @@ class ImportDeclaration extends StmtType {
         const context = runFile(responseData, {
           base: score.get("import").base,
           main: url,
-          cache: {
-            ...score.get("import").cache,
-            [url]: score.get("#exports"),
-          },
+          ...(!score.get("#options").disableCache && {
+            cache: {
+              ...score.get("import").cache,
+              [url]: score.get("#exports"),
+            },
+          }),
           paths: Array.from(
             new Set([score.get("import").main, ...score.get("import").paths]),
           ),
@@ -163,10 +169,12 @@ class ImportDeclaration extends StmtType {
 
         score.update("import", {
           ...score.get("import"),
-          cache: {
-            ...score.get("import").cache,
-            [url]: responseData,
-          },
+          ...(!score.get("#options").disableCache && {
+            cache: {
+              ...score.get("import").cache,
+              [url]: responseData,
+            },
+          }),
           paths: Array.from(new Set([url, ...score.get("import").paths])),
         });
 
@@ -198,10 +206,12 @@ class ImportDeclaration extends StmtType {
 
     score.update("import", {
       ...score.get("import"),
-      cache: {
-        ...score.get("import").cache,
-        [source]: resolvePackage,
-      },
+      ...(!score.get("#options").disableCache && {
+        cache: {
+          ...score.get("import").cache,
+          [source]: resolvePackage,
+        },
+      }),
       paths: Array.from(
         new Set([score.get("import").main, ...score.get("import").paths]),
       ),
@@ -235,10 +245,12 @@ class ImportDeclaration extends StmtType {
       const context = runFile(content, {
         base: score.get("import").base,
         main: fullPath,
-        cache: {
-          ...score.get("import").cache,
-          [fullPath]: score.get("#exports"),
-        },
+        ...(!score.get("#options").disableCache && {
+          cache: {
+            ...score.get("import").cache,
+            [fullPath]: score.get("#exports"),
+          },
+        }),
         paths: Array.from(
           new Set([score.get("import").main, ...score.get("import").paths]),
         ),
@@ -247,10 +259,12 @@ class ImportDeclaration extends StmtType {
 
       score.update("import", {
         ...score.get("import"),
-        cache: {
-          ...score.get("import").cache,
-          [fullPath]: context.interpreter.globalScore.get("#exports"),
-        },
+        ...(!score.get("#options").disableCache && {
+          cache: {
+            ...score.get("import").cache,
+            [fullPath]: context.interpreter.globalScore.get("#exports"),
+          },
+        }),
         paths: Array.from(
           new Set([score.get("import").main, ...score.get("import").paths]),
         ),
@@ -312,10 +326,12 @@ class ImportDeclaration extends StmtType {
     const context = runFile(readFileSync(runFileSource).toString(), {
       base: joinPath(process.cwd(), ".module", source.replace(":", "/")),
       main: runLibSource,
-      cache: {
-        ...score.get("import").cache,
-        [source]: score.get("#exports"),
-      },
+      ...(!score.get("#options").disableCache && {
+        cache: {
+          ...score.get("import").cache,
+          [source]: score.get("#exports"),
+        },
+      }),
       paths: Array.from(
         new Set([score.get("import").main, ...score.get("import").paths]),
       ),
@@ -324,10 +340,12 @@ class ImportDeclaration extends StmtType {
 
     score.update("import", {
       ...score.get("import"),
-      cache: {
-        ...score.get("import").cache,
-        [source]: context.interpreter.globalScore.get("#exports"),
-      },
+      ...(!score.get("#options").disableCache && {
+        cache: {
+          ...score.get("import").cache,
+          [source]: context.interpreter.globalScore.get("#exports"),
+        },
+      }),
       paths: Array.from(new Set([source, ...score.get("import").paths])),
     });
 

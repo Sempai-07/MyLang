@@ -52,10 +52,12 @@ class ImportDeclaration extends StmtType_1.StmtType {
             const json = JSON.parse((0, node_fs_1.readFileSync)(fullPath, "utf8"));
             score.update("import", {
                 ...score.get("import"),
-                cache: {
-                    ...score.get("import").cache,
-                    [fullPath]: json,
-                },
+                ...(!score.get("#options").disableCache && {
+                    cache: {
+                        ...score.get("import").cache,
+                        [fullPath]: json,
+                    },
+                }),
                 paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
             });
             return json;
@@ -97,10 +99,12 @@ class ImportDeclaration extends StmtType_1.StmtType {
                 const json = JSON.parse(responseData);
                 score.update("import", {
                     ...score.get("import"),
-                    cache: {
-                        ...score.get("import").cache,
-                        [url]: json,
-                    },
+                    ...(!score.get("#options").disableCache && {
+                        cache: {
+                            ...score.get("import").cache,
+                            [url]: json,
+                        },
+                    }),
                     paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
                 });
                 return json;
@@ -121,19 +125,23 @@ class ImportDeclaration extends StmtType_1.StmtType {
                 const context = (0, utils_1.run)(responseData, {
                     base: score.get("import").base,
                     main: url,
-                    cache: {
-                        ...score.get("import").cache,
-                        [url]: score.get("#exports"),
-                    },
+                    ...(!score.get("#options").disableCache && {
+                        cache: {
+                            ...score.get("import").cache,
+                            [url]: score.get("#exports"),
+                        },
+                    }),
                     paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
                     options: score.get("#options"),
                 });
                 score.update("import", {
                     ...score.get("import"),
-                    cache: {
-                        ...score.get("import").cache,
-                        [url]: responseData,
-                    },
+                    ...(!score.get("#options").disableCache && {
+                        cache: {
+                            ...score.get("import").cache,
+                            [url]: responseData,
+                        },
+                    }),
                     paths: Array.from(new Set([url, ...score.get("import").paths])),
                 });
                 return context.interpreter.globalScore.get("#exports");
@@ -157,10 +165,12 @@ class ImportDeclaration extends StmtType_1.StmtType {
         const resolvePackage = require(`../../native/lib/${source}/index`);
         score.update("import", {
             ...score.get("import"),
-            cache: {
-                ...score.get("import").cache,
-                [source]: resolvePackage,
-            },
+            ...(!score.get("#options").disableCache && {
+                cache: {
+                    ...score.get("import").cache,
+                    [source]: resolvePackage,
+                },
+            }),
             paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
         });
         return resolvePackage;
@@ -184,19 +194,23 @@ class ImportDeclaration extends StmtType_1.StmtType {
             const context = (0, utils_1.run)(content, {
                 base: score.get("import").base,
                 main: fullPath,
-                cache: {
-                    ...score.get("import").cache,
-                    [fullPath]: score.get("#exports"),
-                },
+                ...(!score.get("#options").disableCache && {
+                    cache: {
+                        ...score.get("import").cache,
+                        [fullPath]: score.get("#exports"),
+                    },
+                }),
                 paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
                 options: score.get("#options"),
             });
             score.update("import", {
                 ...score.get("import"),
-                cache: {
-                    ...score.get("import").cache,
-                    [fullPath]: context.interpreter.globalScore.get("#exports"),
-                },
+                ...(!score.get("#options").disableCache && {
+                    cache: {
+                        ...score.get("import").cache,
+                        [fullPath]: context.interpreter.globalScore.get("#exports"),
+                    },
+                }),
                 paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
             });
             return context.interpreter.globalScore.get("#exports");
@@ -240,19 +254,23 @@ class ImportDeclaration extends StmtType_1.StmtType {
         const context = (0, utils_1.run)((0, node_fs_1.readFileSync)(runFileSource).toString(), {
             base: (0, node_path_1.join)(process.cwd(), ".module", source.replace(":", "/")),
             main: runLibSource,
-            cache: {
-                ...score.get("import").cache,
-                [source]: score.get("#exports"),
-            },
+            ...(!score.get("#options").disableCache && {
+                cache: {
+                    ...score.get("import").cache,
+                    [source]: score.get("#exports"),
+                },
+            }),
             paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
             options: score.get("#options"),
         });
         score.update("import", {
             ...score.get("import"),
-            cache: {
-                ...score.get("import").cache,
-                [source]: context.interpreter.globalScore.get("#exports"),
-            },
+            ...(!score.get("#options").disableCache && {
+                cache: {
+                    ...score.get("import").cache,
+                    [source]: context.interpreter.globalScore.get("#exports"),
+                },
+            }),
             paths: Array.from(new Set([source, ...score.get("import").paths])),
         });
         return context.interpreter.globalScore.get("#exports");

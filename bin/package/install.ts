@@ -29,7 +29,7 @@ function installPackage(name?: string) {
 
     if (!owner || !packageName) {
       console.error(
-        `Error: Invalid package format. Expected format: "owner:repository" (received: "${repo}").`
+        `Error: Invalid package format. Expected format: "owner:repository" (received: "${repo}").`,
       );
       process.exit(1);
     }
@@ -39,7 +39,7 @@ function installPackage(name?: string) {
     if (!fs.existsSync(modulePath)) {
       execSync(
         `git clone --quiet https://github.com/${owner}/${packageName} ${modulePath}`,
-        { stdio: "ignore" }
+        { stdio: "ignore" },
       );
     }
 
