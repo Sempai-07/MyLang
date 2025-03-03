@@ -848,7 +848,7 @@ class Parser {
             this.expect(TokenType_1.TokenType.ParenthesisClose);
             this.next();
             this.expectSemicolonOrEnd();
-            return new ImportDeclaration_1.ImportDeclaration(packages, expression, identifier.position);
+            return new ImportDeclaration_1.ImportDeclaration(packages, null, expression, identifier.position);
         }
         if (this.peek().type === TokenType_1.TokenType.ParenthesisOpen && expression) {
             this.next();
@@ -858,13 +858,31 @@ class Parser {
             this.expect(TokenType_1.TokenType.ParenthesisClose);
             this.next();
             this.expectSemicolonOrEnd();
-            return new ImportDeclaration_1.ImportDeclaration(packageName, expression, identifier.position);
+            return new ImportDeclaration_1.ImportDeclaration(packageName, null, expression, identifier.position);
         }
         this.expect(TokenType_1.TokenType.String);
         const packageName = this.peek().value;
         this.next();
+        if (this.peek().value === TokenType_1.KeywordType.As) {
+            this.next();
+            this.expect(TokenType_1.TokenType.BraceOpen);
+            this.next();
+            const destructuringList = [];
+            while (this.peek().type !== TokenType_1.TokenType.BraceClose) {
+                this.expect(TokenType_1.TokenType.Identifier);
+                destructuringList.push(this.peek().value);
+                this.next();
+                if (this.peek().type !== TokenType_1.TokenType.BraceClose) {
+                    this.expect(TokenType_1.TokenType.Comma);
+                    this.next();
+                }
+            }
+            this.next();
+            this.expectSemicolonOrEnd();
+            return new ImportDeclaration_1.ImportDeclaration(packageName, destructuringList, expression, identifier.position);
+        }
         this.expectSemicolonOrEnd();
-        return new ImportDeclaration_1.ImportDeclaration(packageName, expression, identifier.position);
+        return new ImportDeclaration_1.ImportDeclaration(packageName, null, expression, identifier.position);
     }
     parseExportDeclaration(identifier) {
         this.expect(TokenType_1.TokenType.ParenthesisOpen);

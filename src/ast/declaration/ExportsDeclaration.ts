@@ -1,6 +1,9 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
+import { IdentifierLiteral } from "../types/IdentifierLiteral";
+
+const exportSymbol = Symbol("ExportSymbol");
 
 class ExportsDeclaration extends StmtType {
   public readonly position: Position;
@@ -16,10 +19,19 @@ class ExportsDeclaration extends StmtType {
 
   evaluate(score: Environment) {
     for (const key of <string[]>Object.keys(this.value)) {
+      // @ts-ignore
+      const expValue = this.value[key];
+
       score.update("#exports", {
         ...score.get("#exports"),
-        // @ts-expect-error
-        [key]: this.value[key].evaluate(score),
+        [key]: {
+          value: expValue.evaluate(score),
+          ...(expValue instanceof IdentifierLiteral &&
+            score.optionsVar[expValue.value] && {
+              optionsVar: score.optionsVar[expValue.value],
+            }),
+          [exportSymbol]: true,
+        },
       });
     }
 
@@ -27,4 +39,4 @@ class ExportsDeclaration extends StmtType {
   }
 }
 
-export { ExportsDeclaration };
+export { ExportsDeclaration, exportSymbol };

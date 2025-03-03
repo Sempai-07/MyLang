@@ -7,14 +7,17 @@ const node_fs_1 = require("node:fs");
 const node_path_1 = require("node:path");
 const StmtType_1 = require("../StmtType");
 const BaseError_1 = require("../../errors/BaseError");
+const ExportsDeclaration_1 = require("./ExportsDeclaration");
 const utils_1 = require("../../utils/utils");
 class ImportDeclaration extends StmtType_1.StmtType {
     position;
     expression;
+    destructuring;
     package;
-    constructor(packageName, expression, position) {
+    constructor(packageName, destructuring, expression, position) {
         super();
         this.package = packageName;
+        this.destructuring = destructuring;
         this.expression = expression;
         this.position = position;
     }
@@ -134,12 +137,22 @@ class ImportDeclaration extends StmtType_1.StmtType {
                     paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
                     options: score.get("#options"),
                 });
+                const expModule = {};
+                const contextExports = context.interpreter.globalScore.get("#exports");
+                for (const key in contextExports) {
+                    if (contextExports[key]?.[ExportsDeclaration_1.exportSymbol]) {
+                        expModule[key] = contextExports[key].value;
+                    }
+                    else {
+                        expModule[key] = contextExports[key];
+                    }
+                }
                 score.update("import", {
                     ...score.get("import"),
                     ...(!score.get("#options").disableCache && {
                         cache: {
                             ...score.get("import").cache,
-                            [url]: responseData,
+                            [url]: expModule,
                         },
                     }),
                     paths: Array.from(new Set([url, ...score.get("import").paths])),
@@ -203,12 +216,22 @@ class ImportDeclaration extends StmtType_1.StmtType {
                 paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
                 options: score.get("#options"),
             });
+            const expModule = {};
+            const contextExports = context.interpreter.globalScore.get("#exports");
+            for (const key in contextExports) {
+                if (contextExports[key]?.[ExportsDeclaration_1.exportSymbol]) {
+                    expModule[key] = contextExports[key].value;
+                }
+                else {
+                    expModule[key] = contextExports[key];
+                }
+            }
             score.update("import", {
                 ...score.get("import"),
                 ...(!score.get("#options").disableCache && {
                     cache: {
                         ...score.get("import").cache,
-                        [fullPath]: context.interpreter.globalScore.get("#exports"),
+                        [fullPath]: expModule,
                     },
                 }),
                 paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
@@ -263,12 +286,22 @@ class ImportDeclaration extends StmtType_1.StmtType {
             paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
             options: score.get("#options"),
         });
+        const expModule = {};
+        const contextExports = context.interpreter.globalScore.get("#exports");
+        for (const key in contextExports) {
+            if (contextExports[key]?.[ExportsDeclaration_1.exportSymbol]) {
+                expModule[key] = contextExports[key].value;
+            }
+            else {
+                expModule[key] = contextExports[key];
+            }
+        }
         score.update("import", {
             ...score.get("import"),
             ...(!score.get("#options").disableCache && {
                 cache: {
                     ...score.get("import").cache,
-                    [source]: context.interpreter.globalScore.get("#exports"),
+                    [source]: expModule,
                 },
             }),
             paths: Array.from(new Set([source, ...score.get("import").paths])),
@@ -278,8 +311,28 @@ class ImportDeclaration extends StmtType_1.StmtType {
     handleModuleImport(module, name, score) {
         if (this.expression)
             return module;
-        if (!score.get("#options").disableCache)
-            score.create(name, module);
+        if (!score.get("#options").disableCache) {
+            if (this.destructuring) {
+                for (const key of this.destructuring) {
+                    if (!(key in module)) {
+                        throw new BaseError_1.ImportFaildError(`The key '${key}' is not in the object.`, {
+                            code: "IMPORT_DESTRUCTURING_FAILD",
+                            cause: {
+                                key,
+                            },
+                            files: score.get("import").paths,
+                        });
+                    }
+                    if (module[key]?.[ExportsDeclaration_1.exportSymbol]) {
+                        score.create(key, module[key].value, module[key].optionsVar);
+                    }
+                    else
+                        score.create(key, module[key], module[key]);
+                }
+            }
+            else
+                score.create(name, module);
+        }
     }
     evaluateSinglePackage(packageName, score) {
         const { ext, dir, base, name } = (0, node_path_1.parse)(packageName);

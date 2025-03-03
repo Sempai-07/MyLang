@@ -6,21 +6,26 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
 import { FileReadFaild, ImportFaildError } from "../../errors/BaseError";
+import { exportSymbol } from "./ExportsDeclaration";
 import { run as runFile } from "../../utils/utils";
 
 class ImportDeclaration extends StmtType {
   public readonly position: Position;
   public readonly expression: boolean;
+  public readonly destructuring: string[] | null;
   public readonly package: string | Record<string, StmtType>;
 
   constructor(
     packageName: string | Record<string, StmtType>,
+    destructuring: string[] | null,
     expression: boolean,
     position: Position,
   ) {
     super();
 
     this.package = packageName;
+
+    this.destructuring = destructuring;
 
     this.expression = expression;
 
@@ -167,12 +172,23 @@ class ImportDeclaration extends StmtType {
           options: score.get("#options"),
         });
 
+        const expModule: Record<string, any> = {};
+        const contextExports = context.interpreter.globalScore.get("#exports");
+
+        for (const key in contextExports) {
+          if (contextExports[key]?.[exportSymbol]) {
+            expModule[key] = contextExports[key].value;
+          } else {
+            expModule[key] = contextExports[key];
+          }
+        }
+
         score.update("import", {
           ...score.get("import"),
           ...(!score.get("#options").disableCache && {
             cache: {
               ...score.get("import").cache,
-              [url]: responseData,
+              [url]: expModule,
             },
           }),
           paths: Array.from(new Set([url, ...score.get("import").paths])),
@@ -257,12 +273,23 @@ class ImportDeclaration extends StmtType {
         options: score.get("#options"),
       });
 
+      const expModule: Record<string, any> = {};
+      const contextExports = context.interpreter.globalScore.get("#exports");
+
+      for (const key in contextExports) {
+        if (contextExports[key]?.[exportSymbol]) {
+          expModule[key] = contextExports[key].value;
+        } else {
+          expModule[key] = contextExports[key];
+        }
+      }
+
       score.update("import", {
         ...score.get("import"),
         ...(!score.get("#options").disableCache && {
           cache: {
             ...score.get("import").cache,
-            [fullPath]: context.interpreter.globalScore.get("#exports"),
+            [fullPath]: expModule,
           },
         }),
         paths: Array.from(
@@ -338,12 +365,23 @@ class ImportDeclaration extends StmtType {
       options: score.get("#options"),
     });
 
+    const expModule: Record<string, any> = {};
+    const contextExports = context.interpreter.globalScore.get("#exports");
+
+    for (const key in contextExports) {
+      if (contextExports[key]?.[exportSymbol]) {
+        expModule[key] = contextExports[key].value;
+      } else {
+        expModule[key] = contextExports[key];
+      }
+    }
+
     score.update("import", {
       ...score.get("import"),
       ...(!score.get("#options").disableCache && {
         cache: {
           ...score.get("import").cache,
-          [source]: context.interpreter.globalScore.get("#exports"),
+          [source]: expModule,
         },
       }),
       paths: Array.from(new Set([source, ...score.get("import").paths])),
@@ -354,7 +392,27 @@ class ImportDeclaration extends StmtType {
 
   handleModuleImport(module: any, name: string, score: Environment) {
     if (this.expression) return module;
-    if (!score.get("#options").disableCache) score.create(name, module);
+    if (!score.get("#options").disableCache) {
+      if (this.destructuring) {
+        for (const key of this.destructuring) {
+          if (!(key in module)) {
+            throw new ImportFaildError(
+              `The key '${key}' is not in the object.`,
+              {
+                code: "IMPORT_DESTRUCTURING_FAILD",
+                cause: {
+                  key,
+                },
+                files: score.get("import").paths,
+              },
+            );
+          }
+          if (module[key]?.[exportSymbol]) {
+            score.create(key, module[key].value, module[key].optionsVar);
+          } else score.create(key, module[key], module[key]);
+        }
+      } else score.create(name, module);
+    }
   }
 
   evaluateSinglePackage(packageName: string, score: Environment) {
