@@ -327,11 +327,20 @@ class ImportDeclaration extends StmtType_1.StmtType {
                         score.create(key, module[key].value, module[key].optionsVar);
                     }
                     else
-                        score.create(key, module[key], module[key]);
+                        score.create(key, module[key]);
                 }
             }
-            else
-                score.create(name, module);
+            else {
+                const expModule = {};
+                for (const key in module) {
+                    if (module[key]?.[ExportsDeclaration_1.exportSymbol]) {
+                        expModule[key] = module[key].value;
+                    }
+                    else
+                        expModule[key] = module[key];
+                }
+                score.create(name, expModule);
+            }
         }
     }
     evaluateSinglePackage(packageName, score) {

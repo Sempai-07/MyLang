@@ -409,9 +409,19 @@ class ImportDeclaration extends StmtType {
           }
           if (module[key]?.[exportSymbol]) {
             score.create(key, module[key].value, module[key].optionsVar);
-          } else score.create(key, module[key], module[key]);
+          } else score.create(key, module[key]);
         }
-      } else score.create(name, module);
+      } else {
+        const expModule: Record<string, any> = {};
+
+        for (const key in module) {
+          if (module[key]?.[exportSymbol]) {
+            expModule[key] = module[key].value;
+          } else expModule[key] = module[key];
+        }
+
+        score.create(name, expModule);
+      }
     }
   }
 
