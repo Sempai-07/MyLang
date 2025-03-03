@@ -221,8 +221,14 @@ function parse([dateString]: [string]): number {
   return Date.parse(dateString);
 }
 
-function UTC(args: number): number {
+function UTC([args]: [number]): number {
   return Date.UTC(args);
 }
 
-export { Time, now, parse, UTC };
+function sleep([ms]: [number]) {
+  const buffer = new SharedArrayBuffer(4);
+  const view = new Int32Array(buffer);
+  Atomics.wait(view, 0, 0, ms);
+}
+
+export { Time, now, parse, UTC, sleep };

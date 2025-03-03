@@ -4,6 +4,7 @@ exports.Time = Time;
 exports.now = now;
 exports.parse = parse;
 exports.UTC = UTC;
+exports.sleep = sleep;
 const BaseError_1 = require("../../../errors/BaseError");
 function Time(args) {
     const now = new Date(...args);
@@ -141,6 +142,11 @@ function now() {
 function parse([dateString]) {
     return Date.parse(dateString);
 }
-function UTC(args) {
+function UTC([args]) {
     return Date.UTC(args);
+}
+function sleep([ms]) {
+    const buffer = new SharedArrayBuffer(4);
+    const view = new Int32Array(buffer);
+    Atomics.wait(view, 0, 0, ms);
 }
