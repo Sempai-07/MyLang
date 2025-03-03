@@ -46,6 +46,6 @@ function Iterator([collection]: [Record<string, any> | any[]]) {
   });
 }
 
-const symbol = Symbol.iterator;
+const symbol = Symbol("CustomIterator");
 
 export { Iterator, symbol };

@@ -46,5 +46,5 @@ function Iterator([collection]) {
         files: [`mylang:iter (${__filename})`],
     });
 }
-const symbol = Symbol.iterator;
+const symbol = Symbol("CustomIterator");
 exports.symbol = symbol;
