@@ -1,0 +1,12 @@
+{
+  "name": "MyLang2",
+  "version": "1.0.0",
+  "description": "Your package 📦",
+  "main": "./test.ml",
+  "scripts": {
+    "run": "mylang run test.ml"
+  },
+  "dependencies": {
+    "test": "Sempai-07:test"
+  }
+}

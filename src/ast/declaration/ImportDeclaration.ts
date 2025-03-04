@@ -32,7 +32,7 @@ class ImportDeclaration extends StmtType {
     this.position = position;
   }
 
-  get buildInLibs() {
+  static get buildInLibs() {
     return [
       "coreio",
       "os",
@@ -56,6 +56,7 @@ class ImportDeclaration extends StmtType {
       "errors",
       "iter",
       "path",
+      "module",
     ];
   }
 
@@ -318,7 +319,9 @@ class ImportDeclaration extends StmtType {
       return score.get("import").cache[source];
 
     const myLangJSON = JSON.parse(
-      readFileSync(joinPath(process.cwd(), "mylang.json")).toString(),
+      readFileSync(
+        joinPath(score.get("import").base, "mylang.json"),
+      ).toString(),
     );
 
     const dependenciesSource = myLangJSON.dependencies[source.split(":")[1]!];
@@ -334,7 +337,7 @@ class ImportDeclaration extends StmtType {
     }
 
     const runFileSource = joinPath(
-      process.cwd(),
+      score.get("import").base,
       ".module",
       source.replace(":", "/"),
       myLangJSON.main,
@@ -350,9 +353,13 @@ class ImportDeclaration extends StmtType {
       });
     }
 
-    const runLibSource = joinPath(process.cwd(), ".module", source);
+    const runLibSource = joinPath(score.get("import").base, ".module", source);
     const context = runFile(readFileSync(runFileSource).toString(), {
-      base: joinPath(process.cwd(), ".module", source.replace(":", "/")),
+      base: joinPath(
+        score.get("import").base,
+        ".module",
+        source.replace(":", "/"),
+      ),
       main: runLibSource,
       ...(!score.get("#options").disableCache && {
         cache: {
@@ -422,6 +429,8 @@ class ImportDeclaration extends StmtType {
         }
 
         score.create(name, expModule);
+
+        return expModule;
       }
     }
   }
@@ -449,7 +458,7 @@ class ImportDeclaration extends StmtType {
       );
     }
 
-    if (ext === "" && this.buildInLibs.includes(packageName)) {
+    if (ext === "" && ImportDeclaration.buildInLibs.includes(packageName)) {
       return this.handleModuleImport(
         this.resolveBuildInModule(fullPath, score),
         packageName.includes("/") ? packageName.split("/")[1]! : packageName,
@@ -499,7 +508,7 @@ class ImportDeclaration extends StmtType {
         packages[packageName] = this.resolveHTTPModule(resolvePath, score);
       } else if (ext === ".json") {
         packages[packageName] = this.resolveJSONModule(base, score);
-      } else if (this.buildInLibs.includes(name)) {
+      } else if (ImportDeclaration.buildInLibs.includes(name)) {
         packages[packageName] = this.resolveBuildInModule(base, score);
       } else if (ext === ".ml") {
         packages[packageName] = this.resolveFileModule(base, score);

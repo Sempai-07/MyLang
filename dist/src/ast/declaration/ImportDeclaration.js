@@ -21,7 +21,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
         this.expression = expression;
         this.position = position;
     }
-    get buildInLibs() {
+    static get buildInLibs() {
         return [
             "coreio",
             "os",
@@ -45,6 +45,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
             "errors",
             "iter",
             "path",
+            "module",
         ];
     }
     resolveJSONModule(source, score) {
@@ -253,7 +254,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
         if (score.get("import").cache[source] &&
             !score.get("#options").disableCache)
             return score.get("import").cache[source];
-        const myLangJSON = JSON.parse((0, node_fs_1.readFileSync)((0, node_path_1.join)(process.cwd(), "mylang.json")).toString());
+        const myLangJSON = JSON.parse((0, node_fs_1.readFileSync)((0, node_path_1.join)(score.get("import").base, "mylang.json")).toString());
         const dependenciesSource = myLangJSON.dependencies[source.split(":")[1]];
         if (!dependenciesSource) {
             throw new BaseError_1.ImportFaildError(`No resolve module: "${source}"`, {
@@ -264,7 +265,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
                 files: score.get("import").paths,
             });
         }
-        const runFileSource = (0, node_path_1.join)(process.cwd(), ".module", source.replace(":", "/"), myLangJSON.main);
+        const runFileSource = (0, node_path_1.join)(score.get("import").base, ".module", source.replace(":", "/"), myLangJSON.main);
         if (!(0, node_fs_1.existsSync)(runFileSource)) {
             throw new BaseError_1.ImportFaildError(`File main "${runFileSource}" not found`, {
                 code: "IMPORT_FILE_RUN_FAILD",
@@ -274,9 +275,9 @@ class ImportDeclaration extends StmtType_1.StmtType {
                 files: score.get("import").paths,
             });
         }
-        const runLibSource = (0, node_path_1.join)(process.cwd(), ".module", source);
+        const runLibSource = (0, node_path_1.join)(score.get("import").base, ".module", source);
         const context = (0, utils_1.run)((0, node_fs_1.readFileSync)(runFileSource).toString(), {
-            base: (0, node_path_1.join)(process.cwd(), ".module", source.replace(":", "/")),
+            base: (0, node_path_1.join)(score.get("import").base, ".module", source.replace(":", "/")),
             main: runLibSource,
             ...(!score.get("#options").disableCache && {
                 cache: {
@@ -341,6 +342,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
                         expModule[key] = module[key];
                 }
                 score.create(name, expModule);
+                return expModule;
             }
         }
     }
@@ -354,7 +356,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
         if (ext === ".json") {
             return this.handleModuleImport(this.resolveJSONModule(fullPath, score), name, score);
         }
-        if (ext === "" && this.buildInLibs.includes(packageName)) {
+        if (ext === "" && ImportDeclaration.buildInLibs.includes(packageName)) {
             return this.handleModuleImport(this.resolveBuildInModule(fullPath, score), packageName.includes("/") ? packageName.split("/")[1] : packageName, score);
         }
         if (ext === ".ml") {
@@ -385,7 +387,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
             else if (ext === ".json") {
                 packages[packageName] = this.resolveJSONModule(base, score);
             }
-            else if (this.buildInLibs.includes(name)) {
+            else if (ImportDeclaration.buildInLibs.includes(name)) {
                 packages[packageName] = this.resolveBuildInModule(base, score);
             }
             else if (ext === ".ml") {
