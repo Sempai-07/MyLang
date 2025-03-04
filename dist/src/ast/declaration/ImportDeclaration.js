@@ -25,6 +25,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
         return [
             "coreio",
             "os",
+            "os/exec",
             "fs",
             "buffers",
             "strings",

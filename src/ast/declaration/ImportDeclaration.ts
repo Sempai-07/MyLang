@@ -36,6 +36,7 @@ class ImportDeclaration extends StmtType {
     return [
       "coreio",
       "os",
+      "os/exec",
       "fs",
       "buffers",
       "strings",
