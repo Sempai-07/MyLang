@@ -39,6 +39,7 @@ class ImportDeclaration extends StmtType {
       "os/exec",
       "fs",
       "buffers",
+      "hash",
       "strings",
       "numbers",
       "numbers/bigint",
