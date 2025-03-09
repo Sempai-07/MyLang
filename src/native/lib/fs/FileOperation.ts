@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { BufferWrapper } from "../buffers/index";
+import { from } from "../buffers/index";
 import { BaseError, ArgumentsError } from "../../../errors/BaseError";
 
 function FileOperation() {
@@ -62,7 +62,7 @@ function FileOperation() {
       const buffer = Buffer.alloc(length);
       return handleError(() => {
         fs.readSync(fd!, buffer, 0, length, position!);
-        return BufferWrapper([buffer]);
+        return from([buffer]);
       });
     },
 

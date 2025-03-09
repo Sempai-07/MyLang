@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystem = FileSystem;
 const tslib_1 = require("tslib");
-const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
 const index_1 = require("../buffers/index");
+const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
 const utils_1 = require("../../utils");
 const BaseError_1 = require("../../../errors/BaseError");
 function FileSystem() {
@@ -32,10 +32,7 @@ function FileSystem() {
             validateCallback(cb);
             node_fs_1.default.readFile(path, options || {}, (err, data) => cb
                 .evaluate(cb.parentEnv)
-                .call([
-                { value: handleError(err) },
-                { value: (0, index_1.BufferWrapper)([data]) },
-            ]));
+                .call([{ value: handleError(err) }, { value: (0, index_1.from)([data]) }]));
         },
         write([path, data, options, cb]) {
             validateArgs([path], ["string"]);

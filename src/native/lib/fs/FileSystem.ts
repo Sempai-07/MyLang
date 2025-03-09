@@ -1,5 +1,5 @@
+import { from } from "../buffers/index";
 import fs, { type WriteFileOptions } from "node:fs";
-import { BufferWrapper } from "../buffers/index";
 import { isFunctionNode } from "../../utils";
 import { type FunctionDeclaration } from "../../../ast/declaration/FunctionDeclaration";
 import { type FunctionExpression } from "../../../ast/expression/FunctionExpression";
@@ -47,10 +47,7 @@ function FileSystem() {
       fs.readFile(path, options || {}, (err, data) =>
         cb
           .evaluate(cb.parentEnv)
-          .call([
-            { value: handleError(err) },
-            { value: BufferWrapper([data]) },
-          ]),
+          .call([{ value: handleError(err) }, { value: from([data]) }]),
       );
     },
 

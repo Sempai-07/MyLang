@@ -1,5 +1,5 @@
+import { from } from "../buffers/index";
 import fs, { type WriteFileOptions } from "node:fs";
-import { BufferWrapper } from "../buffers/index";
 import { BaseError, ArgumentsError } from "../../../errors/BaseError";
 
 function FileSync() {
@@ -31,9 +31,7 @@ function FileSync() {
     ]) {
       validateArgs([path], ["string"]);
       return handleError(() =>
-        BufferWrapper([
-          fs.readFileSync(path, options as unknown as WriteFileOptions),
-        ]),
+        from([fs.readFileSync(path, options as unknown as WriteFileOptions)]),
       );
     },
 

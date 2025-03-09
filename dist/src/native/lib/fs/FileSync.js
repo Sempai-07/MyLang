@@ -2,8 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSync = FileSync;
 const tslib_1 = require("tslib");
-const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
 const index_1 = require("../buffers/index");
+const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
 const BaseError_1 = require("../../../errors/BaseError");
 function FileSync() {
     function validateArgs(args, expectedTypes) {
@@ -26,9 +26,7 @@ function FileSync() {
     return {
         read([path, options]) {
             validateArgs([path], ["string"]);
-            return handleError(() => (0, index_1.BufferWrapper)([
-                node_fs_1.default.readFileSync(path, options),
-            ]));
+            return handleError(() => (0, index_1.from)([node_fs_1.default.readFileSync(path, options)]));
         },
         write([path, data, options]) {
             validateArgs([path], ["string"]);

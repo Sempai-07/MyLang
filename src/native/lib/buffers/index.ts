@@ -1,289 +1,138 @@
 import { Buffer } from "node:buffer";
-import { ArgumentsError } from "../../../errors/BaseError";
+import { isFunctionNode } from "../../utils";
+import { BufferData, BufferCustom } from "./symbol";
+import { ArgumentsError, FunctionCallError } from "../../../errors/BaseError";
+import { type FunctionDeclaration } from "../../../ast/declaration/FunctionDeclaration";
+import { type FunctionExpression } from "../../../ast/expression/FunctionExpression";
 
-function BufferUtility() {
-  return {
-    from([input, encodingOrOffset, length]: [
-      string | number[],
-      number | undefined,
-      number | undefined,
-    ]): ReturnType<typeof BufferWrapper> {
-      if (!input) {
-        throw new ArgumentsError("Input cannot be nil.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
+function Bytes([initialSize]: [number] = [64]): any {
+  let data = Buffer.allocUnsafe(initialSize);
+  let length = 0;
+  let offset = 0;
 
-      const arrayBufferLikeInput =
-        typeof input === "string"
-          ? new TextEncoder().encode(input).buffer
-          : Array.isArray(input)
-            ? new Uint8Array(input).buffer
-            : input;
-
-      return BufferWrapper([
-        Buffer.from(arrayBufferLikeInput, encodingOrOffset, length),
-      ]);
-    },
-    alloc([size, fill, encoding]: [
-      number,
-      string | number | Buffer | undefined,
-      BufferEncoding | undefined,
-    ]): ReturnType<typeof BufferWrapper> {
-      if (typeof size !== "number" || size < 0) {
-        throw new ArgumentsError("Must be a non-negative number.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return BufferWrapper([Buffer.alloc(size, fill, encoding)]);
-    },
-    allocUnsafe([size]: [number]): ReturnType<typeof BufferWrapper> {
-      if (typeof size !== "number" || size < 0) {
-        throw new ArgumentsError("Must be a non-negative number.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return BufferWrapper([Buffer.allocUnsafe(size)]);
-    },
-    byteLength([string, encoding]: [
-      string | Buffer,
-      BufferEncoding | undefined,
-    ]): number {
-      if (typeof string !== "string" && !Buffer.isBuffer(string)) {
-        throw new ArgumentsError("Must be a string, BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return Buffer.byteLength(string, encoding);
-    },
-    compare([buf1, buf2]: [Buffer, Buffer]): number {
-      if (!Buffer.isBuffer(buf1) || !Buffer.isBuffer(buf2)) {
-        throw new ArgumentsError("Both arguments must be Buffers.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return Buffer.compare(buf1, buf2);
-    },
-    concat([list, totalLength]: [Buffer[], number | undefined]): ReturnType<
-      typeof BufferWrapper
-    > {
-      if (!Array.isArray(list) || !list.every(Buffer.isBuffer)) {
-        throw new ArgumentsError("Must be an array of Buffers.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return BufferWrapper([Buffer.concat(list, totalLength)]);
-    },
-    isBuffer([obj]: [any]): boolean {
-      return Buffer.isBuffer(obj);
-    },
-    toJSON([buffer]: [Buffer]): Object {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a Buffer.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.toJSON();
-    },
-    write([buffer, string, offset, length, encoding]: [
-      Buffer,
-      string,
-      number | undefined,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): number {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a Buffer.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.write(
-        string,
-        offset ?? 0,
-        length ?? string.length,
-        encoding,
-      );
-    },
-    toString(
-      // @ts-expect-error
-      [buffer, encoding, start, end]: [
-        Buffer,
-        BufferEncoding | undefined,
-        number | undefined,
-        number | undefined,
-      ] = [Buffer.alloc(0)],
-    ): string {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.toString(encoding, start, end);
-    },
-    slice([buffer, start, end]: [
-      Buffer,
-      number | undefined,
-      number | undefined,
-    ]): ReturnType<typeof BufferWrapper> {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return BufferWrapper([buffer.slice(start, end)]);
-    },
-    includes([buffer, value, byteOffset, encoding]: [
-      Buffer,
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): boolean {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.includes(value, byteOffset, encoding);
-    },
-    indexOf([buffer, value, byteOffset, encoding]: [
-      Buffer,
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): number {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.indexOf(value, byteOffset, encoding);
-    },
-    lastIndexOf([buffer, value, byteOffset, encoding]: [
-      Buffer,
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): number {
-      if (!Buffer.isBuffer(buffer)) {
-        throw new ArgumentsError("Must be a BufferUtility.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buffer.lastIndexOf(value, byteOffset, encoding);
-    },
-    equals([buf1, buf2]: [Buffer, Buffer]): boolean {
-      if (!Buffer.isBuffer(buf1) || !Buffer.isBuffer(buf2)) {
-        throw new ArgumentsError("Both arguments must be Buffers.", [
-          `mylang:buffers (${__filename})`,
-        ]);
-      }
-      return buf1.equals(buf2);
-    },
-  };
-}
-
-function BufferWrapper([buffer]: [Buffer | string]): {
-  toString: ([encoding, start, end]: [
-    BufferEncoding | undefined,
-    number | undefined,
-    number | undefined,
-  ]) => string;
-  slice: ([start, end]: [number | undefined, number | undefined]) => {
-    toString: any;
-  };
-  write: ([string, offset, length, encoding]: [
-    string,
-    number,
-    number,
-    BufferEncoding | undefined,
-  ]) => number;
-  includes: ([value, byteOffset, encoding]: [
-    string | number,
-    number | undefined,
-    BufferEncoding | undefined,
-  ]) => boolean;
-  indexOf: ([value, byteOffset, encoding]: [
-    string | number,
-    number | undefined,
-    BufferEncoding | undefined,
-  ]) => number;
-  lastIndexOf: ([value, byteOffset, encoding]: [
-    string | number,
-    number | undefined,
-    BufferEncoding | undefined,
-  ]) => number;
-  equals: ([otherBuffer]: [Buffer]) => boolean;
-  toJSON: () => object;
-  byteLength: () => number;
-} {
-  buffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-
-  if (!Buffer.isBuffer(buffer)) {
-    throw new ArgumentsError("Must be an instance of Buffer.", [
-      `mylang:buffers (${__filename})`,
-    ]);
+  function ensureCapacity(minCapacity: number) {
+    if (minCapacity > data.length) {
+      let newCapacity = Math.max(data.length * 2, minCapacity);
+      const newBuffer = Buffer.allocUnsafe(newCapacity);
+      data.copy(newBuffer, 0, offset, length);
+      data = newBuffer;
+      length -= offset;
+      offset = 0;
+    }
   }
 
   return {
-    toString(
-      // @ts-expect-error
-      [encoding, start, end]: [
-        BufferEncoding | undefined,
-        number | undefined,
-        number | undefined,
-      ] = [],
-    ): string {
-      return buffer.toString(encoding, start, end);
+    write: function ([input]: [Uint8Array | Buffer]) {
+      ensureCapacity(length + input.length);
+      Buffer.from(input).copy(data, length);
+      length += input.length;
     },
-    slice([start, end]: [number | undefined, number | undefined]): ReturnType<
-      typeof BufferWrapper
-    > {
-      return BufferWrapper([buffer.slice(start, end)]);
+    read: function (): ReturnType<typeof Bytes> {
+      return from([data.subarray(offset, length)]);
     },
-    write([string, offset, length, encoding]: [
-      string,
-      number,
-      number,
-      BufferEncoding | undefined,
-    ]): number {
-      return buffer.write(string, offset, length, encoding);
+    readBytes: function ([n]: [number]): Buffer {
+      const end = Math.min(offset + n, length);
+      const chunk = data.subarray(offset, end);
+      offset = end;
+      return from([chunk]);
     },
-    includes([value, byteOffset, encoding]: [
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): boolean {
-      return buffer.includes(value, byteOffset, encoding);
-    },
-    indexOf([value, byteOffset, encoding]: [
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): number {
-      return buffer.indexOf(value, byteOffset, encoding);
-    },
-    lastIndexOf([value, byteOffset, encoding]: [
-      string | number,
-      number | undefined,
-      BufferEncoding | undefined,
-    ]): number {
-      return buffer.lastIndexOf(value, byteOffset, encoding);
-    },
-    equals([otherBuffer]: [Buffer]): boolean {
-      if (!Buffer.isBuffer(otherBuffer)) {
-        throw new ArgumentsError("Must be an instance of Buffer.", [
+    truncate: function ([n]: [number]) {
+      if (n < 0 || n > length - offset) {
+        throw new ArgumentsError("out of range", [
           `mylang:buffers (${__filename})`,
         ]);
       }
-      return buffer.equals(otherBuffer);
+      length = offset + n;
     },
-    toJSON(): object {
-      return buffer.toJSON();
+    clear: function () {
+      offset = 0;
+      length = 0;
     },
-    byteLength(): number {
-      return buffer.length;
+    reset: function () {
+      offset = 0;
+      length = 0;
+      data = Buffer.allocUnsafe(data.length);
     },
+    writeString: function ([str, encoding = "utf8"]: [
+      string,
+      BufferEncoding?,
+    ]) {
+      const input = Buffer.from(str, encoding);
+      ensureCapacity(length + input.length);
+      input.copy(data, length);
+      length += input.length;
+    },
+    toString: function (
+      [encoding = "utf8"]: [BufferEncoding?] = ["utf8"],
+    ): string {
+      return data.toString(encoding, offset, length);
+    },
+    grow: function ([n]: [number]) {
+      if (n < 0) {
+        throw new ArgumentsError("negative size", [
+          `mylang:buffers (${__filename})`,
+        ]);
+      }
+      ensureCapacity(length + n);
+      length += n;
+    },
+    len: function () {
+      return length - offset;
+    },
+    cap: function () {
+      return data.length;
+    },
+    bytes: function (): Buffer {
+      return data.subarray(offset, length);
+    },
+    writeTo: function ([target]: [FunctionDeclaration | FunctionExpression]) {
+      const chunk = data.subarray(offset, length);
+
+      if (!isFunctionNode(target)) {
+        throw new FunctionCallError(
+          "Invalid callback. Must be a FunctionDeclaration or FunctionExpression.",
+          [`mylang:arrays (${__filename})`],
+        );
+      }
+
+      target.call([{ value: chunk }]);
+      offset = length;
+      return chunk.length;
+    },
+    [BufferCustom]: true,
+    [BufferData]: Buffer.from(data),
   };
 }
 
-export { BufferUtility, BufferWrapper };
+function from([buffer]: [any]): ReturnType<typeof Bytes> {
+  const bytes = Bytes();
+  if (buffer instanceof Uint8Array || buffer instanceof Buffer) {
+    bytes.write([buffer]);
+    return bytes;
+  }
+  bytes.write([Buffer.from(buffer)]);
+  return bytes;
+}
+
+function compare([a, b]: [
+  ReturnType<typeof Bytes>,
+  ReturnType<typeof Bytes>,
+]): number {
+  if (!a?.[BufferCustom]) {
+    throw new ArgumentsError("The argument 'a' must be bytes", [
+      `mylang:buffers (${__filename})`,
+    ]);
+  }
+  if (!b?.[BufferCustom]) {
+    throw new ArgumentsError("The argument 'b' must be bytes", [
+      `mylang:buffers (${__filename})`,
+    ]);
+  }
+  return Buffer.compare(a[BufferData], b[BufferData]);
+}
+
+function is([buffer]: [any]): boolean {
+  return Boolean(buffer && buffer[BufferCustom]);
+}
+
+export { Bytes, from, compare, is };

@@ -1,6 +1,6 @@
 import childProcess from "node:child_process";
+import { from } from "../../buffers/index";
 import { isFunctionNode } from "../../../utils";
-import { BufferWrapper } from "../../buffers/index";
 import { BaseError, ArgumentsError } from "../../../../errors/BaseError";
 import { emitWarning } from "../../../../errors/WarningError";
 
@@ -29,12 +29,10 @@ function exec(args: any[]) {
         options.evaluate(options.parentEnv).call([
           { value: handleError(args[0]) },
           {
-            value:
-              typeof args[1] === "string" ? args[1] : BufferWrapper([args[1]]),
+            value: typeof args[1] === "string" ? args[1] : from([args[1]]),
           },
           {
-            value:
-              typeof args[2] === "string" ? args[2] : BufferWrapper([args[2]]),
+            value: typeof args[2] === "string" ? args[2] : from([args[2]]),
           },
         ]);
 
@@ -46,12 +44,10 @@ function exec(args: any[]) {
         callback.evaluate(callback.parentEnv).call([
           { value: handleError(args[0]) },
           {
-            value:
-              typeof args[1] === "string" ? args[1] : BufferWrapper([args[1]]),
+            value: typeof args[1] === "string" ? args[1] : from([args[1]]),
           },
           {
-            value:
-              typeof args[2] === "string" ? args[2] : BufferWrapper([args[2]]),
+            value: typeof args[2] === "string" ? args[2] : from([args[2]]),
           },
         ]);
 
@@ -68,7 +64,7 @@ function execSync(args: any[]) {
   ensureArgsCount(args, 1, "requires at 1 argument.");
   const [command, options] = args;
   const result = childProcess.execSync(command, options);
-  return typeof result === "string" ? result : BufferWrapper([result]);
+  return typeof result === "string" ? result : from([result]);
 }
 
 export { exec, execSync };

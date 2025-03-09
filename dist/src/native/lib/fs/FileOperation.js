@@ -54,7 +54,7 @@ function FileOperation() {
             const buffer = Buffer.alloc(length);
             return handleError(() => {
                 node_fs_1.default.readSync(fd, buffer, 0, length, position);
-                return (0, index_1.BufferWrapper)([buffer]);
+                return (0, index_1.from)([buffer]);
             });
         },
         fsync() {
