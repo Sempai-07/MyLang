@@ -37,6 +37,7 @@ class ImportDeclaration extends StmtType_1.StmtType {
             "math",
             "events",
             "timers",
+            "promises",
             "ds",
             "time",
             "dotenv",

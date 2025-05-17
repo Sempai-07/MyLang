@@ -141,10 +141,11 @@ class AssignmentExpression extends StmtType {
 
         try {
           switch (this.assignType) {
-            case TokenType.OperatorAssign:
+            case TokenType.OperatorAssign: {
               value[this.left.property.evaluate(score)] =
                 this.right.evaluate(score);
               break;
+            }
             case TokenType.OperatorAssignPlus:
               value[this.left.property.evaluate(score)] +=
                 this.right.evaluate(score);

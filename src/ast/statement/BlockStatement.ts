@@ -2,6 +2,7 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/Position";
 import { Environment } from "../../Environment";
 import { DeferDeclaration } from "../declaration/DeferDeclaration";
+import { PromiseCustom } from "../../native/lib/promises/symbol";
 import { runtime } from "../../runtime/Runtime";
 
 class BlockStatement extends StmtType {
@@ -47,6 +48,12 @@ class BlockStatement extends StmtType {
     } catch (err) {
       throw err;
     } finally {
+      for (const task of runtime.taskQueue) {
+        if (!task[PromiseCustom].isAlertRunning()) {
+          task[PromiseCustom].start();
+        }
+      }
+
       if (deferenceCall.length) {
         const _isBreak = runtime.isBreak;
         const _isReturn = runtime.isReturn;

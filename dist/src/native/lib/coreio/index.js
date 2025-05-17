@@ -7,6 +7,8 @@ const input_1 = require("./input");
 Object.defineProperty(exports, "input", { enumerable: true, get: function () { return input_1.input; } });
 const utils_1 = require("../../utils");
 const BaseError_1 = require("../../../errors/BaseError");
+const Task_1 = require("../../../runtime/task/Task");
+const symbol_1 = require("../promises/symbol");
 function processArray(arr) {
     arr.forEach((value, index) => {
         if (Array.isArray(value)) {
@@ -15,6 +17,10 @@ function processArray(arr) {
         else if (value && typeof value === "object") {
             if (value instanceof BaseError_1.BaseError) {
                 arr[index] = value.toString();
+            }
+            else if (value instanceof Task_1.Task) {
+                arr[index] =
+                    `Promise { ${value[symbol_1.PromiseCustom].getResult() ? value[symbol_1.PromiseCustom].getResult() : "nil"} }`;
             }
             else
                 arr[index] = processObject(value);
@@ -43,6 +49,11 @@ function processObject(obj) {
         else if (value && typeof value === "object") {
             if (value instanceof BaseError_1.BaseError) {
                 obj[name] = value.toString();
+                continue;
+            }
+            else if (value instanceof Task_1.Task) {
+                obj[name] =
+                    `Promise { ${value[symbol_1.PromiseCustom].getResult() ? value[symbol_1.PromiseCustom].getResult() : "nil"} }`;
                 continue;
             }
             obj[name] = processObject(value);
@@ -79,6 +90,9 @@ function printf(args) {
                         ? { [String(value.name)]() { } }[value.name]
                         : { anonymous() { } }["anonymous"];
                 }
+                else if (value instanceof Task_1.Task) {
+                    return `Promise { ${value[symbol_1.PromiseCustom].getResult() ? value[symbol_1.PromiseCustom].getResult() : "nil"} }`;
+                }
                 return processObject({ ...value });
             }
             else if (value === null) {
@@ -113,6 +127,9 @@ function print(args) {
                 return value?.name
                     ? { [String(value.name)]() { } }[value.name]
                     : { anonymous() { } }["anonymous"];
+            }
+            else if (value instanceof Task_1.Task) {
+                return `Promise { ${value[symbol_1.PromiseCustom].getResult() ? value[symbol_1.PromiseCustom].getResult() : "nil"} }`;
             }
             return processObject({ ...value });
         }

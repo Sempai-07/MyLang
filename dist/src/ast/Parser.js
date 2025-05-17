@@ -28,6 +28,7 @@ const CombinedVariableDeclaration_1 = require("./declaration/CombinedVariableDec
 const FunctionDeclaration_1 = require("./declaration/FunctionDeclaration");
 const EnumDeclaration_1 = require("./declaration/EnumDeclaration");
 const ThrowDeclaration_1 = require("./declaration/ThrowDeclaration");
+const AwaitExpression_1 = require("./expression/AwaitExpression");
 const BlockStatement_1 = require("./statement/BlockStatement");
 const ReturnStatement_1 = require("./statement/ReturnStatement");
 const ForStatement_1 = require("./statement/ForStatement");
@@ -38,6 +39,8 @@ const IfStatement_1 = require("./statement/IfStatement");
 const WhileStatement_1 = require("./statement/WhileStatement");
 const TryCatchStatement_1 = require("./statement/TryCatchStatement");
 const MatchStatement_1 = require("./statement/MatchStatement");
+const WarningError_1 = require("../errors/WarningError");
+let isAwaitExperimental = false;
 class Parser {
     offset = 0;
     ast = [];
@@ -235,6 +238,23 @@ class Parser {
             case TokenType_1.KeywordType.Enum:
                 this.next();
                 return this.parseEnumDeclaration(this.peek());
+            case TokenType_1.KeywordType.Async:
+                if (!isAwaitExperimental) {
+                    (0, WarningError_1.emitWarning)('"await" or "async" is experimental.', {
+                        name: "AwaitExperimental",
+                        code: "WARN003",
+                    });
+                    isAwaitExperimental = true;
+                }
+                this.next();
+                if (this.peek().value === TokenType_1.KeywordType.Func) {
+                    this.next();
+                    return this.parseFunctionDeclaration(this.peek(), true);
+                }
+                throw `Unexpected token "${this.peek().value}"`;
+            case TokenType_1.KeywordType.Await:
+                this.next();
+                return this.parseAwaitExpression(this.peek(-1));
             default:
                 this.throwError(SyntaxError_1.SyntaxCodeError.InvalidUnexpectedToken, token.position);
         }
@@ -345,7 +365,18 @@ class Parser {
         this.expectSemicolonOrEnd();
         return new VariableDeclaration_1.VariableDeclaration(identifier.value, expression, null, identifier.position);
     }
-    parseFunctionDeclaration(identifier) {
+    parseAwaitExpression(identifier) {
+        if (!isAwaitExperimental) {
+            (0, WarningError_1.emitWarning)('"await" or "async" is experimental.', {
+                name: "AwaitExperimental",
+                code: "WARN003",
+            });
+            isAwaitExperimental = true;
+        }
+        const value = this.parsePrimary();
+        return new AwaitExpression_1.AwaitExpression(value, identifier.position);
+    }
+    parseFunctionDeclaration(identifier, async = false) {
         this.next();
         this.expect(TokenType_1.TokenType.ParenthesisOpen);
         this.next();
@@ -356,7 +387,7 @@ class Parser {
         this.next();
         const statement = this.parseBlockStatement(identifier);
         this.next();
-        return new FunctionDeclaration_1.FunctionDeclaration(identifier.value, args, statement, identifier.position);
+        return new FunctionDeclaration_1.FunctionDeclaration(identifier.value, args, async, statement, identifier.position);
     }
     parseReturnStatement(identifier) {
         if (this.peek().type === TokenType_1.TokenType.Semicolon) {
@@ -755,7 +786,7 @@ class Parser {
         this.next();
         return new MatchStatement_1.MatchStatement(test, cases, defaultCase, identifier.position);
     }
-    parseFunctionExpression(identifier) {
+    parseFunctionExpression(identifier, async = false) {
         let functionName = null;
         if (this.peek().type === TokenType_1.TokenType.Identifier) {
             functionName = this.peek().value;
@@ -771,7 +802,7 @@ class Parser {
         const statement = this.parseBlockStatement(identifier);
         this.next();
         this.expectSemicolonOrEnd();
-        return new FunctionExpression_1.FunctionExpression(functionName, args, statement, identifier.position);
+        return new FunctionExpression_1.FunctionExpression(functionName, args, async, statement, identifier.position);
     }
     parseFunctionCall(identifier) {
         this.next();
@@ -1283,6 +1314,27 @@ class Parser {
                 else if (token.value === TokenType_1.KeywordType.Match) {
                     this.next();
                     return this.parseMatchStatement(this.peek());
+                }
+                else if (token.value === TokenType_1.KeywordType.Await) {
+                    this.next();
+                    return this.parseAwaitExpression(this.peek(-1));
+                }
+                else if (token.value === TokenType_1.KeywordType.Async) {
+                    if (!isAwaitExperimental) {
+                        (0, WarningError_1.emitWarning)('"await" or "async" is experimental.', {
+                            name: "AwaitExperimental",
+                            code: "WARN003",
+                        });
+                        isAwaitExperimental = true;
+                    }
+                    this.next();
+                    if (this.peek().value === TokenType_1.KeywordType.Func) {
+                        this.next();
+                        return this.parseFunctionExpression(token, true);
+                    }
+                    else {
+                        throw `Unexpected token "${this.peek().value}"`;
+                    }
                 }
                 this.throwError(SyntaxError_1.SyntaxCodeError.Unexpected, token);
             }

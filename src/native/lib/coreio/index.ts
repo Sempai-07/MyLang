@@ -1,6 +1,8 @@
 import { input } from "./input";
 import { isFunctionNode } from "../../utils";
 import { BaseError } from "../../../errors/BaseError";
+import { Task } from "../../../runtime/task/Task";
+import { PromiseCustom } from "../promises/symbol";
 
 function processArray(arr: any[]): any[] {
   arr.forEach((value, index) => {
@@ -9,6 +11,9 @@ function processArray(arr: any[]): any[] {
     } else if (value && typeof value === "object") {
       if (value instanceof BaseError) {
         arr[index] = value.toString();
+      } else if (value instanceof Task) {
+        arr[index] =
+          `Promise { ${value[PromiseCustom].getResult() ? value[PromiseCustom].getResult() : "nil"} }`;
       } else arr[index] = processObject(value);
     } else if (isFunctionNode(value)) {
       arr[index] = value?.name
@@ -35,6 +40,10 @@ function processObject(obj: Record<any, any>): any {
     } else if (value && typeof value === "object") {
       if (value instanceof BaseError) {
         obj[name] = value.toString();
+        continue;
+      } else if (value instanceof Task) {
+        obj[name] =
+          `Promise { ${value[PromiseCustom].getResult() ? value[PromiseCustom].getResult() : "nil"} }`;
         continue;
       }
       obj[name] = processObject(value);
@@ -70,6 +79,8 @@ function printf(args: any[]): any {
           return value?.name
             ? { [String(value.name)]() {} }[value.name]
             : { anonymous() {} }["anonymous"];
+        } else if (value instanceof Task) {
+          return `Promise { ${value[PromiseCustom].getResult() ? value[PromiseCustom].getResult() : "nil"} }`;
         }
         return processObject({ ...value });
       } else if (value === null) {
@@ -108,6 +119,8 @@ function print(args: any[]): any {
         return value?.name
           ? { [String(value.name)]() {} }[value.name]
           : { anonymous() {} }["anonymous"];
+      } else if (value instanceof Task) {
+        return `Promise { ${value[PromiseCustom].getResult() ? value[PromiseCustom].getResult() : "nil"} }`;
       }
       return processObject({ ...value });
     } else if (value === null) {

@@ -3,9 +3,11 @@ import { BaseError } from "../errors/BaseError";
 import { BreakStatement } from "../ast/statement/BreakStatement";
 import { ReturnStatement } from "../ast/statement/ReturnStatement";
 import { ContinueStatement } from "../ast/statement/ContinueStatement";
+import { TaskQueue } from "./task/TaskQueue";
 
 class Runtime {
   callStack: CallStack = new CallStack();
+  taskQueue: TaskQueue = new TaskQueue();
   private _functionCallPositionStack: Array<number> = [];
   private _lastFunctionExecutionResult: any = null;
   private _iterationCallPositionStack: Array<number> = [];

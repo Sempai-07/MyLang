@@ -8,6 +8,7 @@ import { FloatLiteral } from "./ast/types/FloatLiteral";
 import { BoolLiteral } from "./ast/types/BoolLiteral";
 import { NilLiteral } from "./ast/types/NilLiteral";
 import { IdentifierLiteral } from "./ast/types/IdentifierLiteral";
+import { AwaitExpression } from "./ast/expression/AwaitExpression";
 import { BinaryExpression } from "./ast/expression/BinaryExpression";
 import { CallExpression } from "./ast/expression/CallExpression";
 import { VisitUnaryExpression } from "./ast/expression/VisitUnaryExpression";
@@ -35,6 +36,8 @@ import { WhileStatement } from "./ast/statement/WhileStatement";
 import { TryCatchStatement } from "./ast/statement/TryCatchStatement";
 import { MatchStatement } from "./ast/statement/MatchStatement";
 import { Environment } from "./Environment";
+import { runtime } from "./runtime/Runtime";
+import { PromiseCustom } from "./native/lib/promises/symbol";
 
 class Interpreter {
   public readonly ast: StmtType[];
@@ -87,6 +90,13 @@ class Interpreter {
     for (const body of this.ast) {
       result = this.parseAst(body);
     }
+
+    for (const task of runtime.taskQueue) {
+      if (!task[PromiseCustom].isAlertRunning()) {
+        task[PromiseCustom].start();
+      }
+    }
+
     return result;
   }
 
@@ -98,6 +108,7 @@ class Interpreter {
       case body instanceof BoolLiteral:
       case body instanceof NilLiteral:
       case body instanceof IdentifierLiteral:
+      case body instanceof AwaitExpression:
       case body instanceof BinaryExpression:
       case body instanceof CallExpression:
       case body instanceof MemberExpression:

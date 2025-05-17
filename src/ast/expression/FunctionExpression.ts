@@ -5,11 +5,14 @@ import { type BlockStatement } from "../statement/BlockStatement";
 import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
 import { Environment, type IOptionsVar } from "../../Environment";
 import { runtime } from "../../runtime/Runtime";
+import { Task } from "../../runtime/task/Task";
+import { PromiseCustom } from "../../native/lib/promises/symbol";
 
 class FunctionExpression extends StmtType {
   public name: string | null;
   public readonly id: string = randomUUID();
   public readonly params: [string, StmtType, true?][];
+  public readonly isAsync: boolean;
   public readonly body: BlockStatement;
   public parentEnv: Environment = new Environment();
   public readonly position: Position;
@@ -17,6 +20,7 @@ class FunctionExpression extends StmtType {
   constructor(
     name: string | null,
     params: [string, StmtType, true?][],
+    isAsync: boolean,
     body: BlockStatement,
     position: Position,
   ) {
@@ -25,6 +29,8 @@ class FunctionExpression extends StmtType {
     this.name = name;
 
     this.params = params;
+
+    this.isAsync = isAsync;
 
     this.body = body;
 
@@ -75,20 +81,42 @@ class FunctionExpression extends StmtType {
       );
     }
 
-    runtime.markFunctionCallPosition();
+    if (this.isAsync) {
+      return runtime.taskQueue.addTask(
+        new Task(() => {
+          runtime.markFunctionCallPosition();
 
-    this.body.evaluate(callEnvironment);
+          this.body.evaluate(callEnvironment);
 
-    const result = runtime.getLastFunctionExecutionResult();
-    runtime.resetLastFunctionExecutionResult();
+          const result = runtime.getLastFunctionExecutionResult();
+          runtime.resetLastFunctionExecutionResult();
 
-    return result;
+          if (result instanceof Task) {
+            runtime.taskQueue.addTask(result);
+            result[PromiseCustom].start();
+            return result[PromiseCustom].getResult();
+          }
+
+          return result;
+        }),
+      );
+    } else {
+      runtime.markFunctionCallPosition();
+
+      this.body.evaluate(callEnvironment);
+
+      const result = runtime.getLastFunctionExecutionResult();
+      runtime.resetLastFunctionExecutionResult();
+
+      return result;
+    }
   }
 
   evaluate(score: Environment) {
     const func = new FunctionExpression(
       this.name,
       this.params,
+      this.isAsync,
       this.body,
       this.position,
     );

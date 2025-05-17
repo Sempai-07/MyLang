@@ -6,8 +6,10 @@ const BaseError_1 = require("../errors/BaseError");
 const BreakStatement_1 = require("../ast/statement/BreakStatement");
 const ReturnStatement_1 = require("../ast/statement/ReturnStatement");
 const ContinueStatement_1 = require("../ast/statement/ContinueStatement");
+const TaskQueue_1 = require("./task/TaskQueue");
 class Runtime {
     callStack = new CallStack_1.CallStack();
+    taskQueue = new TaskQueue_1.TaskQueue();
     _functionCallPositionStack = [];
     _lastFunctionExecutionResult = null;
     _iterationCallPositionStack = [];

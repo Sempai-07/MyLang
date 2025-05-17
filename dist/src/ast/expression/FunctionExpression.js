@@ -6,17 +6,21 @@ const StmtType_1 = require("../StmtType");
 const FunctionDeclaration_1 = require("../declaration/FunctionDeclaration");
 const Environment_1 = require("../../Environment");
 const Runtime_1 = require("../../runtime/Runtime");
+const Task_1 = require("../../runtime/task/Task");
+const symbol_1 = require("../../native/lib/promises/symbol");
 class FunctionExpression extends StmtType_1.StmtType {
     name;
     id = (0, node_crypto_1.randomUUID)();
     params;
+    isAsync;
     body;
     parentEnv = new Environment_1.Environment();
     position;
-    constructor(name, params, body, position) {
+    constructor(name, params, isAsync, body, position) {
         super();
         this.name = name;
         this.params = params;
+        this.isAsync = isAsync;
         this.body = body;
         this.position = position;
     }
@@ -46,14 +50,30 @@ class FunctionExpression extends StmtType_1.StmtType {
         else {
             callEnvironment.create("this", this.parentEnv.getRootEnv().get("process"));
         }
-        Runtime_1.runtime.markFunctionCallPosition();
-        this.body.evaluate(callEnvironment);
-        const result = Runtime_1.runtime.getLastFunctionExecutionResult();
-        Runtime_1.runtime.resetLastFunctionExecutionResult();
-        return result;
+        if (this.isAsync) {
+            return Runtime_1.runtime.taskQueue.addTask(new Task_1.Task(() => {
+                Runtime_1.runtime.markFunctionCallPosition();
+                this.body.evaluate(callEnvironment);
+                const result = Runtime_1.runtime.getLastFunctionExecutionResult();
+                Runtime_1.runtime.resetLastFunctionExecutionResult();
+                if (result instanceof Task_1.Task) {
+                    Runtime_1.runtime.taskQueue.addTask(result);
+                    result[symbol_1.PromiseCustom].start();
+                    return result[symbol_1.PromiseCustom].getResult();
+                }
+                return result;
+            }));
+        }
+        else {
+            Runtime_1.runtime.markFunctionCallPosition();
+            this.body.evaluate(callEnvironment);
+            const result = Runtime_1.runtime.getLastFunctionExecutionResult();
+            Runtime_1.runtime.resetLastFunctionExecutionResult();
+            return result;
+        }
     }
     evaluate(score) {
-        const func = new FunctionExpression(this.name, this.params, this.body, this.position);
+        const func = new FunctionExpression(this.name, this.params, this.isAsync, this.body, this.position);
         func.parentEnv = score;
         return func;
     }

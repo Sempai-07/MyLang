@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BlockStatement = void 0;
 const StmtType_1 = require("../StmtType");
 const DeferDeclaration_1 = require("../declaration/DeferDeclaration");
+const symbol_1 = require("../../native/lib/promises/symbol");
 const Runtime_1 = require("../../runtime/Runtime");
 class BlockStatement extends StmtType_1.StmtType {
     body;
@@ -43,6 +44,11 @@ class BlockStatement extends StmtType_1.StmtType {
             throw err;
         }
         finally {
+            for (const task of Runtime_1.runtime.taskQueue) {
+                if (!task[symbol_1.PromiseCustom].isAlertRunning()) {
+                    task[symbol_1.PromiseCustom].start();
+                }
+            }
             if (deferenceCall.length) {
                 const _isBreak = Runtime_1.runtime.isBreak;
                 const _isReturn = Runtime_1.runtime.isReturn;

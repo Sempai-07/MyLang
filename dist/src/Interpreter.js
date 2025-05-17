@@ -11,6 +11,7 @@ const FloatLiteral_1 = require("./ast/types/FloatLiteral");
 const BoolLiteral_1 = require("./ast/types/BoolLiteral");
 const NilLiteral_1 = require("./ast/types/NilLiteral");
 const IdentifierLiteral_1 = require("./ast/types/IdentifierLiteral");
+const AwaitExpression_1 = require("./ast/expression/AwaitExpression");
 const BinaryExpression_1 = require("./ast/expression/BinaryExpression");
 const CallExpression_1 = require("./ast/expression/CallExpression");
 const VisitUnaryExpression_1 = require("./ast/expression/VisitUnaryExpression");
@@ -38,6 +39,8 @@ const WhileStatement_1 = require("./ast/statement/WhileStatement");
 const TryCatchStatement_1 = require("./ast/statement/TryCatchStatement");
 const MatchStatement_1 = require("./ast/statement/MatchStatement");
 const Environment_1 = require("./Environment");
+const Runtime_1 = require("./runtime/Runtime");
+const symbol_1 = require("./native/lib/promises/symbol");
 class Interpreter {
     ast;
     globalScore;
@@ -78,6 +81,11 @@ class Interpreter {
         for (const body of this.ast) {
             result = this.parseAst(body);
         }
+        for (const task of Runtime_1.runtime.taskQueue) {
+            if (!task[symbol_1.PromiseCustom].isAlertRunning()) {
+                task[symbol_1.PromiseCustom].start();
+            }
+        }
         return result;
     }
     parseAst(body) {
@@ -88,6 +96,7 @@ class Interpreter {
             case body instanceof BoolLiteral_1.BoolLiteral:
             case body instanceof NilLiteral_1.NilLiteral:
             case body instanceof IdentifierLiteral_1.IdentifierLiteral:
+            case body instanceof AwaitExpression_1.AwaitExpression:
             case body instanceof BinaryExpression_1.BinaryExpression:
             case body instanceof CallExpression_1.CallExpression:
             case body instanceof MemberExpression_1.MemberExpression:
