@@ -73,6 +73,30 @@ class Interpreter {
         this.globalScore.create("process", {
             env: process.env,
         });
+        const fullPathJSON = node_path_1.default.join(options.base, "mylang.json");
+        if (node_fs_1.default.existsSync(fullPathJSON)) {
+            try {
+                const myLangJSON = JSON.parse(node_fs_1.default.readFileSync(fullPathJSON).toString());
+                this.globalScore.update("import", {
+                    ...this.globalScore.get("import"),
+                    myLangJSON,
+                });
+                if (myLangJSON.initScript) {
+                    const initFileScript = node_path_1.default.join(options.base, myLangJSON.initScript);
+                    if (!node_fs_1.default.existsSync(initFileScript)) {
+                        throw new BaseError_1.FileReadFaild("NotFount initFileScript", initFileScript, [
+                            options.base,
+                        ]);
+                    }
+                    this.addCustomFunction(initFileScript);
+                }
+            }
+            catch {
+                throw new BaseError_1.FileReadFaild("Faild initScript read", fullPathJSON, [
+                    options.base,
+                ]);
+            }
+        }
         this.globalScore.create("#exports", {});
         this.globalScore.create("#options", options.options);
     }
@@ -127,6 +151,22 @@ class Interpreter {
             default:
                 console.log(body);
                 throw new Error("Unknown AST node type encountered");
+        }
+    }
+    addCustomFunction(fileInit) {
+        try {
+            const initialize = require(fileInit).init;
+            for (const name in initialize) {
+                try {
+                    this.globalScore.create(name, initialize[name]);
+                }
+                catch {
+                    throw new BaseError_1.BaseError(`Invalid added "${name}"`);
+                }
+            }
+        }
+        catch (err) {
+            throw new BaseError_1.FileReadFaild(`${err}`, fileInit, []);
         }
     }
 }

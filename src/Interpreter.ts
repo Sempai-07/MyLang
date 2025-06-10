@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type StmtType } from "./ast/StmtType";
-import { ImportFaildError } from "./errors/BaseError";
+import { ImportFaildError, FileReadFaild, BaseError } from "./errors/BaseError";
 import { StringLiteral } from "./ast/types/StringLiteral";
 import { IntLiteral } from "./ast/types/IntLiteral";
 import { FloatLiteral } from "./ast/types/FloatLiteral";
@@ -80,6 +80,35 @@ class Interpreter {
       env: process.env,
     });
 
+    const fullPathJSON = path.join(options.base, "mylang.json");
+
+    if (fs.existsSync(fullPathJSON)) {
+      try {
+        const myLangJSON = JSON.parse(fs.readFileSync(fullPathJSON).toString());
+
+        this.globalScore.update("import", {
+          ...this.globalScore.get("import"),
+          myLangJSON,
+        });
+
+        if (myLangJSON.initScript) {
+          const initFileScript = path.join(options.base, myLangJSON.initScript);
+
+          if (!fs.existsSync(initFileScript)) {
+            throw new FileReadFaild("NotFount initFileScript", initFileScript, [
+              options.base,
+            ]);
+          }
+
+          this.addCustomFunction(initFileScript);
+        }
+      } catch {
+        throw new FileReadFaild("Faild initScript read", fullPathJSON, [
+          options.base,
+        ]);
+      }
+    }
+
     this.globalScore.create("#exports", {});
 
     this.globalScore.create("#options", options.options);
@@ -139,6 +168,22 @@ class Interpreter {
       default:
         console.log(body);
         throw new Error("Unknown AST node type encountered");
+    }
+  }
+
+  addCustomFunction(fileInit: string) {
+    try {
+      const initialize = require(fileInit).init;
+
+      for (const name in initialize) {
+        try {
+          this.globalScore.create(name, initialize[name]);
+        } catch {
+          throw new BaseError(`Invalid added "${name}"`);
+        }
+      }
+    } catch (err) {
+      throw new FileReadFaild(`${err}`, fileInit, []);
     }
   }
 }

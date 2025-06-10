@@ -91,8 +91,10 @@ class FunctionDeclaration extends StmtType {
           runtime.resetLastFunctionExecutionResult();
 
           if (result instanceof Task) {
-            runtime.taskQueue.addTask(result);
-            result[PromiseCustom].start();
+            if (!result[PromiseCustom].isAlertRunning()) {
+              runtime.taskQueue.addTask(result);
+              result[PromiseCustom].start();
+            }
             return result[PromiseCustom].getResult();
           }
 

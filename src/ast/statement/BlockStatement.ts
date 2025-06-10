@@ -48,18 +48,12 @@ class BlockStatement extends StmtType {
     } catch (err) {
       throw err;
     } finally {
+      const _isBreak = runtime.isBreak;
+      const _isReturn = runtime.isReturn;
+      const _isContinue = runtime.isContinue;
+      const result = runtime.getLastFunctionExecutionResult();
+
       for (const task of runtime.taskQueue) {
-        if (!task[PromiseCustom].isAlertRunning()) {
-          task[PromiseCustom].start();
-        }
-      }
-
-      if (deferenceCall.length) {
-        const _isBreak = runtime.isBreak;
-        const _isReturn = runtime.isReturn;
-        const _isContinue = runtime.isContinue;
-        const result = runtime.getLastFunctionExecutionResult();
-
         // @ts-expect-error
         runtime._isBreak = false;
         // @ts-expect-error
@@ -67,19 +61,32 @@ class BlockStatement extends StmtType {
         // @ts-expect-error
         runtime._isContinue = false;
 
+        if (!task[PromiseCustom].isAlertRunning()) {
+          task[PromiseCustom].start();
+        }
+      }
+
+      if (deferenceCall.length) {
         for (const [score, defer] of deferenceCall) {
+          // @ts-expect-error
+          runtime._isBreak = false;
+          // @ts-expect-error
+          runtime._isReturn = false;
+          // @ts-expect-error
+          runtime._isContinue = false;
+
           defer.evaluate(score);
         }
-
-        // @ts-expect-error
-        runtime._isBreak = _isBreak;
-        // @ts-expect-error
-        runtime._isReturn = _isReturn;
-        // @ts-expect-error
-        runtime._isContinue = _isContinue;
-        // @ts-expect-error
-        runtime._lastFunctionExecutionResult = result;
       }
+
+      // @ts-expect-error
+      runtime._isBreak = _isBreak;
+      // @ts-expect-error
+      runtime._isReturn = _isReturn;
+      // @ts-expect-error
+      runtime._isContinue = _isContinue;
+      // @ts-expect-error
+      runtime._lastFunctionExecutionResult = result;
     }
   }
 }

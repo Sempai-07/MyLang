@@ -57,8 +57,10 @@ class FunctionExpression extends StmtType_1.StmtType {
                 const result = Runtime_1.runtime.getLastFunctionExecutionResult();
                 Runtime_1.runtime.resetLastFunctionExecutionResult();
                 if (result instanceof Task_1.Task) {
-                    Runtime_1.runtime.taskQueue.addTask(result);
-                    result[symbol_1.PromiseCustom].start();
+                    if (!result[symbol_1.PromiseCustom].isAlertRunning()) {
+                        Runtime_1.runtime.taskQueue.addTask(result);
+                        result[symbol_1.PromiseCustom].start();
+                    }
                     return result[symbol_1.PromiseCustom].getResult();
                 }
                 return result;

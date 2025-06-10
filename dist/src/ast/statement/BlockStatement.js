@@ -44,27 +44,30 @@ class BlockStatement extends StmtType_1.StmtType {
             throw err;
         }
         finally {
+            const _isBreak = Runtime_1.runtime.isBreak;
+            const _isReturn = Runtime_1.runtime.isReturn;
+            const _isContinue = Runtime_1.runtime.isContinue;
+            const result = Runtime_1.runtime.getLastFunctionExecutionResult();
             for (const task of Runtime_1.runtime.taskQueue) {
+                Runtime_1.runtime._isBreak = false;
+                Runtime_1.runtime._isReturn = false;
+                Runtime_1.runtime._isContinue = false;
                 if (!task[symbol_1.PromiseCustom].isAlertRunning()) {
                     task[symbol_1.PromiseCustom].start();
                 }
             }
             if (deferenceCall.length) {
-                const _isBreak = Runtime_1.runtime.isBreak;
-                const _isReturn = Runtime_1.runtime.isReturn;
-                const _isContinue = Runtime_1.runtime.isContinue;
-                const result = Runtime_1.runtime.getLastFunctionExecutionResult();
-                Runtime_1.runtime._isBreak = false;
-                Runtime_1.runtime._isReturn = false;
-                Runtime_1.runtime._isContinue = false;
                 for (const [score, defer] of deferenceCall) {
+                    Runtime_1.runtime._isBreak = false;
+                    Runtime_1.runtime._isReturn = false;
+                    Runtime_1.runtime._isContinue = false;
                     defer.evaluate(score);
                 }
-                Runtime_1.runtime._isBreak = _isBreak;
-                Runtime_1.runtime._isReturn = _isReturn;
-                Runtime_1.runtime._isContinue = _isContinue;
-                Runtime_1.runtime._lastFunctionExecutionResult = result;
             }
+            Runtime_1.runtime._isBreak = _isBreak;
+            Runtime_1.runtime._isReturn = _isReturn;
+            Runtime_1.runtime._isContinue = _isContinue;
+            Runtime_1.runtime._lastFunctionExecutionResult = result;
         }
     }
 }
