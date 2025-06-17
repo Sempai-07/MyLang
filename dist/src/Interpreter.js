@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Interpreter = void 0;
 const tslib_1 = require("tslib");
-const node_fs_1 = tslib_1.__importDefault(require("node:fs"));
-const node_path_1 = tslib_1.__importDefault(require("node:path"));
+const node_fs_1 = tslib_1.__importStar(require("node:fs"));
+const node_path_1 = tslib_1.__importStar(require("node:path"));
+const index_1 = require("./native/lib/buffers/index");
 const BaseError_1 = require("./errors/BaseError");
 const StringLiteral_1 = require("./ast/types/StringLiteral");
 const IntLiteral_1 = require("./ast/types/IntLiteral");
@@ -46,7 +47,8 @@ class Interpreter {
     globalScore;
     constructor(ast, paths, options) {
         this.ast = ast;
-        this.globalScore = new Environment_1.Environment();
+        const globalScore = new Environment_1.Environment();
+        this.globalScore = globalScore;
         this.globalScore.create("import", {
             base: options.base,
             main: options.main,
@@ -69,6 +71,40 @@ class Interpreter {
                     files: paths,
                 });
             },
+            as([path, targetType = "buffer"]) {
+                if (["mylang", "json", "buffer"].indexOf(targetType) === -1) {
+                    throw new BaseError_1.ImportFaildError(`Cannot find target type "${targetType}" (mylang, json, buffer)`, {
+                        code: "IMPORT_MODULE_FAILD",
+                        cause: {
+                            packageName: path,
+                        },
+                        files: paths,
+                    });
+                }
+                if (targetType === "json") {
+                    return ImportDeclaration_1.ImportDeclaration.prototype.resolveJSONModule.bind(ImportDeclaration_1.ImportDeclaration)(path, globalScore);
+                }
+                else if (targetType === "mylang") {
+                    return ImportDeclaration_1.ImportDeclaration.prototype.resolveFileModule.bind(ImportDeclaration_1.ImportDeclaration)(path, globalScore);
+                }
+                else {
+                    const fullPath = (0, node_path_1.join)(globalScore.get("import").base, path);
+                    if (globalScore.get("import").cache[fullPath] &&
+                        !globalScore.get("#options").disableCache)
+                        return (0, index_1.from)([Buffer.from(globalScore.get("import").cache[fullPath])]);
+                    if (!(0, node_fs_1.existsSync)(fullPath)) {
+                        throw new BaseError_1.ImportFaildError(`no such file: ${fullPath}`, {
+                            code: "IMPORT_FILE_FAILD",
+                            cause: {
+                                fullPath,
+                            },
+                            files: paths,
+                        });
+                    }
+                    const content = (0, node_fs_1.readFileSync)(fullPath, "utf8");
+                    return (0, index_1.from)([content]);
+                }
+            }
         });
         this.globalScore.create("process", {
             env: process.env,

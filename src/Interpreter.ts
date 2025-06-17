@@ -1,5 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs, { existsSync, readFileSync } from "node:fs";
+import path, { join as joinPath } from "node:path";
+import { from as fromBytes } from "./native/lib/buffers/index";
 import { type StmtType } from "./ast/StmtType";
 import { ImportFaildError, FileReadFaild, BaseError } from "./errors/BaseError";
 import { StringLiteral } from "./ast/types/StringLiteral";
@@ -46,7 +47,9 @@ class Interpreter {
   constructor(ast: StmtType[], paths: string[], options: Record<string, any>) {
     this.ast = ast;
 
-    this.globalScore = new Environment();
+    const globalScore = new Environment();
+
+    this.globalScore = globalScore;
 
     this.globalScore.create("import", {
       base: options.base,
@@ -73,6 +76,54 @@ class Interpreter {
           },
           files: paths,
         });
+      },
+      as([path, targetType = "buffer"]: [string, string]) {
+        if (["mylang", "json", "buffer"].indexOf(targetType) === -1) {
+          throw new ImportFaildError(
+            `Cannot find target type "${targetType}" (mylang, json, buffer)`,
+            {
+              code: "IMPORT_MODULE_FAILD",
+              cause: {
+                packageName: path,
+              },
+              files: paths,
+            },
+          );
+        }
+
+        if (targetType === "json") {
+          return ImportDeclaration.prototype.resolveJSONModule.bind(
+            ImportDeclaration,
+          )(path, globalScore);
+        } else if (targetType === "mylang") {
+          return ImportDeclaration.prototype.resolveFileModule.bind(
+            ImportDeclaration,
+          )(path, globalScore);
+        } else {
+          const fullPath = joinPath(globalScore.get("import").base, path);
+
+          if (
+            globalScore.get("import").cache[fullPath] &&
+            !globalScore.get("#options").disableCache
+          )
+            return fromBytes([
+              Buffer.from(globalScore.get("import").cache[fullPath]),
+            ]);
+
+          if (!existsSync(fullPath)) {
+            throw new ImportFaildError(`no such file: ${fullPath}`, {
+              code: "IMPORT_FILE_FAILD",
+              cause: {
+                fullPath,
+              },
+              files: paths,
+            });
+          }
+
+          const content = readFileSync(fullPath, "utf8");
+
+          return fromBytes([content]);
+        }
       },
     });
 
