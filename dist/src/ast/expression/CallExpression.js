@@ -84,6 +84,9 @@ class CallExpression extends StmtType_1.StmtType {
             if (err instanceof BaseError_1.BaseError) {
                 err.files = Array.from(new Set([score.get("import").main, ...err.files])).map((file) => {
                     if (file === score.get("import").main) {
+                        if (this.callee && "value" in this.callee) {
+                            return `${this.callee.value}.${this.method} (${file}:${this.position.line}:${this.position.column})`;
+                        }
                         return `${this.identifier}.${this.method} (${file}:${this.position.line}:${this.position.column})`;
                     }
                     return file;
