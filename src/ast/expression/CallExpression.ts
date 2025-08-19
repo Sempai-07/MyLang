@@ -1,11 +1,9 @@
-import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { StmtType, type ITextOptions } from "../StmtType";
+import { type Position } from "../../lexer/token/Position";
 import { MemberExpression } from "./MemberExpression";
 import { IdentifierLiteral } from "../types/IdentifierLiteral";
 import { Environment } from "../../Environment";
-import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
-import { FunctionExpression } from "../expression/FunctionExpression";
-import { FunctionCallError, BaseError } from "../../errors/BaseError";
+import { FunctionCallError, FunctionCallCodeError } from "../../errors/runtime/FunctionCallError";
 
 class CallExpression extends StmtType {
   public readonly identifier: string;
@@ -34,121 +32,151 @@ class CallExpression extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
       if (!this.callee) {
-        if (
-          score.get(this.identifier) instanceof FunctionDeclaration ||
-          score.get(this.identifier) instanceof FunctionExpression
-        ) {
+        if (super.isNodeFunction(score.get(this.identifier))) {
           const func = score.get(this.identifier);
-          return func.call(
-            this.argument.map((arg) =>
-              arg.evaluate(score.combine(func.parentEnv)),
-            ),
-          );
+          const combineScore = score.combine(func.parentEnv);
+
+          const evaluatedArgs = [];
+          for (const arg of this.argument) {
+            evaluatedArgs.push(await arg.evaluate(combineScore));
+          }
+
+          return func.call(evaluatedArgs);
         }
 
         const method =
-          this.method instanceof StmtType
-            ? this.method.evaluate(score)
-            : this.method;
+          this.method instanceof StmtType ? await this.method.evaluate(score) : this.method;
 
         if (!(method in score.get(this.identifier))) {
-          throw new FunctionCallError(
-            `${this.identifier}.${method} is not method`,
-            score.get("import").paths,
-          );
+          throw new FunctionCallError(FunctionCallCodeError.FunctionIsNotMethod, {
+            method,
+            identifier: this.identifier,
+            files: score.get("import").paths,
+          });
         }
 
         const methodVar = score.get(this.identifier)[method];
 
-        if (
-          methodVar instanceof FunctionDeclaration ||
-          methodVar instanceof FunctionExpression
-        ) {
-          return methodVar.call(
-            this.argument.map((arg) => {
-              const combineScore = score.combine(methodVar.parentEnv);
-              const result = arg.evaluate(combineScore);
-              if (arg instanceof IdentifierLiteral) {
-                const variableOpts = combineScore.optionsVar[arg.value];
-                return {
-                  ...(variableOpts && { options: variableOpts }),
-                  value: result,
-                };
-              }
-              return { value: result };
-            }),
-          );
-        }
+        if (super.isNodeFunction(methodVar)) {
+          const combineScore = score.combine(methodVar.parentEnv);
+          const argument = [];
+          for (const arg of this.argument) {
+            const result = await arg.evaluate(combineScore);
 
-        return methodVar(
-          this.argument.map((arg) => arg.evaluate(score)),
-          score,
-        );
-      }
-
-      const obj = this.callee.evaluate(score);
-
-      const method =
-        this.method instanceof StmtType
-          ? this.method.evaluate(score)
-          : this.method;
-
-      const methodRef = obj?.[method];
-
-      if (
-        methodRef instanceof FunctionDeclaration ||
-        methodRef instanceof FunctionExpression
-      ) {
-        return methodRef.call(
-          this.argument.map((arg) => {
-            const combineScore = score.combine(methodRef.parentEnv);
-            const result = arg.evaluate(combineScore);
             if (arg instanceof IdentifierLiteral) {
               const variableOpts = combineScore.optionsVar[arg.value];
-              return {
+
+              argument.push({
                 ...(variableOpts && { options: variableOpts }),
                 value: result,
-              };
+              });
+            } else {
+              argument.push({ value: result });
             }
-            return { value: result };
-          }),
-          this.callee instanceof MemberExpression
-            ? this.callee.obj.evaluate(methodRef.parentEnv)?.[
-                this.callee.property.evaluate(methodRef.parentEnv)
-              ]
-            : this.callee.evaluate(score),
-        );
-      }
-
-      if (typeof methodRef !== "function") {
-        throw new FunctionCallError(
-          `${this.identifier}.${method} is not method`,
-          score.get("import").paths,
-        );
-      }
-
-      return methodRef(
-        this.argument.map((arg) => arg.evaluate(score)),
-        score,
-      );
-    } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            if (this.callee && "value" in this.callee) {
-              return `${this.callee.value}.${this.method} (${file}:${this.position.line}:${this.position.column})`;
-            }
-            return `${this.identifier}.${this.method} (${file}:${this.position.line}:${this.position.column})`;
           }
-          return file;
+
+          return methodVar.call(argument);
+        }
+
+        if (super.isBuildModuleFunction(methodVar)) {
+          const argument = [];
+          for (const arg of this.argument) {
+            argument.push(await arg.evaluate(score));
+          }
+
+          return new methodVar(argument, this.argument, score).call();
+        }
+
+        if (super.isStructData(methodVar)) {
+          const argument = [];
+          for (const arg of this.argument) {
+            argument.push(await arg.evaluate(score));
+          }
+
+          return methodVar.call(argument);
+        }
+
+        throw new FunctionCallError(FunctionCallCodeError.FunctionCallUnknown, {
+          name: `${this.identifier}.${method}`,
+          files: score.get("import").paths,
         });
       }
-      throw err;
+
+      const obj = await this.callee.evaluate(score);
+
+      const method =
+        this.method instanceof StmtType ? await this.method.evaluate(score) : this.method;
+
+      const methodRef = obj?.[method] || obj;
+
+      if (super.isNodeFunction(methodRef)) {
+        const combineScore = score.combine(methodRef.parentEnv);
+        const argument = [];
+        for (const arg of this.argument) {
+          const result = await arg.evaluate(combineScore);
+
+          if (arg instanceof IdentifierLiteral) {
+            const variableOpts = combineScore.optionsVar[arg.value];
+
+            argument.push({
+              ...(variableOpts && { options: variableOpts }),
+              value: result,
+            });
+          } else {
+            argument.push({ value: result });
+          }
+        }
+
+        let target: any;
+
+        if (this.callee instanceof MemberExpression) {
+          const object = await this.callee.obj.evaluate(combineScore);
+          const property = await this.callee.property.evaluate(methodRef.parentEnv);
+          target = object?.[property];
+        } else {
+          target = await this.callee.evaluate(score);
+        }
+
+        return methodRef.call(argument, target);
+      }
+
+      if (super.isBuildModuleFunction(methodRef)) {
+        const argument = [];
+        for (const arg of this.argument) {
+          argument.push(await arg.evaluate(score));
+        }
+
+        return new methodRef(argument, this.argument, score).call();
+      }
+
+      if (super.isStructData(methodRef)) {
+        const argument = [];
+        for (const arg of this.argument) {
+          argument.push(await arg.evaluate(score));
+        }
+
+        return methodRef.call(argument);
+      }
+
+      const unknownFunction =
+        this.callee && "value" in this.callee ? this.callee.value : this.identifier;
+
+      throw new FunctionCallError(FunctionCallCodeError.FunctionCallUnknown, {
+        name: unknownFunction === method ? unknownFunction : `${unknownFunction}.${method}`,
+        files: score.get("import").paths,
+      });
+    } catch (err) {
+      throw super.throwErrorFormatters(err, score, ({ file, position }: ITextOptions) => {
+        if (this.callee && "value" in this.callee) {
+          return `${this.callee.value}.${this.method} (${file}:${position.line}:${position.column})`;
+        } else if (this.callee && "method" in this.callee) {
+          return `${this.callee.method}.${this.method} (${file}:${position.line}:${position.column})`;
+        }
+        return `${this.identifier}.${this.method} (${file}:${position.line}:${position.column})`;
+      });
     }
   }
 }

@@ -1,5 +1,5 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 
 class IdentifierLiteral extends StmtType {
@@ -15,7 +15,11 @@ class IdentifierLiteral extends StmtType {
   }
 
   evaluate(score: Environment) {
-    return score.get(this.value);
+    try {
+      return score.get(this.value);
+    } catch (err) {
+      throw this.throwErrorFormatters(err, score);
+    }
   }
 }
 

@@ -1,9 +1,10 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { IdentifierLiteral } from "../types/IdentifierLiteral";
 import { FunctionExpression } from "../expression/FunctionExpression";
+import { StructExpression } from "../expression/StructExpression";
 import { Environment, type IOptionsVar } from "../../Environment";
-import { AssignmentError } from "../../errors/BaseError";
+import { AssignmentError, AssignmentCodeError } from "../../errors/runtime/AssignmentError";
 
 class VariableDeclaration extends StmtType {
   public readonly name: string;
@@ -11,12 +12,7 @@ class VariableDeclaration extends StmtType {
   public readonly options: IOptionsVar | null;
   public readonly position: Position;
 
-  constructor(
-    name: string,
-    value: StmtType,
-    options: IOptionsVar | null,
-    position: Position,
-  ) {
+  constructor(name: string, value: StmtType, options: IOptionsVar | null, position: Position) {
     super();
 
     this.name = name;
@@ -28,30 +24,24 @@ class VariableDeclaration extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
-    if (this.value instanceof FunctionExpression) {
+  async evaluate(score: Environment) {
+    if (this.value instanceof FunctionExpression || this.value instanceof StructExpression) {
       this.value.name = this.name;
     }
 
-    if (
-      this.value instanceof IdentifierLiteral &&
-      score.optionsVar[this.value.value]?.readonly
-    ) {
+    if (this.value instanceof IdentifierLiteral && score.optionsVar[this.value.value]?.readonly) {
       if (this.options && score.optionsVar[this.value.value]) {
-        throw new AssignmentError(
-          `Cannot assign const or readonly to variable "${this.value.value}" because it is already const/readonly`,
-          {
-            code: "ASSIGNMENT_VAR_READONLY_OR_CONST",
-            files: score.get("import").paths,
-          },
-        );
+        throw new AssignmentError(AssignmentCodeError.AssignmentVarReadonlyOrConst, {
+          files: score.get("import").paths,
+        });
       }
-      score.create(this.name, this.value.evaluate(score), {
+
+      score.create(this.name, await this.value.evaluate(score), {
         ...score.optionsVar[this.value.value],
         constant: false,
       });
     } else {
-      score.create(this.name, this.value.evaluate(score), this.options!);
+      score.create(this.name, await this.value.evaluate(score), this.options!);
     }
 
     return score.get(this.name);

@@ -1,0 +1,352 @@
+import { FunctionBuilder, FunctionBuilderCodeError } from "../../FunctionBuilder";
+import { Environment } from "../../../src/Environment";
+import { type StmtType } from "../../../src/ast/StmtType";
+import { isTypeArgs } from "../../utils/utils";
+import  http from "node:http";
+import  https from "node:https";
+import  querystring from "node:querystring";
+import  zlib from "node:zlib";
+
+
+
+interface CookieOptions {
+  expires?: Date;
+  maxAge?: number;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  sameSite?: string;
+}
+
+class HttpCookieJar extends HttpMethodBuilder {
+  override call() {
+    const cookies = new Map();
+
+    return {
+      setCookie: class extends HttpMethodBuilder {
+        override call() {
+          const [domain, name, value, options = {}]: [
+            string,
+            string,
+            any,
+            CookieOptions,
+          ] = this.args;
+          
+          if (!cookies.has(domain)) {
+            cookies.set(domain, new Map());
+          }
+          
+          const cookie = {
+            name,
+            value,
+            expires: options.expires,
+            maxAge: options.maxAge,
+            domain: options.domain || domain,
+            path: options.path || '/',
+            secure: options.secure || false,
+            httpOnly: options.httpOnly || false,
+            sameSite: options.sameSite || 'Lax'
+          };
+          
+          cookies.get(domain).set(name, cookie);
+          return null;
+        }
+      },
+
+      getCookie: class extends HttpMethodBuilder {
+        override call() {
+          const [domain, name] = this.args;
+          return cookies.get(domain)?.get(name) || null;
+        }
+      },
+
+      getCookies: class extends HttpMethodBuilder {
+        override call() {
+          const [domain] = this.args;
+          const domainCookies = cookies.get(domain);
+          return domainCookies ? Array.from(domainCookies.values()) : [];
+        }
+      },
+
+      deleteCookie: class extends HttpMethodBuilder {
+        override call() {
+          const [domain, name] = this.args;
+          return cookies.get(domain)?.delete(name) || false;
+        }
+      },
+
+      clearDomain: class extends HttpMethodBuilder {
+        override call() {
+          const [domain] = this.args;
+          return cookies.delete(domain);
+        }
+      },
+
+      clearAll: class extends HttpMethodBuilder {
+        override call() {
+          cookies.clear();
+          return null;
+        }
+      },
+
+      toHeaderString: class extends HttpMethodBuilder {
+        override call() {
+          const [domain] = this.args;
+          const domainCookies = cookies.get(domain);
+          
+          if (!domainCookies) return '';
+          
+          return Array.from(domainCookies.values())
+            .map((cookie: any) => `${cookie.name}=${cookie.value}`)
+            .join('; ');
+        }
+      },
+
+      fromSetCookieHeader: class extends HttpMethodBuilder {
+        override call() {
+          const [domain, setCookieHeader] = this.args;
+          
+          const parts = setCookieHeader.split(';').map((p: string) => p.trim());
+          const [nameValue] = parts;
+          const [name, value] = nameValue.split('=');
+          
+          const options: CookieOptions = {};
+          for (let i = 1; i < parts.length; i++) {
+            const [key, val] = parts[i].split('=');
+            if (key.toLowerCase() === 'expires') {
+              options.expires = new Date(val);
+            } else if (key.toLowerCase() === 'max-age') {
+              options.maxAge = parseInt(val);
+            } else if (key.toLowerCase() === 'domain') {
+              options.domain = val;
+            } else if (key.toLowerCase() === 'path') {
+              options.path = val;
+            } else if (key.toLowerCase() === 'secure') {
+              options.secure = true;
+            } else if (key.toLowerCase() === 'httponly') {
+              options.httpOnly = true;
+            } else if (key.toLowerCase() === 'samesite') {
+              options.sameSite = val;
+            }
+          }
+          
+          const setCookieMethod = new (this.constructor as any)([domain, name, value, options], [], this.environment);
+          return setCookieMethod.call();
+        }
+      }
+    };
+  }
+}
+
+class HttpFormData extends HttpMethodBuilder {
+  override call() {
+    const fields = new Map();
+    const files = new Map();
+    const boundary = `----formdata-${Date.now()}-${Math.random().toString(36)}`;
+
+    return {
+      append: class extends HttpMethodBuilder {
+        override call() {
+          const [name, value, options = {}] = this.args;
+          
+          if (options.filename || Buffer.isBuffer(value)) {
+            // File field
+            files.set(name, {
+              value,
+              filename: options.filename || 'file',
+              contentType: options.contentType || 'application/octet-stream'
+            });
+          } else {
+            // Text field
+            fields.set(name, value);
+          }
+          return null;
+        }
+      },
+
+      delete: class extends HttpMethodBuilder {
+        override call() {
+          const [name] = this.args;
+          fields.delete(name);
+          files.delete(name);
+          return null;
+        }
+      },
+
+      get: class extends HttpMethodBuilder {
+        override call() {
+          const [name] = this.args;
+          return fields.get(name) || files.get(name) || null;
+        }
+      },
+
+      has: class extends HttpMethodBuilder {
+        override call() {
+          const [name] = this.args;
+          return fields.has(name) || files.has(name);
+        }
+      },
+
+      set: class extends HttpMethodBuilder {
+        override call() {
+          const [name, value, options = {}] = this.args;
+          fields.delete(name);
+          files.delete(name);
+          const appendMethod = new (this.constructor as any)([name, value, options], [], this.environment);
+          return appendMethod.call();
+        }
+      },
+
+      getBoundary: class extends HttpMethodBuilder {
+        override call() {
+          return boundary;
+        }
+      },
+
+      getContentType: class extends HttpMethodBuilder {
+        override call() {
+          return `multipart/form-data; boundary=${boundary}`;
+        }
+      },
+
+      toString: class extends HttpMethodBuilder {
+        override call() {
+          let result = '';
+          
+          // Add text fields
+          for (const [name, value] of fields) {
+            result += `--${boundary}\r\n`;
+            result += `Content-Disposition: form-data; name="${name}"\r\n\r\n`;
+            result += `${value}\r\n`;
+          }
+          
+          // Add file fields
+          for (const [name, file] of files) {
+            result += `--${boundary}\r\n`;
+            result += `Content-Disposition: form-data; name="${name}"; filename="${file.filename}"\r\n`;
+            result += `Content-Type: ${file.contentType}\r\n\r\n`;
+            result += file.value.toString();
+            result += '\r\n';
+          }
+          
+          result += `--${boundary}--\r\n`;
+          return result;
+        }
+      },
+
+      toBuffer: class extends HttpMethodBuilder {
+        override call() {
+          const toStringMethod = new (this.constructor as any)([], [], this.environment);
+          return Buffer.from(toStringMethod.toString());
+        }
+      }
+    };
+  }
+}
+
+interface CacheEntry {
+  data: any;
+  expires: number;
+  lastAccessed: number;
+}
+
+class HttpCache extends HttpMethodBuilder {
+  override call() {
+    const cache = new Map<string, CacheEntry>();
+    const [maxSize = 100, ttl = 300000] = this.args; // Default 5 minutes TTL
+
+    return {
+      get: class extends HttpMethodBuilder {
+        override call() {
+          const [key] = this.args;
+          const entry = cache.get(key);
+          
+          if (!entry) return null;
+          
+          if (Date.now() > entry.expires) {
+            cache.delete(key);
+            return null;
+          }
+          
+          entry.lastAccessed = Date.now();
+          return entry.data;
+        }
+      },
+
+      set: class extends HttpMethodBuilder {
+        override call() {
+          const [key, data, customTtl] = this.args;
+          
+          // Remove oldest entries if cache is full
+          if (cache.size >= maxSize) {
+            const entries = Array.from(cache.entries());
+            entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+            const oldestEntry = entries[0];
+            if (oldestEntry) {
+              cache.delete(oldestEntry[0]);
+            }
+          }
+          
+          cache.set(key, {
+            data,
+            expires: Date.now() + (customTtl || ttl),
+            lastAccessed: Date.now()
+          });
+          
+          return null;
+        }
+      },
+
+      delete: class extends HttpMethodBuilder {
+        override call() {
+          const [key] = this.args;
+          return cache.delete(key);
+        }
+      },
+
+      clear: class extends HttpMethodBuilder {
+        override call() {
+          cache.clear();
+          return null;
+        }
+      },
+
+      size: class extends HttpMethodBuilder {
+        override call() {
+          return cache.size;
+        }
+      },
+
+      keys: class extends HttpMethodBuilder {
+        override call() {
+          return Array.from(cache.keys());
+        }
+      },
+
+      generateKey: class extends HttpMethodBuilder {
+        override call() {
+          const [method, url, headers = {}] = this.args;
+          const relevantHeaders = ['authorization', 'accept', 'content-type'];
+          const headerStr = relevantHeaders
+            .filter(h => headers[h])
+            .map(h => `${h}:${headers[h]}`)
+            .join('|');
+          
+          return `${method}:${url}:${headerStr}`;
+        }
+      }
+    };
+  }
+}
+
+module.exports = {
+  HttpRequest,
+  HttpResponse,
+  HttpClient,
+  HttpServer: request("./Server"),
+  HttpsCertificateManager,
+  HttpCookieJar,
+  HttpFormData,
+  HttpCache
+};

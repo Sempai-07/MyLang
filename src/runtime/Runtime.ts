@@ -3,47 +3,55 @@ import { BaseError } from "../errors/BaseError";
 import { BreakStatement } from "../ast/statement/BreakStatement";
 import { ReturnStatement } from "../ast/statement/ReturnStatement";
 import { ContinueStatement } from "../ast/statement/ContinueStatement";
-import { TaskQueue } from "./task/TaskQueue";
+import { Scheduler } from "./Scheduler";
 
 class Runtime {
   callStack: CallStack = new CallStack();
-  taskQueue: TaskQueue = new TaskQueue();
-  private _functionCallPositionStack: Array<number> = [];
-  private _lastFunctionExecutionResult: any = null;
-  private _iterationCallPositionStack: Array<number> = [];
+  schedulerStack: Scheduler = new Scheduler();
+  spawnQueue: Map<string, any> = new Map();
   private _isBreak = false;
   private _isReturn = false;
   private _isContinue = false;
+  private functionStack: number[] = [];
+  private iterationStack: number[] = [];
+  private _lastExecutionResult: any = null;
 
-  resume() {
+  async resume() {
     if (this.callStack.isEmpty()) {
       return null;
     }
 
     const { environment, statement } = this.callStack.peek();
 
-    if (statement instanceof ContinueStatement) {
-      this._isContinue = true;
+    if (statement instanceof ReturnStatement && this.functionStack.length === 0) {
+      throw new BaseError("return statement can only exit in function body", {
+        files: this.getFilePaths(environment),
+      });
     }
 
-    const value = statement.evaluate(environment);
+    if (
+      (statement instanceof BreakStatement || statement instanceof ContinueStatement) &&
+      !this.isInValidIteration()
+    ) {
+      const statementType = statement instanceof BreakStatement ? "break" : "continue";
+      throw new BaseError(`${statementType} statement can only exist in iteration block`, {
+        files: this.getFilePaths(environment),
+      });
+    }
+
+    const value = await statement.evaluate(environment);
+
     if (statement instanceof ReturnStatement) {
       this._isReturn = true;
-      this._lastFunctionExecutionResult = value;
-      try {
-        this.finishLastFunctionCall();
-      } catch (e) {
-        throw String(e);
-      }
+      this._lastExecutionResult = value;
     }
 
     if (statement instanceof BreakStatement) {
       this._isBreak = true;
-      try {
-        this.finishLastIterationCall();
-      } catch (e) {
-        throw String(e);
-      }
+    }
+
+    if (statement instanceof ContinueStatement) {
+      this._isContinue = true;
     }
 
     this.callStack.pop();
@@ -51,108 +59,89 @@ class Runtime {
     return null;
   }
 
-  getLastFunctionExecutionResult(): any {
-    return this._lastFunctionExecutionResult;
-  }
-
-  resetLastFunctionExecutionResult() {
-    this._isReturn = false;
-    this._lastFunctionExecutionResult = null;
-  }
-
-  markFunctionCallPosition() {
-    this._functionCallPositionStack.push(this.callStack.getCursor());
-  }
-
-  markIterationCallPosition() {
-    this._iterationCallPositionStack.push(this.callStack.getCursor());
-  }
-
-  finishLastFunctionCall() {
-    if (this._functionCallPositionStack.length == 0) {
-      const environment =
-        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-        // prettier-ignore
-        // @ts-ignore
-          .values[
-          "import"
-        ]?.paths ??
-        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-        // prettier-ignore
-        // @ts-ignore
-          .parent
-        // prettier-ignore
-        // @ts-ignore
-          ?.values[
-          "import"
-        ]?.paths ??
-        [];
-
-      throw new BaseError("return statement can only exit in function body", {
-        files: environment,
-      });
-    }
-    this._functionCallPositionStack.pop();
-  }
-
-  finishLastIterationCall() {
-    const lastFunctionCall =
-      this._functionCallPositionStack[
-        this._functionCallPositionStack.length - 1
-      ];
-    const lastIterationCall =
-      this._iterationCallPositionStack[
-        this._iterationCallPositionStack.length - 1
-      ];
-
-    if (
-      lastIterationCall === undefined ||
-      lastIterationCall === undefined ||
-      lastIterationCall < lastFunctionCall!
-    ) {
-      const environment =
-        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-        // prettier-ignore
-        // @ts-ignore
-          .values[
-          "import"
-        ]?.paths ??
-        this.callStack.stacks[this.callStack.stacks.length - 1]?.environment
-        // prettier-ignore
-        // @ts-ignore
-          .parent
-        // prettier-ignore
-        // @ts-ignore
-          ?.values[
-          "import"
-        ]?.paths ??
-        [];
-      throw new BaseError("break statement can only exist in iteration block", {
-        files: environment,
-      });
-    }
-
-    this._iterationCallPositionStack.pop();
-  }
-
-  get isBreak(): boolean {
+  get isBreak() {
     return this._isBreak;
   }
 
-  get isReturn(): boolean {
-    return this._isReturn;
-  }
-
-  get isContinue(): boolean {
+  get isContinue() {
     return this._isContinue;
   }
 
-  resetIsBreak() {
+  get isReturn() {
+    return this._isReturn;
+  }
+
+  markFunctionCallPosition() {
+    this.functionStack.push(this.callStack.getCursor());
+  }
+
+  markIterationCallPosition() {
+    this.iterationStack.push(this.callStack.getCursor());
+  }
+
+  finishIteration() {
+    if (this.iterationStack.length > 0) {
+      this.iterationStack.pop();
+    }
+  }
+
+  finishFunction() {
+    if (this.functionStack.length > 0) {
+      this.functionStack.pop();
+    }
+  }
+
+  getLastExecutionResult(): any {
+    return this._lastExecutionResult;
+  }
+
+  resetLastExecutionResult() {
+    this._isReturn = false;
+    this._lastExecutionResult = null;
+  }
+
+  resetBreak() {
     this._isBreak = false;
   }
 
   resetContinue() {
     this._isContinue = false;
+  }
+
+  resetAll() {
+    this._isBreak = false;
+    this._isReturn = false;
+    this._isContinue = false;
+    this._lastExecutionResult = null;
+  }
+
+  private isInValidIteration(): boolean {
+    if (this.iterationStack.length === 0) {
+      return false;
+    }
+
+    if (this.functionStack.length === 0) {
+      return true;
+    }
+
+    const lastFunction = this.functionStack[this.functionStack.length - 1]!;
+    const lastIteration = this.iterationStack[this.iterationStack.length - 1]!;
+
+    return lastIteration > lastFunction;
+  }
+
+  private getFilePaths(environment: any): string[] {
+    try {
+      // @ts-ignore
+      return (
+        environment?.values?.["import"]?.paths ||
+        // @ts-ignore
+        environment?.parent?.values?.["import"]?.paths ||
+        []
+      );
+    } catch {
+      return [];
+    }
   }
 }
 

@@ -1,11 +1,13 @@
 import { StmtType } from "../StmtType";
-import { TokenType } from "../../lexer/TokenType";
-import { type Position } from "../../lexer/Position";
-import { AssignmentError } from "../../errors/BaseError";
+import { TokenType } from "../../lexer/token/TokenType";
+import { type Position } from "../../lexer/token/Position";
+import { AssignmentError, AssignmentCodeError } from "../../errors/runtime/AssignmentError";
 import { IdentifierLiteral } from "../types/IdentifierLiteral";
 import { MemberExpression } from "../expression/MemberExpression";
 import { FunctionExpression } from "../expression/FunctionExpression";
-import { BaseError } from "../../errors/BaseError";
+import { StructExpression } from "../expression/StructExpression";
+import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
+import { StructDeclaration } from "../declaration/StructDeclaration";
 import { Environment } from "../../Environment";
 
 class AssignmentExpression extends StmtType {
@@ -14,12 +16,7 @@ class AssignmentExpression extends StmtType {
   public readonly assignType: TokenType;
   public readonly position: Position;
 
-  constructor(
-    left: StmtType,
-    assignType: TokenType,
-    right: StmtType,
-    position: Position,
-  ) {
+  constructor(left: StmtType, assignType: TokenType, right: StmtType, position: Position) {
     super();
 
     this.left = left;
@@ -31,47 +28,45 @@ class AssignmentExpression extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
-      if (
-        !(this.left instanceof IdentifierLiteral) &&
-        !(this.left instanceof MemberExpression)
-      ) {
-        throw new AssignmentError(
-          "left-hand must be identifer or member access expression",
-          {
-            code: "ASSIGNMENT_INVALID_TYPE",
-            files: score.get("import").paths,
-          },
-        );
+      if (!(this.left instanceof IdentifierLiteral) && !(this.left instanceof MemberExpression)) {
+        throw new AssignmentError(AssignmentCodeError.AssignmentInvalidType, {
+          files: score.get("import").paths,
+        });
       }
 
       if (this.left instanceof IdentifierLiteral) {
-        if (this.left.evaluate(score)?.[Environment.SymbolEnum]) {
-          throw new AssignmentError(
-            `Cannot assign to '${this.left.value}' because it is an enum`,
-            {
-              code: "ASSIGNMENT_ENUM_CONST",
-              files: score.get("import").paths,
-            },
-          );
+        const leftValue = await this.left.evaluate(score);
+
+        if (leftValue?.[Environment.SymbolEnum]) {
+          throw new AssignmentError(AssignmentCodeError.AssignmentEnumConst, {
+            name: this.left.value,
+            files: score.get("import").paths,
+          });
+        } else if (leftValue instanceof StructDeclaration) {
+          throw new AssignmentError(AssignmentCodeError.AssignmentStructData, {
+            name: this.left.value,
+            files: score.get("import").paths,
+          });
         } else if (score.optionsVar[this.left.value]?.constant) {
-          throw new AssignmentError(
-            `Assignment to '${this.left.value}' constant variable`,
-            {
-              code: "ASSIGNMENT_VAR_CONST",
-              files: score.get("import").paths,
-            },
-          );
+          throw new AssignmentError(AssignmentCodeError.AssignmentVarConst, {
+            name: this.left.value,
+            files: score.get("import").paths,
+          });
         }
 
-        const rightValue = this.right.evaluate(score);
+        const rightValue = await this.right.evaluate(score);
 
         switch (this.assignType) {
           case TokenType.OperatorAssign:
-            if (rightValue instanceof FunctionExpression) {
+            if (
+              rightValue instanceof FunctionExpression ||
+              rightValue instanceof StructExpression
+            ) {
               rightValue.name = this.left.value;
             }
+
             if (this.right instanceof IdentifierLiteral) {
               score.update(this.left.value, rightValue, {
                 ...score.optionsVar[this.right.value],
@@ -79,37 +74,70 @@ class AssignmentExpression extends StmtType {
               });
               break;
             }
+
             score.update(this.left.value, rightValue, {
               constant: false,
               readonly: false,
             });
             break;
           case TokenType.OperatorAssignPlus:
-            score.update(
-              this.left.value,
-              this.left.evaluate(score) + rightValue,
-            );
+            score.update(this.left.value, leftValue + rightValue);
             break;
           case TokenType.OperatorAssignMinus:
-            score.update(
-              this.left.value,
-              this.left.evaluate(score) - rightValue,
-            );
+            score.update(this.left.value, leftValue - rightValue);
+            break;
+          case TokenType.OperatorAssignMultiply:
+            score.update(this.left.value, leftValue * rightValue);
+            break;
+          case TokenType.OperatorAssignDivide:
+            score.update(this.left.value, leftValue / rightValue);
+            break;
+          case TokenType.OperatorAssignModule:
+            score.update(this.left.value, leftValue % rightValue);
+            break;
+          case TokenType.OperatorAssignPow:
+            score.update(this.left.value, leftValue ** rightValue);
+            break;
+          case TokenType.OperatorAndAssign:
+            score.update(this.left.value, leftValue && rightValue);
+            break;
+          case TokenType.OperatorOrAssign:
+            score.update(this.left.value, leftValue || rightValue);
+            break;
+          case TokenType.OperatorBitAndAssign:
+            score.update(this.left.value, leftValue & rightValue);
+            break;
+          case TokenType.OperatorBitOrAssign:
+            score.update(this.left.value, leftValue | rightValue);
+            break;
+          case TokenType.OperatorBitXorAssign:
+            score.update(this.left.value, leftValue ^ rightValue);
+            break;
+          case TokenType.OperatorShiftLeftAssign:
+            score.update(this.left.value, leftValue << rightValue);
+            break;
+          case TokenType.OperatorShiftRightAssign:
+            score.update(this.left.value, leftValue >> rightValue);
+            break;
+          case TokenType.OperatorShiftRightZeroFillAssign:
+            score.update(this.left.value, leftValue >>> rightValue);
             break;
           default:
-            throw new AssignmentError(`Invalid Operator: ${this.assignType}`, {
-              code: "ASSIGNMENT_INVALID_OPERATOR",
+            throw new AssignmentError(AssignmentCodeError.AssignmentInvalidOperator, {
+              assignType: this.assignType,
               files: score.get("import").paths,
             });
         }
       } else if (this.left instanceof MemberExpression) {
-        const value = this.left.obj.evaluate(score);
+        const value = await this.left.obj.evaluate(score);
 
         if (
           value?.[Environment.SymbolEnum] ||
-          score.optionsVar[
-            (this.left.obj as unknown as { value: string }).value
-          ]?.readonly
+          score.optionsVar[(this.left.obj as unknown as { value: string }).value]?.readonly ||
+          (value?.[Environment.SymbolStruct] &&
+            value?.[Environment.SymbolStructData]?.[
+              (this.left.property as unknown as { value: string }).value
+            ]?.readonly)
         ) {
           const property =
             "value" in this.left.property
@@ -121,59 +149,111 @@ class AssignmentExpression extends StmtType {
                 ).value;
 
           if (!Number.isNaN(Number(property))) {
-            throw new AssignmentError(
-              `Index signature in type '${property}' only permits reading`,
-              {
-                code: "ASSIGNMENT_VAR_READONLY",
-                files: score.get("import").paths,
-              },
-            );
+            throw new AssignmentError(AssignmentCodeError.AssignmentIndexReadonly, {
+              index: property,
+              files: score.get("import").paths,
+            });
           } else {
-            throw new AssignmentError(
-              `Cannot assign to '${property}' because it is a read-only property`,
-              {
-                code: "ASSIGNMENT_VAR_READONLY",
-                files: score.get("import").paths,
-              },
-            );
+            throw new AssignmentError(AssignmentCodeError.AssignmentPropertyReadonly, {
+              property,
+              files: score.get("import").paths,
+            });
           }
         }
 
+        if (value instanceof StructDeclaration || value instanceof StructExpression) {
+          if (this.assignType !== TokenType.OperatorAssign) {
+            throw new AssignmentError(AssignmentCodeError.AssignmentStructDataOperatorInvalid, {
+              name: value.name,
+              files: score.get("import").paths,
+            });
+          }
+
+          const rightValue = await this.right.evaluate(score);
+          const leftValue = await this.left.property.evaluate(score);
+
+          if (this.isNodeFunction(rightValue)) {
+            if (rightValue instanceof FunctionExpression) {
+              if (!rightValue.name) {
+                if (typeof leftValue !== "string") {
+                  throw new AssignmentError(AssignmentCodeError.AssignmentStructDataFunc, {
+                    name: value.name,
+                    files: score.get("import").paths,
+                  });
+                }
+                rightValue.name = leftValue;
+              }
+            }
+            value.methods.push(rightValue as FunctionDeclaration);
+          }
+
+          // @ts-ignore
+          value[leftValue] = rightValue;
+
+          return;
+        }
+
         try {
+          const leftValue = await this.left.property.evaluate(score);
+          const rightValue = await this.right.evaluate(score);
+
           switch (this.assignType) {
             case TokenType.OperatorAssign: {
-              value[this.left.property.evaluate(score)] =
-                this.right.evaluate(score);
+              value[leftValue] = rightValue;
               break;
             }
             case TokenType.OperatorAssignPlus:
-              value[this.left.property.evaluate(score)] +=
-                this.right.evaluate(score);
+              value[leftValue] += rightValue;
               break;
             case TokenType.OperatorAssignMinus:
-              value[this.left.property.evaluate(score)] -=
-                this.right.evaluate(score);
+              value[leftValue] -= rightValue;
+              break;
+            case TokenType.OperatorAssignMultiply:
+              value[leftValue] *= rightValue;
+              break;
+            case TokenType.OperatorAssignDivide:
+              value[leftValue] /= rightValue;
+              break;
+            case TokenType.OperatorAssignModule:
+              value[leftValue] %= rightValue;
+              break;
+            case TokenType.OperatorAssignPow:
+              value[leftValue] **= rightValue;
+              break;
+            case TokenType.OperatorAndAssign:
+              value[leftValue] &&= rightValue;
+              break;
+            case TokenType.OperatorOrAssign:
+              value[leftValue] ||= rightValue;
+              break;
+            case TokenType.OperatorBitAndAssign:
+              value[leftValue] &= rightValue;
+              break;
+            case TokenType.OperatorBitOrAssign:
+              value[leftValue] |= rightValue;
+              break;
+            case TokenType.OperatorBitXorAssign:
+              value[leftValue] ^= rightValue;
+              break;
+            case TokenType.OperatorShiftLeftAssign:
+              value[leftValue] <<= rightValue;
+              break;
+            case TokenType.OperatorShiftRightAssign:
+              value[leftValue] >>= rightValue;
+              break;
+            case TokenType.OperatorShiftRightZeroFillAssign:
+              value[leftValue] >>>= rightValue;
               break;
           }
         } catch (err) {
-          throw new AssignmentError(`Invalid: ${err}`, {
-            code: "ASSIGNMENT_INVALID",
+          throw new AssignmentError(AssignmentCodeError.AssignmentInvalid, {
+            err,
             files: score.get("import").paths,
           });
         }
       }
     } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `${file}:${this.position.line}:${this.position.column}`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      throw super.throwErrorFormatters(err, score);
     }
   }
 }

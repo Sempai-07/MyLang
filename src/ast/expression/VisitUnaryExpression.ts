@@ -1,8 +1,8 @@
 import { StmtType } from "../StmtType";
-import { BaseError } from "../../errors/BaseError";
-import { type Position } from "../../lexer/Position";
-import { OperatorType } from "../../lexer/TokenType";
+import { type Position } from "../../lexer/token/Position";
+import { OperatorType } from "../../lexer/token/TokenType";
 import { Environment } from "../../Environment";
+import { OperatorError, OperatorCodeError } from "../../errors/runtime/OperatorError";
 
 class VisitUnaryExpression extends StmtType {
   public readonly operator: OperatorType;
@@ -19,36 +19,32 @@ class VisitUnaryExpression extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
+      const rightValue = await this.right.evaluate(score);
+
       switch (this.operator) {
         case OperatorType.Add: {
-          return +this.right.evaluate(score);
+          return +rightValue;
         }
         case OperatorType.Subtract: {
-          return -this.right.evaluate(score);
+          return -rightValue;
         }
         case OperatorType.Not: {
-          return !this.right.evaluate(score);
+          return !rightValue;
+        }
+        case OperatorType.BitNot: {
+          return ~rightValue;
         }
         default: {
-          throw new BaseError(`Invalid operator "${this.operator}"`, {
+          throw new OperatorError(OperatorCodeError.UnknownVisitUnaryOperator, {
+            operatorType: this.operator,
             files: score.get("import").paths,
           });
         }
       }
     } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `${file}:${this.position.line}:${this.position.column}`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      throw super.throwErrorFormatters(err, score);
     }
   }
 }

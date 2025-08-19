@@ -1,10 +1,13 @@
 import { deepEqual } from "node:assert";
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 import { BlockStatement } from "./BlockStatement";
+import { ObjectExpression } from "../expression/ObjectExpression";
+import { MemberExpression } from "../expression/MemberExpression";
+import { CallExpression } from "../expression/CallExpression";
+import { isTypeArgs } from "../../../library/utils/utils";
 import { runtime } from "../../runtime/Runtime";
-import { BaseError } from "../../errors/BaseError";
 
 function deepEqualTry(actual: unknown, expected: unknown) {
   try {
@@ -38,18 +41,29 @@ class MatchStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
       let isMatchTry = false;
-      const test = this.test.evaluate(score);
+      const test = await this.test.evaluate(score);
 
       for (const { condition, block } of this.cases) {
         if (runtime.isReturn || runtime.isBreak) break;
-        if (deepEqualTry(test, condition.evaluate(score))) {
+
+        const conditionEvaluate = await condition.evaluate(score);
+
+        if (
+          ((this.test instanceof ObjectExpression || isTypeArgs(test) === "object") &&
+            (condition instanceof MemberExpression || condition instanceof CallExpression) &&
+            conditionEvaluate) ||
+          deepEqualTry(test, conditionEvaluate)
+        ) {
           isMatchTry = true;
           if (block instanceof BlockStatement) {
             const matchEnvironment = new Environment(score);
-            return block.evaluate(matchEnvironment);
+            await block.evaluate(matchEnvironment);
+            const result = runtime.getLastExecutionResult();
+            runtime.resetLastExecutionResult();
+            return result;
           }
           return block.evaluate(score);
         }
@@ -58,23 +72,16 @@ class MatchStatement extends StmtType {
       if (this.defaultCase && !isMatchTry) {
         if (this.defaultCase instanceof BlockStatement) {
           const matchEnvironment = new Environment(score);
-          return this.defaultCase.evaluate(matchEnvironment);
+          await this.defaultCase.evaluate(matchEnvironment);
+          const result = runtime.getLastExecutionResult();
+          runtime.resetLastExecutionResult();
+          return result;
         } else return this.defaultCase.evaluate(score);
       }
 
       return null;
     } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `Match (${file}:${this.position.line}:${this.position.column})`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      throw super.throwErrorFormatters(err, score);
     }
   }
 }

@@ -10,6 +10,16 @@ class Environment {
   protected values: Record<string, any> = {};
   public optionsVar: Record<string, IOptionsVar> = {};
   static SymbolEnum = Symbol("SymbolEnum");
+  static SymbolBuffer = Symbol("Buffer");
+  static SymbolFormatedText = Symbol("FormatedText");
+  static SpawnQueueSymbol = Symbol("SpawnQueueSymbol");
+  static SymbolIterator = Symbol("Iterator");
+  static SymbolEvents = Symbol("Events");
+  static SymbolCaptureRejections = Symbol("CaptureRejections");
+  static SymbolTime = Symbol("Time");
+  static SymbolExports = Symbol("SymbolExports");
+  static SymbolStruct = Symbol("SymbolStruct");
+  static SymbolStructData = Symbol("SymbolStructData");
 
   constructor(env?: Environment) {
     if (env) {
@@ -20,10 +30,7 @@ class Environment {
   create(key: string, value: any, options?: IOptionsVar): void {
     if (this.values.hasOwnProperty(key)) {
       throw new BaseError(`${key} has been initialized`, {
-        files:
-          this.values["import"]?.paths ??
-          this.parent?.values["import"]?.paths ??
-          [],
+        files: this.values["import"]?.paths ?? this.parent?.values["import"]?.paths ?? [],
       });
     }
     if (options) {
@@ -37,10 +44,7 @@ class Environment {
 
     if (!matchedEnvironment) {
       throw new BaseError(`${key} hasn't been defined`, {
-        files:
-          this.values["import"]?.paths ??
-          this.parent?.values["import"]?.paths ??
-          [],
+        files: this.values["import"]?.paths ?? this.parent?.values["import"]?.paths ?? [],
       });
     }
     if (options) {
@@ -57,10 +61,7 @@ class Environment {
 
     if (!matchedEnvironment) {
       throw new BaseError(`${key} is not defined`, {
-        files:
-          this.values["import"]?.paths ??
-          this.parent?.values["import"]?.paths ??
-          [],
+        files: this.values["import"]?.paths ?? this.parent?.values["import"]?.paths ?? [],
       });
     }
 
@@ -100,9 +101,7 @@ class Environment {
   }
 
   combine(env: Environment): Environment {
-    let parent = this.parent
-      ? this.parent.combine(env.parent ?? new Environment())
-      : env.parent;
+    let parent = this.parent ? this.parent.combine(env.parent ?? new Environment()) : env.parent;
 
     const newEnv = new Environment(parent);
 

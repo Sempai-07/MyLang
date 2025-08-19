@@ -1,8 +1,7 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 import { BlockStatement } from "./BlockStatement";
-import { BaseError } from "../../errors/BaseError";
 
 class IfStatement extends StmtType {
   public readonly test: StmtType;
@@ -27,9 +26,9 @@ class IfStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
-      if (this.test.evaluate(score)) {
+      if (await this.test.evaluate(score)) {
         const executionEnvironment = new Environment(score);
         return this.consequent.evaluate(executionEnvironment);
       } else if (this.alternate) {
@@ -41,17 +40,7 @@ class IfStatement extends StmtType {
         }
       }
     } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `If (${file}:${this.position.line}:${this.position.column})`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      throw super.throwErrorFormatters(err, score);
     }
   }
 }

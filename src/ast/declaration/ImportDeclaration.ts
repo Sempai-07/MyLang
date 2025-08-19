@@ -1,13 +1,51 @@
-// @ts-expect-error
-import requestSync from "request-sync";
-import { readFileSync, existsSync } from "node:fs";
+import fetch from "node-fetch";
+import { readFile, access, constants } from "node:fs/promises";
 import { join as joinPath, parse as parsePath } from "node:path";
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
-import { FileReadFaild, ImportFaildError } from "../../errors/BaseError";
-import { exportSymbol } from "./ExportsDeclaration";
+import {
+  FileReadFaildError,
+  FileReadFaildCodeError,
+} from "../../errors/runtime/FileReadFaildError";
+import { ImportFaildError, ImportFaildCodeError } from "../../errors/runtime/ImportFaildError";
 import { run as runFile } from "../../utils/utils";
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const buildInModule = [
+  "coreio",
+  "syncbox",
+  "strings",
+  "arrays",
+  "objects",
+  "random",
+  "path",
+  "os",
+  "os/system",
+  "uuid",
+  "iter",
+  "collections",
+  "net/http",
+  "net/url",
+  "utils/colors",
+  "bytes",
+  "fs",
+  "fs/stream",
+  "events",
+  "runtime",
+  "time",
+  "numbers",
+  "numbers/bigint",
+  "utils",
+];
 
 class ImportDeclaration extends StmtType {
   public readonly position: Position;
@@ -32,47 +70,14 @@ class ImportDeclaration extends StmtType {
     this.position = position;
   }
 
-  static get buildInLibs() {
-    return [
-      "coreio",
-      "os",
-      "os/exec",
-      "fs",
-      "buffers",
-      "hash",
-      "strings",
-      "numbers",
-      "numbers/bigint",
-      "arrays",
-      "objects",
-      "math",
-      "events",
-      "timers",
-      "promises",
-      "ds",
-      "time",
-      "dotenv",
-      "utils",
-      "https",
-      "json",
-      "errors",
-      "iter",
-      "path",
-      "module",
-    ];
-  }
-
-  resolveJSONModule(source: string, score: Environment) {
+  async resolveJSONModule(source: string, score: Environment) {
     const fullPath = joinPath(score.get("import").base, source);
 
-    if (
-      score.get("import").cache[fullPath] &&
-      !score.get("#options").disableCache
-    )
+    if (score.get("import").cache[fullPath] && !score.get("#options").disableCache)
       return score.get("import").cache[fullPath];
 
     try {
-      const json = JSON.parse(readFileSync(fullPath, "utf8"));
+      const json = JSON.parse((await readFile(fullPath, "utf8")).toString());
 
       score.update("import", {
         ...score.get("import"),
@@ -82,50 +87,39 @@ class ImportDeclaration extends StmtType {
             [fullPath]: json,
           },
         }),
-        paths: Array.from(
-          new Set([score.get("import").main, ...score.get("import").paths]),
-        ),
+        paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
       });
 
       return json;
     } catch (err) {
-      throw new FileReadFaild(
-        `JSON module: ${String(err)
-          .split(":")
-          .slice(1)
-          .join("")
-          .trim()
-          .toLowerCase()}`,
+      throw new FileReadFaildError(FileReadFaildCodeError.JSONReadFaild, {
+        err: String(err).split(":").slice(1).join("").trim().toLowerCase(),
         fullPath,
-        score.get("import").paths,
-      );
+        files: score.get("import").paths,
+      });
     }
   }
 
-  resolveHTTPModule(url: string, score: Environment) {
+  async resolveHTTPModule(url: string, score: Environment) {
     if (score.get("import").cache[url] && !score.get("#options").disableCache) {
       return score.get("import").cache[url];
     }
 
-    const options = {
-      url,
-      method: "GET",
-    };
+    const response = await fetch(url);
 
-    const res = requestSync(options);
-
-    if (res.statusCode !== 200) {
-      throw new ImportFaildError(`HTTP import status: ${res.statusCode}`, {
-        code: "IMPORT_HTTP_FAILD",
+    if (!response.ok) {
+      throw new ImportFaildError(ImportFaildCodeError.ImportHttpFaild, {
+        statusCode: response.status,
         cause: {
           url,
-          statusCode: res.statusCode,
+          statusCode: response.status,
+          statusText: response.statusText,
         },
         files: score.get("import").paths,
       });
     }
 
-    const responseData = res.body.toString("utf8");
+    const responseData = response.body.toString();
 
     if (responseData.startsWith("Error:")) {
       throw responseData;
@@ -143,25 +137,24 @@ class ImportDeclaration extends StmtType {
               [url]: json,
             },
           }),
-          paths: Array.from(
-            new Set([score.get("import").main, ...score.get("import").paths]),
-          ),
+          paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
         });
 
         return json;
       } catch (err) {
-        throw new ImportFaildError(`dynamic load JSON module: ${err}`, {
-          code: "IMPORT_HTTP_JSON_FAILD",
+        throw new ImportFaildError(ImportFaildCodeError.ImportHttpJsonFaild, {
+          err: String(err),
           cause: {
             url,
-            statusCode: res.statusCode,
+            statusCode: response.status,
+            statusText: response.statusText,
           },
           files: score.get("import").paths,
         });
       }
     } else {
       try {
-        const context = runFile(responseData, {
+        const context = await runFile(responseData, {
           base: score.get("import").base,
           main: url,
           ...(!score.get("#options").disableCache && {
@@ -170,9 +163,7 @@ class ImportDeclaration extends StmtType {
               [url]: score.get("#exports"),
             },
           }),
-          paths: Array.from(
-            new Set([score.get("import").main, ...score.get("import").paths]),
-          ),
+          paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
           options: score.get("#options"),
         });
 
@@ -180,7 +171,7 @@ class ImportDeclaration extends StmtType {
         const contextExports = context.interpreter.globalScore.get("#exports");
 
         for (const key in contextExports) {
-          if (contextExports[key]?.[exportSymbol]) {
+          if (contextExports[key]?.[Environment.SymbolExports]) {
             expModule[key] = contextExports[key].value;
           } else {
             expModule[key] = contextExports[key];
@@ -200,29 +191,24 @@ class ImportDeclaration extends StmtType {
 
         return context.interpreter.globalScore.get("#exports");
       } catch (err: any) {
-        throw new ImportFaildError(
-          `dynamic load module: ${"message" in err ? err.message : err}`,
-          {
-            code: "IMPORT_HTTP_FAILD",
-            cause: {
-              url,
-              statusCode: res.statusCode,
-            },
-            files: score.get("import").paths,
+        throw new ImportFaildError(ImportFaildCodeError.ImportHttpFileFaild, {
+          err: "message" in err ? err.message : String(err),
+          cause: {
+            url,
+            statusCode: response.status,
+            statusText: response.statusText,
           },
-        );
+          files: score.get("import").paths,
+        });
       }
     }
   }
 
-  resolveBuildInModule(source: string, score: Environment) {
-    if (
-      score.get("import").cache[source] &&
-      !score.get("#options").disableCache
-    )
+  async resolveBuildInModule(source: string, score: Environment) {
+    if (score.get("import").cache[source] && !score.get("#options").disableCache)
       return score.get("import").cache[source];
 
-    const resolvePackage = require(`../../native/lib/${source}/index`);
+    const { default: resolvePackage } = await import(`../../../library/${source}/index.js`);
 
     score.update("import", {
       ...score.get("import"),
@@ -232,26 +218,21 @@ class ImportDeclaration extends StmtType {
           [source]: resolvePackage,
         },
       }),
-      paths: Array.from(
-        new Set([score.get("import").main, ...score.get("import").paths]),
-      ),
+      paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
     });
 
     return resolvePackage;
   }
 
-  resolveFileModule(source: string, score: Environment) {
+  async resolveFileModule(source: string, score: Environment) {
     const fullPath = joinPath(score.get("import").base, source);
 
-    if (
-      score.get("import").cache[fullPath] &&
-      !score.get("#options").disableCache
-    )
+    if (score.get("import").cache[fullPath] && !score.get("#options").disableCache)
       return score.get("import").cache[fullPath];
 
-    if (!existsSync(fullPath)) {
-      throw new ImportFaildError(`no such file: ${fullPath}`, {
-        code: "IMPORT_FILE_FAILD",
+    if (!(await fileExists(fullPath))) {
+      throw new ImportFaildError(ImportFaildCodeError.ImportNoSuchFile, {
+        fullPath,
         cause: {
           fullPath,
         },
@@ -259,10 +240,27 @@ class ImportDeclaration extends StmtType {
       });
     }
 
-    try {
-      const content = readFileSync(fullPath, "utf8").toString();
+    if (fullPath.endsWith(".js")) {
+      const { default: context } = await import(fullPath);
 
-      const context = runFile(content, {
+      score.update("import", {
+        ...score.get("import"),
+        ...(!score.get("#options").disableCache && {
+          cache: {
+            ...score.get("import").cache,
+            [fullPath]: context,
+          },
+        }),
+        paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
+      });
+
+      return context;
+    }
+
+    try {
+      const content = (await readFile(fullPath, "utf8")).toString();
+
+      const context = await runFile(content, {
         base: score.get("import").base,
         main: fullPath,
         ...(!score.get("#options").disableCache && {
@@ -271,9 +269,7 @@ class ImportDeclaration extends StmtType {
             [fullPath]: score.get("#exports"),
           },
         }),
-        paths: Array.from(
-          new Set([score.get("import").main, ...score.get("import").paths]),
-        ),
+        paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
         options: score.get("#options"),
       });
 
@@ -281,7 +277,7 @@ class ImportDeclaration extends StmtType {
       const contextExports = context.interpreter.globalScore.get("#exports");
 
       for (const key in contextExports) {
-        if (contextExports[key]?.[exportSymbol]) {
+        if (contextExports[key]?.[Environment.SymbolExports]) {
           expModule[key] = contextExports[key].value;
         } else {
           expModule[key] = contextExports[key];
@@ -296,15 +292,13 @@ class ImportDeclaration extends StmtType {
             [fullPath]: expModule,
           },
         }),
-        paths: Array.from(
-          new Set([score.get("import").main, ...score.get("import").paths]),
-        ),
+        paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
       });
 
       return context.interpreter.globalScore.get("#exports");
     } catch (err: any) {
-      throw new ImportFaildError(`${"message" in err ? err.message : err}`, {
-        code: "IMPORT_FILE_RUN_FAILD",
+      throw new ImportFaildError(ImportFaildCodeError.ImportFileRunFaild, {
+        err: "message" in err ? err.message : String(err),
         cause: {
           fullPath,
         },
@@ -313,24 +307,19 @@ class ImportDeclaration extends StmtType {
     }
   }
 
-  resolvePackageModule(source: string, score: Environment) {
-    if (
-      score.get("import").cache[source] &&
-      !score.get("#options").disableCache
-    )
+  async resolvePackageModule(source: string, score: Environment) {
+    if (score.get("import").cache[source] && !score.get("#options").disableCache)
       return score.get("import").cache[source];
 
     const myLangJSON = JSON.parse(
-      readFileSync(
-        joinPath(score.get("import").base, "mylang.json"),
-      ).toString(),
+      (await readFile(joinPath(score.get("import").base, "mylang.json"))).toString(),
     );
 
     const dependenciesSource = myLangJSON.dependencies[source.split(":")[1]!];
 
     if (!dependenciesSource) {
-      throw new ImportFaildError(`No resolve module: "${source}"`, {
-        code: "IMPORT_MODULE_FAILD",
+      throw new ImportFaildError(ImportFaildCodeError.ImportSourceModuleFaild, {
+        source,
         cause: {
           packageName: source,
         },
@@ -345,9 +334,9 @@ class ImportDeclaration extends StmtType {
       myLangJSON.main,
     );
 
-    if (!existsSync(runFileSource)) {
-      throw new ImportFaildError(`File main "${runFileSource}" not found`, {
-        code: "IMPORT_FILE_RUN_FAILD",
+    if (!(await fileExists(runFileSource))) {
+      throw new ImportFaildError(ImportFaildCodeError.ImportMainNotFound, {
+        file: runFileSource,
         cause: {
           fullPath: runFileSource,
         },
@@ -356,12 +345,8 @@ class ImportDeclaration extends StmtType {
     }
 
     const runLibSource = joinPath(score.get("import").base, ".module", source);
-    const context = runFile(readFileSync(runFileSource).toString(), {
-      base: joinPath(
-        score.get("import").base,
-        ".module",
-        source.replace(":", "/"),
-      ),
+    const context = await runFile((await readFile(runFileSource)).toString(), {
+      base: joinPath(score.get("import").base, ".module", source.replace(":", "/")),
       main: runLibSource,
       ...(!score.get("#options").disableCache && {
         cache: {
@@ -369,9 +354,7 @@ class ImportDeclaration extends StmtType {
           [source]: score.get("#exports"),
         },
       }),
-      paths: Array.from(
-        new Set([score.get("import").main, ...score.get("import").paths]),
-      ),
+      paths: Array.from(new Set([score.get("import").main, ...score.get("import").paths])),
       options: score.get("#options"),
     });
 
@@ -379,7 +362,7 @@ class ImportDeclaration extends StmtType {
     const contextExports = context.interpreter.globalScore.get("#exports");
 
     for (const key in contextExports) {
-      if (contextExports[key]?.[exportSymbol]) {
+      if (contextExports[key]?.[Environment.SymbolExports]) {
         expModule[key] = contextExports[key].value;
       } else {
         expModule[key] = contextExports[key];
@@ -400,24 +383,23 @@ class ImportDeclaration extends StmtType {
     return context.interpreter.globalScore.get("#exports");
   }
 
-  handleModuleImport(module: any, name: string, score: Environment) {
+  async handleModuleImport(module: any, name: string, score: Environment) {
     if (this.expression) return module;
+
     if (!score.get("#options").disableCache) {
       if (this.destructuring) {
         for (const key of this.destructuring) {
           if (!(key in module)) {
-            throw new ImportFaildError(
-              `The key '${key}' is not in the object.`,
-              {
-                code: "IMPORT_DESTRUCTURING_FAILD",
-                cause: {
-                  key,
-                },
-                files: score.get("import").paths,
+            throw new ImportFaildError(ImportFaildCodeError.ImportDestructuringFaild, {
+              key,
+              cause: {
+                key,
               },
-            );
+              files: score.get("import").paths,
+            });
           }
-          if (module[key]?.[exportSymbol]) {
+
+          if (module[key]?.[Environment.SymbolExports]) {
             score.create(key, module[key].value, module[key].optionsVar);
           } else score.create(key, module[key]);
         }
@@ -425,7 +407,7 @@ class ImportDeclaration extends StmtType {
         const expModule: Record<string, any> = {};
 
         for (const key in module) {
-          if (module[key]?.[exportSymbol]) {
+          if (module[key]?.[Environment.SymbolExports]) {
             expModule[key] = module[key].value;
           } else expModule[key] = module[key];
         }
@@ -437,55 +419,40 @@ class ImportDeclaration extends StmtType {
     }
   }
 
-  evaluateSinglePackage(packageName: string, score: Environment) {
+  async evaluateSinglePackage(packageName: string, score: Environment) {
     const { ext, dir, base, name } = parsePath(packageName);
     const fullPath = joinPath(dir, base);
 
-    if (
-      packageName.startsWith("http://") ||
-      packageName.startsWith("https://")
-    ) {
-      return this.handleModuleImport(
-        this.resolveHTTPModule(packageName, score),
-        name,
-        score,
-      );
+    if (packageName.startsWith("http://") || packageName.startsWith("https://")) {
+      return this.handleModuleImport(await this.resolveHTTPModule(packageName, score), name, score);
     }
 
     if (ext === ".json") {
-      return this.handleModuleImport(
-        this.resolveJSONModule(fullPath, score),
-        name,
-        score,
-      );
+      return this.handleModuleImport(await this.resolveJSONModule(fullPath, score), name, score);
     }
 
-    if (ext === "" && ImportDeclaration.buildInLibs.includes(packageName)) {
+    if (ext === "" && buildInModule.includes(packageName)) {
       return this.handleModuleImport(
-        this.resolveBuildInModule(fullPath, score),
+        await this.resolveBuildInModule(fullPath, score),
         packageName.includes("/") ? packageName.split("/")[1]! : packageName,
         score,
       );
     }
 
-    if (ext === ".ml") {
-      return this.handleModuleImport(
-        this.resolveFileModule(fullPath, score),
-        name,
-        score,
-      );
+    if (ext === ".ml" || ext === ".js") {
+      return this.handleModuleImport(await this.resolveFileModule(fullPath, score), name, score);
     }
 
     if (packageName.split(":")[1]) {
       return this.handleModuleImport(
-        this.resolvePackageModule(packageName, score),
+        await this.resolvePackageModule(packageName, score),
         packageName.split(":")[1]!,
         score,
       );
     }
 
-    throw new ImportFaildError(`Cannot find module: "${name}"`, {
-      code: "IMPORT_MODULE_FAILD",
+    throw new ImportFaildError(ImportFaildCodeError.ImportFindModuleFaild, {
+      name: packageName,
       cause: {
         packageName: name,
       },
@@ -493,47 +460,66 @@ class ImportDeclaration extends StmtType {
     });
   }
 
-  evaluateMultiplePackages(score: Environment) {
+  async evaluateMultiplePackages(score: Environment) {
     const packages: Record<string, any> = {};
 
     for (const [packageName, packageStmt] of Object.entries(this.package)) {
       const resolvePath =
-        packageStmt instanceof StmtType
-          ? packageStmt.evaluate(score)
-          : packageStmt;
-      const { ext, base, name } = parsePath(resolvePath);
+        packageStmt instanceof StmtType ? await packageStmt.evaluate(score) : packageStmt;
+      const { ext, name } = parsePath(resolvePath);
 
-      if (
-        resolvePath.startsWith("http://") ||
-        resolvePath.startsWith("https://")
-      ) {
-        packages[packageName] = this.resolveHTTPModule(resolvePath, score);
+      if (resolvePath.startsWith("http://") || resolvePath.startsWith("https://")) {
+        packages[packageName] = await this.resolveHTTPModule(resolvePath, score);
       } else if (ext === ".json") {
-        packages[packageName] = this.resolveJSONModule(base, score);
-      } else if (ImportDeclaration.buildInLibs.includes(name)) {
-        packages[packageName] = this.resolveBuildInModule(base, score);
-      } else if (ext === ".ml") {
-        packages[packageName] = this.resolveFileModule(base, score);
+        packages[packageName] = await this.resolveJSONModule(resolvePath, score);
+      } else if (buildInModule.includes(packageName)) {
+        if (packageName.includes("/")) {
+          packages[packageName] = await this.resolveBuildInModule(packageName, score);
+        } else {
+          packages[packageName] = await this.resolveBuildInModule(name, score);
+        }
+      } else if (buildInModule.includes(resolvePath)) {
+        if (resolvePath.includes("/")) {
+          packages[name] = await this.resolveBuildInModule(resolvePath, score);
+        } else {
+          packages[packageName] = await this.resolveBuildInModule(name, score);
+        }
+      } else if (ext === ".ml" || ext === ".js") {
+        if (packageName !== name) {
+          packages[packageName] = await this.resolveFileModule(resolvePath, score);
+        } else {
+          packages[name] = await this.resolveFileModule(resolvePath, score);
+        }
       } else {
-        throw new ImportFaildError(
-          `No such built-in module: "${packageName}"`,
-          {
-            code: "IMPORT_MODULE_FAILD",
-            cause: {
-              packageName,
-            },
-            files: score.get("import").paths,
+        throw new ImportFaildError(ImportFaildCodeError.ImportFindBildInModuleFaild, {
+          name: packageName,
+          cause: {
+            packageName,
           },
-        );
+          files: score.get("import").paths,
+        });
       }
 
-      score.create(packageName, packages[packageName]);
+      if (ext === ".ml" || ext === ".js") {
+        if (parsePath(packageName).ext) {
+          score.create(name, packages[packageName]);
+        } else if (packageName !== name) {
+          score.create(packageName, packages[packageName]);
+        } else {
+          score.create(name, packages[name]);
+        }
+      } else if (packageName.includes("/")) {
+        const variableName = packageName.split("/").at(-1)!;
+        score.create(variableName, packages[packageName]);
+      } else {
+        score.create(packageName, packages[packageName]);
+      }
     }
 
     return this.expression ? packages : null;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     if (typeof this.package === "string") {
       return this.evaluateSinglePackage(this.package, score);
     } else {
