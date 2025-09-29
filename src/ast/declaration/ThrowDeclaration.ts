@@ -21,28 +21,40 @@ class ThrowDeclaration extends StmtType {
 
   async evaluate(score: Environment) {
     const err = await this.value.evaluate(score);
-
     const throwOptions: IErrorOptions | null = await this.throwOptions?.evaluate(score);
 
-    if (!this.throwOptions && isTypeArgs(throwOptions)) {
-      throw new BaseError("In the end, the options should be an object");
+    if (
+      this.throwOptions &&
+      isTypeArgs(throwOptions) !== "object" &&
+      isTypeArgs(throwOptions) !== "struct"
+    ) {
+      throw super.throwErrorFormatters(
+        "In the end, the options error should be an object or struct",
+        score,
+      );
     }
 
+    const structFields = throwOptions
+      ? super.isStructData(throwOptions)
+        ? await throwOptions.call([])
+        : throwOptions
+      : err;
+
     if (err instanceof BaseError) {
-      if (throwOptions?.name) err.name = throwOptions.name;
-      if (throwOptions?.cause) err.cause = throwOptions.cause;
-      if (throwOptions?.code) err.code = throwOptions.code;
-      if (throwOptions?.files) err.files = throwOptions.files;
+      if (structFields.name) err.name = structFields.name;
+      if (structFields.cause) err.cause = structFields.cause;
+      if (structFields.code) err.code = structFields.code;
+      if (structFields.files) err.files = structFields.files;
       throw err;
     }
 
     throw new BaseError(err, {
-      ...(throwOptions?.name && { name: throwOptions.name }),
-      ...(throwOptions?.cause && { cause: throwOptions.cause }),
-      ...(throwOptions?.code && { code: throwOptions.code }),
-      files: throwOptions?.files
-        ? throwOptions.files
-        : [`throw (${score.get("import").main}:${this.position.line}:${this.position.column})`],
+      ...(structFields?.name && { name: structFields.name }),
+      ...(structFields?.cause && { cause: structFields.cause }),
+      ...(structFields?.code && { code: structFields.code }),
+      files: structFields?.files || [
+        `throw (${score.get("import").main}:${this.position.line}:${this.position.column})`,
+      ],
     });
   }
 }
