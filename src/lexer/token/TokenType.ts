@@ -128,6 +128,7 @@ enum KeywordType {
   As = "as",
   Const = "const",
   Readonly = "readonly",
+  Lazy = "lazy",
   Func = "func",
   Return = "return",
   Import = "import",

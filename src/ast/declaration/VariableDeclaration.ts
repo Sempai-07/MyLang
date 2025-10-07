@@ -36,11 +36,27 @@ class VariableDeclaration extends StmtType {
         });
       }
 
+      if (this.options?.lazy) {
+        score.create(this.name, this.value, {
+          lazy: true,
+          constant: true,
+        });
+        return;
+      }
+
       score.create(this.name, await this.value.evaluate(score), {
         ...score.optionsVar[this.value.value],
         constant: false,
       });
     } else {
+      if (this.options?.lazy) {
+        score.create(this.name, this.value, {
+          lazy: true,
+          constant: true,
+        });
+        return;
+      }
+
       score.create(this.name, await this.value.evaluate(score), this.options!);
     }
 

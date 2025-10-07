@@ -14,8 +14,11 @@ class IdentifierLiteral extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
+      if (score.optionsVar[this.value]?.lazy) {
+        return await score.get(this.value)?.evaluate(score);
+      }
       return score.get(this.value);
     } catch (err) {
       throw this.throwErrorFormatters(err, score);

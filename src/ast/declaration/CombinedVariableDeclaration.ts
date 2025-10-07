@@ -44,13 +44,17 @@ class CombinedVariableDeclaration extends StmtType {
         }
       }
 
-      const content = await value.evaluate(score);
-
       if (this.everyOptions) {
+        if (this.everyOptions?.lazy) {
+          score.create(name, value, this.everyOptions);
+          return;
+        }
+        const content = await value.evaluate(score);
         score.create(name, content, this.everyOptions);
         return;
       }
 
+      const content = await value.evaluate(score);
       score.create(name, content, options);
     }
   }

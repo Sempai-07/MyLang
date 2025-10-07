@@ -67,7 +67,7 @@ class MemberExpression extends StmtType {
           }
           propertyKey = evaluateValue;
         } else if (this.property instanceof IdentifierLiteral) {
-          const evaluateValue = this.property.evaluate(score);
+          const evaluateValue = await this.property.evaluate(score);
           if (isTypeArgs(evaluateValue) !== "int" && isTypeArgs(evaluateValue) !== "string") {
             throw new BaseError("Invalid property access in non-computed member expression");
           }

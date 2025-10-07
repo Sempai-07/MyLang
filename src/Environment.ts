@@ -3,6 +3,7 @@ import { BaseError } from "./errors/BaseError";
 interface IOptionsVar {
   constant: boolean;
   readonly?: boolean;
+  lazy?: boolean;
 }
 
 class Environment {

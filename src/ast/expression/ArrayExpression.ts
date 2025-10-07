@@ -18,7 +18,7 @@ class ArrayExpression extends StmtType {
     let index = 0;
     const result = [];
 
-    for (let element of this.elements) {
+    for (const element of this.elements) {
       try {
         result.push(element.evaluate(score));
       } catch (err) {

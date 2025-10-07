@@ -351,6 +351,16 @@ class Parser {
                   readonly: true,
                 },
               });
+            } else if (this.peek().value === KeywordType.Lazy) {
+              this.next(); // Move past 'lazy'
+              variableList.push({
+                name: name.value,
+                value,
+                options: {
+                  constant: true,
+                  lazy: true,
+                },
+              });
             }
           } else {
             variableList.push({
@@ -382,6 +392,9 @@ class Parser {
         } else if (this.peek().value === KeywordType.Readonly) {
           this.next(); // Move past 'readonly'
           allOptionsVar = { constant: true, readonly: true };
+        } else if (this.peek().value === KeywordType.Lazy) {
+          this.next(); // Move past 'lazy'
+          allOptionsVar = { constant: true, lazy: true };
         }
       }
 
@@ -444,6 +457,17 @@ class Parser {
           identifier.value,
           expression,
           { constant: true, readonly: true },
+          identifier.position,
+        );
+      } else if (this.peek().value === KeywordType.Lazy) {
+        this.next(); // Move past 'lazy'
+
+        this.expectSemicolonOrEnd();
+
+        return new VariableDeclaration(
+          identifier.value,
+          expression,
+          { constant: true, lazy: true },
           identifier.position,
         );
       }
