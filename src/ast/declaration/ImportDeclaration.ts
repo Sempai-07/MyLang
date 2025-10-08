@@ -51,11 +51,13 @@ class ImportDeclaration extends StmtType {
   public readonly position: Position;
   public readonly expression: boolean;
   public readonly destructuring: string[] | null;
+  public readonly aliases: string | null;
   public readonly package: string | Record<string, StmtType>;
 
   constructor(
     packageName: string | Record<string, StmtType>,
     destructuring: string[] | null,
+    aliases: string | null,
     expression: boolean,
     position: Position,
   ) {
@@ -64,6 +66,8 @@ class ImportDeclaration extends StmtType {
     this.package = packageName;
 
     this.destructuring = destructuring;
+
+    this.aliases = aliases;
 
     this.expression = expression;
 
@@ -424,29 +428,41 @@ class ImportDeclaration extends StmtType {
     const fullPath = joinPath(dir, base);
 
     if (packageName.startsWith("http://") || packageName.startsWith("https://")) {
-      return this.handleModuleImport(await this.resolveHTTPModule(packageName, score), name, score);
+      return this.handleModuleImport(
+        await this.resolveHTTPModule(packageName, score),
+        this.aliases || name,
+        score,
+      );
     }
 
     if (ext === ".json") {
-      return this.handleModuleImport(await this.resolveJSONModule(fullPath, score), name, score);
+      return this.handleModuleImport(
+        await this.resolveJSONModule(fullPath, score),
+        this.aliases || name,
+        score,
+      );
     }
 
     if (ext === "" && buildInModule.includes(packageName)) {
       return this.handleModuleImport(
         await this.resolveBuildInModule(fullPath, score),
-        packageName.includes("/") ? packageName.split("/")[1]! : packageName,
+        this.aliases || (packageName.includes("/") ? packageName.split("/")[1]! : packageName),
         score,
       );
     }
 
     if (ext === ".ml" || ext === ".js") {
-      return this.handleModuleImport(await this.resolveFileModule(fullPath, score), name, score);
+      return this.handleModuleImport(
+        await this.resolveFileModule(fullPath, score),
+        this.aliases || name,
+        score,
+      );
     }
 
     if (packageName.split(":")[1]) {
       return this.handleModuleImport(
         await this.resolvePackageModule(packageName, score),
-        packageName.split(":")[1]!,
+        this.aliases || packageName.split(":")[1]!,
         score,
       );
     }

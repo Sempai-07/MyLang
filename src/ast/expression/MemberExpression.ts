@@ -91,8 +91,9 @@ class MemberExpression extends StmtType {
           "window",
         ].includes(propertyKey) ||
           propertyKey.startsWith("__") ||
-          (propertyKey !== "name" && objectValue instanceof StructDeclaration))
+          (propertyKey !== "name" && super.isStructData(objectValue)))
       ) {
+        console.log(this);
         throw new BaseError(`Access to property '${String(propertyKey)}' is not allowed`);
       }
 

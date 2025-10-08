@@ -1271,7 +1271,7 @@ class Parser {
 
       this.expectSemicolonOrEnd();
 
-      return new ImportDeclaration(packages, null, expression, identifier.position);
+      return new ImportDeclaration(packages, null, null, expression, identifier.position);
     }
 
     if (this.peek().type === TokenType.ParenthesisOpen && expression) {
@@ -1285,7 +1285,7 @@ class Parser {
 
       this.expectSemicolonOrEnd();
 
-      return new ImportDeclaration(packageName, null, expression, identifier.position);
+      return new ImportDeclaration(packageName, null, null, expression, identifier.position);
     }
 
     this.expect(TokenType.String);
@@ -1294,31 +1294,46 @@ class Parser {
 
     if (this.peek().value === KeywordType.As) {
       this.next(); // Move past 'as'
-      this.expect(TokenType.BraceOpen);
-      this.next(); // Move past '{'
 
-      const destructuringList: string[] = [];
-
-      while (this.peek().type !== TokenType.BraceClose) {
-        this.expect(TokenType.Identifier);
-        destructuringList.push(this.peek().value);
+      if (this.peek().type === TokenType.Identifier) {
+        const value = this.peek().value;
         this.next(); // Move past identifier
-        if (this.peek().type !== TokenType.BraceClose) {
-          this.expect(TokenType.Comma);
-          this.next(); // Move past ','
+        this.expectSemicolonOrEnd();
+
+        return new ImportDeclaration(packageName, null, value, expression, identifier.position);
+      } else {
+        this.expect(TokenType.BraceOpen);
+        this.next(); // Move past '{'
+
+        const destructuringList: string[] = [];
+
+        while (this.peek().type !== TokenType.BraceClose) {
+          this.expect(TokenType.Identifier);
+          destructuringList.push(this.peek().value);
+          this.next(); // Move past identifier
+          if (this.peek().type !== TokenType.BraceClose) {
+            this.expect(TokenType.Comma);
+            this.next(); // Move past ','
+          }
         }
+
+        this.next(); // Move past '}'
+
+        this.expectSemicolonOrEnd();
+
+        return new ImportDeclaration(
+          packageName,
+          destructuringList,
+          null,
+          expression,
+          identifier.position,
+        );
       }
-
-      this.next(); // Move past '}'
-
-      this.expectSemicolonOrEnd();
-
-      return new ImportDeclaration(packageName, destructuringList, expression, identifier.position);
     }
 
     this.expectSemicolonOrEnd();
 
-    return new ImportDeclaration(packageName, null, expression, identifier.position);
+    return new ImportDeclaration(packageName, null, null, expression, identifier.position);
   }
 
   parseExportDeclaration(identifier: Token): ExportsDeclaration {
