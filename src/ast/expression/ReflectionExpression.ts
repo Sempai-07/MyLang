@@ -39,8 +39,9 @@ class ReflectionExpression extends StmtType {
               files: score.get("import").paths,
             });
           }
+          
 
-          if (typeof usedValueType === "string") {
+          if (usedValueType === "string") {
             return leftValue <= rightValue.length - 1;
           }
 
