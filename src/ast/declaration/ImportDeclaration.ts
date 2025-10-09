@@ -265,7 +265,7 @@ class ImportDeclaration extends StmtType {
       const content = (await readFile(fullPath, "utf8")).toString();
 
       const context = await runFile(content, {
-        base: score.get("import").base,
+        base: parsePath(fullPath).dir,
         main: fullPath,
         ...(!score.get("#options").disableCache && {
           cache: {
