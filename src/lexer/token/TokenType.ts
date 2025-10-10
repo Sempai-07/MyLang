@@ -1,6 +1,7 @@
 enum TokenType {
   EndOf = "EndOf",
   String = "String",
+  InterpolatedString = "InterpolatedString",
   Int = "Int",
   Float = "Float",
   Bool = "Bool",
@@ -74,6 +75,7 @@ enum TokenList {
   Period = ".",
   QuoteDouble = '"',
   QuoteSingle = "'",
+  Dollar = "$",
   Semicolon = ";",
   Colon = ":",
 }
@@ -121,6 +123,7 @@ enum OperatorType {
   Not = "!",
   Period = ".",
   Rest = "...",
+  Interpolate = "$",
 }
 
 enum KeywordType {

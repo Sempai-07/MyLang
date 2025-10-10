@@ -115,7 +115,7 @@ class CallExpression extends StmtType {
       if (super.isNodeFunction(methodRef)) {
         const combineScore = methodRef.parentEnv.combine(score);
         const argument = [];
-        
+
         for (const arg of this.argument) {
           const result = await arg.evaluate(combineScore);
 

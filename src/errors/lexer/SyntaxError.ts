@@ -14,6 +14,7 @@ enum SyntaxCodeError {
   RestInvalid = "REST_INVALID",
   AlreadyAsInvalid = "ALREADY_AS_INVALID",
   StructValidFields = "STRUCT_VALUE_FIELDS",
+  UnclosedInterpolation = "UNCLOSED_INTERPOLATION",
 }
 
 const SyntaxMessageError = {
@@ -34,6 +35,7 @@ const SyntaxMessageError = {
     "Cannot assign type ${currentAsType} because the variable '${name}' is already of type ${varType} at ${line}:${column}",
   [SyntaxCodeError.StructValidFields]:
     "The structure expects normal variable declaration for fields ${line}:${column}",
+  [SyntaxCodeError.UnclosedInterpolation]: "Unclosed interpolation at position ${line}:${column}",
 } as const;
 
 class SyntaxError extends BaseError {

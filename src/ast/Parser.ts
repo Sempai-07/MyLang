@@ -1,9 +1,17 @@
 import { type StmtType } from "./StmtType";
+import { Lexer } from "../lexer/Lexer";
 import { Token } from "../lexer/token/Token";
-import { TokenType, OperatorType, KeywordType, ReflectType } from "../lexer/token/TokenType";
+import {
+  TokenType,
+  OperatorType,
+  KeywordType,
+  ReflectType,
+  TokenList,
+} from "../lexer/token/TokenType";
 import { SyntaxError, SyntaxCodeError } from "../errors/lexer/SyntaxError";
 
 import { StringLiteral } from "./types/StringLiteral";
+import { InterpolatedString } from "./types/InterpolatedString";
 import { IntLiteral } from "./types/IntLiteral";
 import { FloatLiteral } from "./types/FloatLiteral";
 import { BoolLiteral } from "./types/BoolLiteral";
@@ -78,7 +86,8 @@ class Parser {
       case TokenType.Float:
       case TokenType.Bool:
       case TokenType.Nil:
-      case TokenType.Identifier: {
+      case TokenType.Identifier:
+      case TokenType.InterpolatedString: {
         return this.parsePrimary();
       }
       case TokenType.Keyword: {
@@ -117,6 +126,39 @@ class Parser {
         this.throwError(SyntaxCodeError.InvalidUnexpectedToken, token);
       }
     }
+  }
+
+  parseInterpolatedString(identifier: Token) {
+    const interpolatedList = [];
+    let interpolatedString = "";
+    let i = 0;
+
+    while (i < identifier.value.length) {
+      const char = identifier.value[i];
+
+      if (char === TokenList.BraceOpen) {
+        const closeIndex = identifier.value.indexOf(TokenList.BraceClose, i);
+
+        if (closeIndex === -1) {
+          this.throwError(SyntaxCodeError.UnclosedInterpolation, {
+            position: identifier.position,
+          });
+        }
+
+        const expression = identifier.value.slice(i + 1, closeIndex);
+
+        interpolatedList.push(new Lexer(expression).analyze());
+
+        interpolatedString += `{${interpolatedList.length - 1}}`;
+
+        i = closeIndex + 1;
+      } else {
+        interpolatedString += char;
+        i++;
+      }
+    }
+
+    return new InterpolatedString(interpolatedString, interpolatedList, identifier.position);
   }
 
   parseArrayExpression(identifier: Token) {
@@ -1884,6 +1926,34 @@ class Parser {
         this.next();
         return strings;
       }
+      case TokenType.InterpolatedString: {
+        const strings = this.parseInterpolatedString(token);
+        if (
+          !(
+            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
+          ) &&
+          this.isOperator(this.peek(1).type)
+        ) {
+          this.next();
+          return this.parseExpression(strings, precedence);
+        } else if (this.isReflectOperator(this.peek(1).value)) {
+          this.next();
+          return this.parseReflectExpression(strings);
+        } else if (this.peek(1).type === TokenType.QuestionMark) {
+          this.next();
+          return this.parseTernaryExpression(strings);
+        } else if (
+          this.peek(1).type === TokenType.BracketOpen ||
+          this.peek(1).type === TokenType.Period ||
+          (this.peek(1).type === TokenType.QuestionMark &&
+            (this.peek(2).type === TokenType.BracketOpen || this.peek(2).type === TokenType.Period))
+        ) {
+          this.next();
+          return this.parseMemberExpressions(strings);
+        }
+        this.next();
+        return strings;
+      }
       case TokenType.Int: {
         const ints = new IntLiteral(token.value, token.position);
         if (
@@ -2252,7 +2322,13 @@ class Parser {
   }
 
   peek(offset = 0): Token {
-    return this.tokens[this.offset + offset]!;
+    const token = this.tokens[this.offset + offset];
+
+    if (token) {
+      return token;
+    }
+
+    return this.tokens[this.tokens.length - 1]!;
   }
 
   next(): void {

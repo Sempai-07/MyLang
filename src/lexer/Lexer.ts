@@ -36,7 +36,11 @@ class Lexer {
         }
       }
 
-      if (char === TokenList.QuoteDouble || char === TokenList.QuoteSingle) {
+      if (
+        char === TokenList.QuoteDouble ||
+        char === TokenList.QuoteSingle ||
+        char === TokenList.Dollar
+      ) {
         this.processStringLiteral(char);
         continue;
       }
@@ -75,8 +79,36 @@ class Lexer {
 
   processStringLiteral(quote: string): void {
     this.next();
+
     const startPosition = new Position(this.line, this.column);
     let token = "";
+
+    if (quote === TokenList.Dollar && this.current() === TokenList.QuoteDouble) {
+      this.next();
+
+      while (!this.eof()) {
+        const char = this.current();
+
+        if (char === TokenList.QuoteDouble) {
+          if (this.current(1) === TokenList.QuoteDouble) {
+            this.addError(SyntaxCodeError.MultipleConsecutiveQuotes, {
+              line: this.line,
+              column: this.column,
+            });
+            return;
+          }
+
+          this.next();
+          const position = new Position(this.line, this.column);
+          this.tokenList.push(new Token(token, TokenType.InterpolatedString, position));
+          return;
+        }
+
+        token += char;
+        this.next();
+      }
+      return;
+    }
 
     while (!this.eof()) {
       const char = this.current();

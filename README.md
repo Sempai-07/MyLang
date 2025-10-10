@@ -104,6 +104,34 @@ This simple example demonstrates the clean import syntax and straightforward fun
 
 ## Language Syntax Guide
 
+### **Interpolated Strings (`$"..."`)**
+
+Interpolated strings let you embed expressions directly inside strings using `${...}`.
+Each expression is evaluated at runtime and replaced with its result.
+
+```mylang2
+import "coreio";
+
+var name = "World";
+
+var user = {
+  greet: func greet(id) {
+    coreio.print("User ID:", id);
+    return "Guest";
+  }
+}
+
+coreio.print($"Hello, {name}! Your status: {user.greet(42)}. Sum: {1 + 2}");
+```
+
+**Output:**
+
+```
+User ID: 42
+Hello, World! Your status: Guest. Sum: 3
+```
+
+
 ### **Variables and Constants**
 
 MyLang2 provides sophisticated variable declaration and management capabilities:
