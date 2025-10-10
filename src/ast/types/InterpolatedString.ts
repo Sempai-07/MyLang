@@ -1,6 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Environment } from "../../Environment";
 import { type Position } from "../../lexer/token/Position";
+import { BaseError } from "../../errors/BaseError";
 
 class InterpolatedString extends StmtType {
   public readonly value: string;
@@ -26,6 +27,14 @@ class InterpolatedString extends StmtType {
       const evaluatedValues: any[] = [];
 
       for (const tokens of this.interpolatedList) {
+        if (tokens.errors.length > 0) {
+          const errors = tokens.errors[0]!
+          throw super.throwErrorFormatters(
+            new BaseError(errors.message),
+            score,
+          );
+        }
+        
         const parseValue = new Parser(tokens.tokens).parse();
         evaluatedValues.push(await parseValue[0]!.evaluate(score));
       }
