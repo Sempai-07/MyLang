@@ -3,6 +3,7 @@ import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 import { BlockStatement } from "./BlockStatement";
+import { ReturnStatement } from "./ReturnStatement";
 import { ObjectExpression } from "../expression/ObjectExpression";
 import { MemberExpression } from "../expression/MemberExpression";
 import { CallExpression } from "../expression/CallExpression";
@@ -50,7 +51,6 @@ class MatchStatement extends StmtType {
         if (runtime.isReturn || runtime.isBreak) break;
 
         const conditionEvaluate = await condition.evaluate(score);
-
         if (
           ((this.test instanceof ObjectExpression || isTypeArgs(test) === "object") &&
             (condition instanceof MemberExpression || condition instanceof CallExpression) &&
@@ -64,8 +64,14 @@ class MatchStatement extends StmtType {
             const result = runtime.getLastExecutionResult();
             runtime.resetLastExecutionResult();
             return result;
-          }
-          return block.evaluate(score);
+          } else if (block instanceof ReturnStatement) {
+            const evaluate = await block.evaluate(score);
+            // @ts-ignore
+            runtime._isReturn = true;
+            // @ts-ignore
+            runtime._lastExecutionResult = evaluate;
+            return evaluate;
+          } else return block.evaluate(score);
         }
       }
 
@@ -76,6 +82,13 @@ class MatchStatement extends StmtType {
           const result = runtime.getLastExecutionResult();
           runtime.resetLastExecutionResult();
           return result;
+        } else if (this.defaultCase instanceof ReturnStatement) {
+          const evaluate = await this.defaultCase.evaluate(score);
+          // @ts-ignore
+          runtime._isReturn = true;
+          // @ts-ignore
+          runtime._lastExecutionResult = evaluate;
+          return evaluate;
         } else return this.defaultCase.evaluate(score);
       }
 

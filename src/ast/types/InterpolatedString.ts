@@ -28,13 +28,10 @@ class InterpolatedString extends StmtType {
 
       for (const tokens of this.interpolatedList) {
         if (tokens.errors.length > 0) {
-          const errors = tokens.errors[0]!
-          throw super.throwErrorFormatters(
-            new BaseError(errors.message),
-            score,
-          );
+          const errors = tokens.errors[0]!;
+          throw super.throwErrorFormatters(new BaseError(errors.message), score);
         }
-        
+
         const parseValue = new Parser(tokens.tokens).parse();
         evaluatedValues.push(await parseValue[0]!.evaluate(score));
       }

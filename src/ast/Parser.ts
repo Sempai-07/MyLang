@@ -1141,7 +1141,7 @@ class Parser {
           const returnStatement = this.parseReturnStatement(this.peek(-1));
           cases.push({
             condition,
-            block: new BlockStatement([returnStatement], returnStatement.position),
+            block: returnStatement,
           });
           cases.push(
             ...listCase.map((condition) => ({
@@ -1173,8 +1173,7 @@ class Parser {
           this.next(); // Move past '}'
         } else if (this.peek().value === KeywordType.Return) {
           this.next(); // Move past 'return'
-          const returnStatement = this.parseReturnStatement(this.peek(-1));
-          defaultCase = new BlockStatement([returnStatement], returnStatement.position);
+          defaultCase = this.parseReturnStatement(this.peek(-1));
         } else {
           defaultCase = this.parsePrimary();
         }
