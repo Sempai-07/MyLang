@@ -15,6 +15,9 @@ enum SyntaxCodeError {
   AlreadyAsInvalid = "ALREADY_AS_INVALID",
   StructValidFields = "STRUCT_VALUE_FIELDS",
   UnclosedInterpolation = "UNCLOSED_INTERPOLATION",
+  InvalidEscapeSequence = "INVALID_ESCAPE_SEQUENCE",
+  InvalidUnicodeEscape = "INVALID_UNICODE_ESCAPE",
+  InvalidHexEscape = "INVALID_HEX_ESCAPE",
 }
 
 const SyntaxMessageError = {
@@ -36,6 +39,12 @@ const SyntaxMessageError = {
   [SyntaxCodeError.StructValidFields]:
     "The structure expects normal variable declaration for fields ${line}:${column}",
   [SyntaxCodeError.UnclosedInterpolation]: "Unclosed interpolation at position ${line}:${column}",
+  [SyntaxCodeError.InvalidEscapeSequence]:
+    "Invalid escape sequence '\\${char}' at ${line}:${column}",
+  [SyntaxCodeError.InvalidUnicodeEscape]:
+    "Invalid Unicode escape sequence: expected 4 hexadecimal digits at ${line}:${column}",
+  [SyntaxCodeError.InvalidHexEscape]:
+    "Invalid hex escape sequence: expected 2 hexadecimal digits at ${line}:${column}",
 } as const;
 
 class SyntaxError extends BaseError {

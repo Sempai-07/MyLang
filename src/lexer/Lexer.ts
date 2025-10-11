@@ -89,6 +89,14 @@ class Lexer {
       while (!this.eof()) {
         const char = this.current();
 
+        if (char === "\\") {
+          const escapedChar = this.processEscapeSequence();
+          if (escapedChar !== null) {
+            token += escapedChar;
+          }
+          continue;
+        }
+
         if (char === TokenList.QuoteDouble) {
           if (this.current(1) === TokenList.QuoteDouble) {
             this.addError(SyntaxCodeError.MultipleConsecutiveQuotes, {
@@ -112,6 +120,14 @@ class Lexer {
 
     while (!this.eof()) {
       const char = this.current();
+
+      if (char === "\\") {
+        const escapedChar = this.processEscapeSequence();
+        if (escapedChar !== null) {
+          token += escapedChar;
+        }
+        continue;
+      }
 
       if (char === quote) {
         if (
@@ -145,6 +161,85 @@ class Lexer {
       line: startPosition.line,
       column: startPosition.column,
     });
+  }
+
+  processEscapeSequence(): string | null {
+    this.next();
+
+    if (this.eof()) {
+      this.addError(SyntaxCodeError.InvalidEscapeSequence, {
+        line: this.line,
+        column: this.column,
+      });
+      return null;
+    }
+
+    const char = this.current();
+
+    const escapeMap: Record<string, string> = {
+      n: "\n",
+      t: "\t",
+      r: "\r",
+      b: "\b",
+      f: "\f",
+      v: "\v",
+      "0": "\0",
+      "\\": "\\",
+      "'": "'",
+      '"': '"',
+    };
+
+    if (escapeMap[char]) {
+      this.next();
+      return escapeMap[char];
+    }
+
+    if (char === "u") {
+      this.next();
+      let hexCode = "";
+
+      for (let i = 0; i < 4; i++) {
+        if (this.eof() || !/[0-9a-fA-F]/.test(this.current())) {
+          this.addError(SyntaxCodeError.InvalidUnicodeEscape, {
+            line: this.line,
+            column: this.column,
+          });
+          return null;
+        }
+        hexCode += this.current();
+        this.next();
+      }
+
+      return String.fromCharCode(parseInt(hexCode, 16));
+    }
+
+    if (char === "x") {
+      this.next();
+      let hexCode = "";
+
+      for (let i = 0; i < 2; i++) {
+        if (this.eof() || !/[0-9a-fA-F]/.test(this.current())) {
+          this.addError(SyntaxCodeError.InvalidHexEscape, {
+            line: this.line,
+            column: this.column,
+          });
+          return null;
+        }
+        hexCode += this.current();
+        this.next();
+      }
+
+      return String.fromCharCode(parseInt(hexCode, 16));
+    }
+
+    this.addError(SyntaxCodeError.InvalidEscapeSequence, {
+      line: this.line,
+      column: this.column,
+      char: char,
+    });
+
+    this.next();
+    return char;
   }
 
   processNumberLiteral(): void {
