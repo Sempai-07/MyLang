@@ -14,13 +14,13 @@ class ArrayExpression extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     let index = 0;
     const result = [];
 
     for (const element of this.elements) {
       try {
-        result.push(element.evaluate(score));
+        result.push(await element.evaluate(score));
       } catch (err) {
         throw super.throwErrorFormatters(err, score, { index });
       }
