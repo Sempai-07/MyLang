@@ -343,6 +343,15 @@ class Parser {
         this.next();
         return this.parseSpawnExpression(this.peek(-1));
       case KeywordType.Wait:
+        if (
+          this.peek(1).type === TokenType.BracketOpen ||
+          this.peek(1).type === TokenType.Period ||
+          (this.peek(1).type === TokenType.QuestionMark &&
+            (this.peek(2).type === TokenType.BracketOpen || this.peek(2).type === TokenType.Period))
+        ) {
+          this.next();
+          return this.parseMemberExpressions(new IdentifierLiteral(token.value, token.position));
+        }
         this.next();
         return this.parseWaitExpression(this.peek(-1));
       case KeywordType.Struct:
@@ -2110,6 +2119,34 @@ class Parser {
           }
 
           return importDeclaration;
+        } else if (token.value === KeywordType.Wait) {
+          if (
+            this.peek(1).type === TokenType.BracketOpen ||
+            this.peek(1).type === TokenType.Period ||
+            (this.peek(1).type === TokenType.QuestionMark &&
+              (this.peek(2).type === TokenType.BracketOpen ||
+                this.peek(2).type === TokenType.Period))
+          ) {
+            this.next();
+            return this.parseMemberExpressions(new IdentifierLiteral(token.value, token.position));
+          }
+          this.next();
+
+          const waitDeclaration = this.parseWaitExpression(this.peek());
+
+          if (
+            this.peek().type === TokenType.BracketOpen ||
+            this.peek().type === TokenType.Period ||
+            (this.peek().type === TokenType.QuestionMark &&
+              (this.peek(1).type === TokenType.BracketOpen ||
+                this.peek(1).type === TokenType.Period))
+          ) {
+            return this.parseMemberExpressions(waitDeclaration);
+          } else if (this.peek().type === TokenType.QuestionMark) {
+            return this.parseTernaryExpression(waitDeclaration);
+          }
+
+          return waitDeclaration;
         } else if (token.value === KeywordType.Func) {
           if (
             (this.peek(1).type === TokenType.Identifier &&

@@ -14,6 +14,12 @@ import {
   resolve as resolveNativeFunc,
   asImport as asImportNativeFunc,
 } from "./native/function/import";
+import {
+  allWait as waitAllNativeFunc,
+  raceWait as raceAllNativeFunc,
+  allSettledWait as allSettledNativeFunc,
+  anyWait as anyWaitNativeFunc,
+} from "./native/function/wait";
 import { Length as LengthNativeFunc } from "./native/function/global";
 
 class Interpreter {
@@ -34,6 +40,13 @@ class Interpreter {
       paths,
       resolve: resolveNativeFunc,
       as: asImportNativeFunc,
+    });
+
+    this.globalScore.create("wait", {
+      all: waitAllNativeFunc,
+      race: raceAllNativeFunc,
+      allSettled: allSettledNativeFunc,
+      any: anyWaitNativeFunc,
     });
 
     this.globalScore.create("length", LengthNativeFunc);
