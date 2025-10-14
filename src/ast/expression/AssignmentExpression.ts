@@ -161,10 +161,10 @@ class AssignmentExpression extends StmtType {
           }
         }
 
-        if (value instanceof StructDeclaration || value instanceof StructExpression) {
+        if (super.isStructData(value)) {
           if (this.assignType !== TokenType.OperatorAssign) {
             throw new AssignmentError(AssignmentCodeError.AssignmentStructDataOperatorInvalid, {
-              name: value.name,
+              name: value.name || "[anonymous struct]",
               files: score.get("import").paths,
             });
           }
