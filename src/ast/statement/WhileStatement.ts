@@ -35,6 +35,7 @@ class WhileStatement extends StmtType {
       }
 
       runtime.resetBreak();
+      runtime.finishIteration();
     } catch (err) {
       throw super.throwErrorFormatters(err, score);
     }
