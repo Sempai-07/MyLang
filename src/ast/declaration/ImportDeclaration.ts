@@ -418,6 +418,10 @@ class ImportDeclaration extends StmtType {
           } else expModule[key] = module[key];
         }
 
+        if (module?.[Environment.SymbolFormatedText]) {
+          expModule[typeof Environment.SymbolFormatedText] = module[Environment.SymbolFormatedText];
+        }
+
         score.create(name, expModule);
 
         return expModule;
