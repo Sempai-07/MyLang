@@ -159,23 +159,23 @@ userAge %= 8;   // Now 4
 userAge++;      // Now 5
 
 // Bitwise operations for advanced manipulation
-let a = 6;
+var a = 6;
 a |= 3;      // Now 7
 
-let b = 6;
+var b = 6;
 b &= 3;      // Now 2
 
-let c = 6;
+var c = 6;
 c ^= 3;      // Now 5
 
 // Bit shifting operations
-let n = 3;
+var n = 3;
 n <<= 2;      // Now 12
 
-let m = -16;
+var m = -16;
 m >>= 2;      // Now -4
 
-let l = -16;
+var l = -16;
 l >>>= 2;     // Now 1073741820
 
 // Constant declarations for immutable values
