@@ -1642,7 +1642,7 @@ class Parser {
     return new VisitUnaryExpression(operator.value as OperatorType, right, operator.position);
   }
 
-  parseReflectExpression(left: Token | StmtType): ReflectionExpression {
+  parseReflectExpression(left: Token | StmtType): StmtType {
     const operator = this.peek();
     this.next();
 
@@ -1650,7 +1650,6 @@ class Parser {
       this.next(); // Move past '('
 
       const right = this.parsePrimary();
-
       this.expect(TokenType.ParenthesisClose);
       this.next(); // Move past ')'
 
@@ -1663,6 +1662,8 @@ class Parser {
 
       if (this.isReflectOperator(this.peek().value)) {
         return this.parseReflectExpression(reflect);
+      } else if (this.isOperator(this.peek().type)) {
+        return this.parseExpression(reflect);
       }
 
       return reflect;
@@ -2358,10 +2359,10 @@ class Parser {
   }
 
   peek(offset = 0): Token {
-    const token = this.tokens[this.offset + offset];
+    const tokenType = this.tokens[this.offset + offset];
 
-    if (token) {
-      return token;
+    if (tokenType) {
+      return tokenType;
     }
 
     return this.tokens[this.tokens.length - 1]!;

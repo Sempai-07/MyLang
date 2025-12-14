@@ -16,6 +16,7 @@ class Environment {
   static SpawnQueueSymbol = Symbol("SpawnQueueSymbol");
   static SymbolIterator = Symbol("Iterator");
   static SymbolEvents = Symbol("Events");
+  static SymbolNotUsedIdentifier = Symbol("NotUsedIdentifier");
   static SymbolCaptureRejections = Symbol("CaptureRejections");
   static SymbolTime = Symbol("Time");
   static SymbolExports = Symbol("SymbolExports");

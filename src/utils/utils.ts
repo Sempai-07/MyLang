@@ -29,7 +29,7 @@ async function run(
     const interpreter = new Interpreter(parse, [], {
       base: options.base,
       main: options.main,
-      options: options || {},
+      options: { ...(options || {}) },
     });
 
     const result = await interpreter.run();

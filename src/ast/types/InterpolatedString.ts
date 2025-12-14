@@ -33,7 +33,10 @@ class InterpolatedString extends StmtType {
         }
 
         const parseValue = new Parser(tokens.tokens).parse();
-        evaluatedValues.push(await parseValue[0]!.evaluate(score));
+
+        if (parseValue[0]) {
+          evaluatedValues.push(await parseValue[0].evaluate(score));
+        }
       }
 
       return this.value.replace(/\{(\d+)\}/g, (_, index) => evaluatedValues[parseInt(index, 10)]);
