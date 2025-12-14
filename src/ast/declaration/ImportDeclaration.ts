@@ -3,6 +3,7 @@ import { readFile, access, constants } from "node:fs/promises";
 import { join as joinPath, parse as parsePath } from "node:path";
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/token/Position";
+import { Bytes } from "../../../library/bytes/Bytes";
 import { Environment } from "../../Environment";
 import {
   FileReadFaildError,
@@ -468,6 +469,14 @@ class ImportDeclaration extends StmtType {
       );
     }
 
+    if (await fileExists(fullPath)) {
+      return this.handleModuleImport(
+        new Bytes([(await readFile(fullPath)).toString()], [], score).call(),
+        this.aliases || name,
+        score,
+      );
+    }
+
     throw new ImportFaildError(ImportFaildCodeError.ImportFindModuleFaild, {
       name: packageName,
       cause: {
@@ -507,6 +516,8 @@ class ImportDeclaration extends StmtType {
         } else {
           packages[name] = await this.resolveFileModule(resolvePath, score);
         }
+      } else if (await fileExists(resolvePath)) {
+        packages[name] = new Bytes([(await readFile(resolvePath)).toString()], [], score).call();
       } else {
         throw new ImportFaildError(ImportFaildCodeError.ImportFindBildInModuleFaild, {
           name: packageName,
@@ -529,7 +540,11 @@ class ImportDeclaration extends StmtType {
         const variableName = packageName.split("/").at(-1)!;
         score.create(variableName, packages[packageName]);
       } else {
-        score.create(packageName, packages[packageName]);
+        if (packages[packageName]) {
+          score.create(packageName, packages[packageName]);
+        } else {
+          score.create(packageName, packages[name]);
+        }
       }
     }
 
