@@ -55,12 +55,59 @@ import { emitWarning } from "../errors/utils/WarningError";
 
 import { type IOptionsVar } from "../Environment";
 
-let isSpawnExperimental = false;
-
 class Parser {
   private offset: number = 0;
   private ast: StmtType[] = [];
+  private isSpawnExperimental: boolean = false;
   public readonly tokens: Token[];
+
+  private static readonly OPERATOR_SET = new Set([
+    TokenType.OperatorAdd,
+    TokenType.OperatorSubtract,
+    TokenType.OperatorMultiply,
+    TokenType.OperatorExponentiation,
+    TokenType.OperatorDivide,
+    TokenType.OperatorNotEqual,
+    TokenType.OperatorEqual,
+    TokenType.OperatorModulo,
+    TokenType.OperatorGreaterThanOrEqual,
+    TokenType.OperatorLessThan,
+    TokenType.OperatorGreaterThan,
+    TokenType.OperatorLessThanOrEqual,
+    TokenType.OperatorAnd,
+    TokenType.OperatorLogicalAnd,
+    TokenType.OperatorOr,
+    TokenType.OperatorLogicalOr,
+    TokenType.OperatorBitXor,
+    TokenType.OperatorShiftLeft,
+    TokenType.OperatorShiftRight,
+    TokenType.OperatorShiftRightZeroFill,
+  ]);
+
+  private static readonly OPERATOR_ASSIGN_SET = new Set([
+    TokenType.OperatorAssign,
+    TokenType.OperatorAssignPlus,
+    TokenType.OperatorAssignMinus,
+    TokenType.OperatorAssignMultiply,
+    TokenType.OperatorAssignDivide,
+    TokenType.OperatorAssignModule,
+    TokenType.OperatorAssignPow,
+    TokenType.OperatorAndAssign,
+    TokenType.OperatorOrAssign,
+    TokenType.OperatorBitAndAssign,
+    TokenType.OperatorBitOrAssign,
+    TokenType.OperatorBitXorAssign,
+    TokenType.OperatorShiftLeftAssign,
+    TokenType.OperatorShiftRightAssign,
+    TokenType.OperatorShiftRightZeroFillAssign,
+  ]);
+
+  private static readonly UNARY_OPERATOR_SET = new Set([
+    TokenType.OperatorAdd,
+    TokenType.OperatorSubtract,
+    TokenType.OperatorNot,
+    TokenType.OperatorBitNot,
+  ]);
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -88,7 +135,7 @@ class Parser {
       case TokenType.Nil:
       case TokenType.Identifier:
       case TokenType.InterpolatedString: {
-        return this.parsePrimary();
+        return this.parseExpression();
       }
       case TokenType.Keyword: {
         return this.parseKeyword();
@@ -167,7 +214,7 @@ class Parser {
     const elements = [];
 
     while (this.peek().type !== TokenType.BracketClose) {
-      elements.push(this.parsePrimary());
+      elements.push(this.parseExpression());
 
       if (this.peek().type === TokenType.Comma) {
         this.next(); // Skip ','
@@ -218,7 +265,7 @@ class Parser {
 
         if (this.peek().type === TokenType.Colon) {
           this.next(); // Move past ':'
-          obj.push({ key: propertyName, value: this.parsePrimary() });
+          obj.push({ key: propertyName, value: this.parseExpression() });
         } else
           obj.push({
             key: (<IdentifierLiteral>propertyName).value,
@@ -229,7 +276,7 @@ class Parser {
 
         if (this.peek().type === TokenType.Colon) {
           this.next(); // Move past ':'
-          obj.push({ key: propertyName, value: this.parsePrimary() });
+          obj.push({ key: propertyName, value: this.parseExpression() });
         }
       } else if (this.peek().type === TokenType.BracketOpen) {
         this.next(); // Move past '['
@@ -240,7 +287,7 @@ class Parser {
         this.expect(TokenType.Colon);
         this.next(); // Move past ':'
 
-        const propertyValue = this.parsePrimary();
+        const propertyValue = this.parseExpression();
 
         obj.push({ key: propertyName, value: propertyValue, computed: true });
       }
@@ -251,7 +298,7 @@ class Parser {
     }
 
     this.expect(TokenType.BraceClose);
-    this.next(); // Skip ']'
+    this.next(); // Skip '}'
 
     this.expectSemicolonOrEnd();
 
@@ -299,9 +346,11 @@ class Parser {
         this.next();
         return this.parseWhileStatement(this.peek());
       case KeywordType.Break:
-        return this.parseBreakStatement(this.peek());
+        this.next();
+        return this.parseBreakStatement(this.peek(-1));
       case KeywordType.Continue:
-        return this.parseContinueStatement(this.peek());
+        this.next();
+        return this.parseContinueStatement(this.peek(-1));
       case KeywordType.Try:
         this.next();
         return this.parseTryCatchStatement(this.peek());
@@ -333,12 +382,12 @@ class Parser {
         this.next();
         return this.parseEnumDeclaration(this.peek());
       case KeywordType.Spawn:
-        if (!isSpawnExperimental) {
+        if (!this.isSpawnExperimental) {
           emitWarning('"spawn" or "wait" is experimental.', {
             name: "WaitExperimental",
             code: "WARN003",
           });
-          isSpawnExperimental = true;
+          this.isSpawnExperimental = true;
         }
         this.next();
         return this.parseSpawnExpression(this.peek(-1));
@@ -379,7 +428,7 @@ class Parser {
         this.next(); // Move past identifier
         if (this.peek().type === TokenType.OperatorAssign) {
           this.next(); // Move past '='
-          const value = this.parsePrimary();
+          const value = this.parseExpression();
 
           if (this.peek().value === KeywordType.As) {
             this.next(); // Move past 'as'
@@ -530,14 +579,6 @@ class Parser {
   }
 
   parseSpawnExpression(identifier: Token, isWait: boolean = false): SpawnExpression {
-    if (!isSpawnExperimental) {
-      emitWarning('"spawn" or "wait" is experimental.', {
-        name: "WaitExperimental",
-        code: "WARN003",
-      });
-      isSpawnExperimental = true;
-    }
-
     if (this.peek().type === TokenType.BraceOpen) {
       this.next(); // Move past '{'
 
@@ -549,20 +590,12 @@ class Parser {
       return new SpawnExpression(blockStatement, isWait, identifier.position);
     }
 
-    const value = this.parsePrimary();
+    const value = this.parseExpression();
 
     return new SpawnExpression(value, isWait, identifier.position);
   }
 
   parseWaitExpression(identifier: Token): WaitExpression | SpawnExpression {
-    if (!isSpawnExperimental) {
-      emitWarning('"spawn" or "wait" is experimental.', {
-        name: "WaitExperimental",
-        code: "WARN003",
-      });
-      isSpawnExperimental = true;
-    }
-
     if (this.peek().value === KeywordType.Spawn) {
       this.next();
 
@@ -570,7 +603,7 @@ class Parser {
       return new WaitExpression(spawnExpression, identifier.position);
     }
 
-    const value = this.parsePrimary();
+    const value = this.parseExpression();
 
     this.expectSemicolonOrEnd();
 
@@ -605,7 +638,7 @@ class Parser {
     if (this.peek().type === TokenType.ParenthesisOpen) {
       this.next(); // Move past '('
 
-      const valueExpression = this.parsePrimary();
+      const valueExpression = this.parseExpression();
 
       if (this.peek().type === TokenType.Comma) {
         this.next(); // Move past ','
@@ -613,7 +646,7 @@ class Parser {
         const valuesExpression = [valueExpression];
 
         while (this.peek().type !== TokenType.ParenthesisClose) {
-          valuesExpression.push(this.parsePrimary());
+          valuesExpression.push(this.parseExpression());
 
           if (this.peek().type === TokenType.Comma) {
             this.next();
@@ -637,7 +670,7 @@ class Parser {
       return returns;
     }
 
-    const valueExpression = this.parsePrimary();
+    const valueExpression = this.parseExpression();
 
     if (this.peek().type === TokenType.Comma) {
       this.next(); // Move past ','
@@ -645,7 +678,7 @@ class Parser {
       const valuesExpression = [valueExpression];
 
       while (this.peek().type !== TokenType.Semicolon) {
-        valuesExpression.push(this.parsePrimary());
+        valuesExpression.push(this.parseExpression());
 
         if (this.peek().type === TokenType.Comma) {
           this.next();
@@ -665,7 +698,7 @@ class Parser {
   parseIfStatement(identifier: Token): IfStatement {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
-    let test = this.parsePrimary();
+    let test = this.parseExpression();
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
 
@@ -827,7 +860,7 @@ class Parser {
 
     if (this.peek().value === ReflectType.In) {
       this.next(); // Move past 'in'
-      const iterable = this.parsePrimary();
+      const iterable = this.parseExpression();
 
       this.expect(TokenType.ParenthesisClose);
       this.next(); // Move past ')'
@@ -917,7 +950,7 @@ class Parser {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
 
-    const test = this.parsePrimary();
+    const test = this.parseExpression();
 
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
@@ -933,13 +966,11 @@ class Parser {
   }
 
   parseBreakStatement(identifier: Token): BreakStatement {
-    this.next(); // Move past 'break'
     this.expectSemicolonOrEnd();
     return new BreakStatement(identifier.position);
   }
 
   parseContinueStatement(identifier: Token): ContinueStatement {
-    this.next(); // Move past 'continue'
     this.expectSemicolonOrEnd();
     return new ContinueStatement(identifier.position);
   }
@@ -952,10 +983,7 @@ class Parser {
     this.next(); // Move past '}'
 
     if (this.peek().value !== KeywordType.Catch && this.peek().value !== KeywordType.Finally) {
-      this.throwError(SyntaxCodeError.MissingCatchOrTry, {
-        line: this.peek().position.line,
-        column: this.peek().position.column,
-      });
+      this.throwError(SyntaxCodeError.MissingCatchOrTry, this.peek());
     }
 
     if (this.peek().value === KeywordType.Finally) {
@@ -1007,11 +1035,11 @@ class Parser {
   }
 
   parseThrowDeclaration(identifier: Token): ThrowDeclaration {
-    const expression = this.parsePrimary();
+    const expression = this.parseExpression();
 
     if (this.peek().value === KeywordType.As) {
       this.next(); // Move past 'as'
-      const throwOptions = this.parsePrimary();
+      const throwOptions = this.parseExpression();
       this.expectSemicolonOrEnd();
       return new ThrowDeclaration(expression, throwOptions, identifier.position);
     }
@@ -1024,7 +1052,7 @@ class Parser {
     this.expect(TokenType.ParenthesisOpen);
     this.next(); // Move past '('
 
-    const test = this.parsePrimary();
+    const test = this.parseExpression();
 
     this.expect(TokenType.ParenthesisClose);
     this.next(); // Move past ')'
@@ -1102,7 +1130,7 @@ class Parser {
             );
           }
         } else {
-          condition = this.parsePrimary();
+          condition = this.parseExpression();
         }
 
         this.expect(TokenType.ParenthesisClose);
@@ -1119,7 +1147,7 @@ class Parser {
             this.expect(TokenType.ParenthesisOpen);
             this.next(); // Move past '('
 
-            const condition = this.parsePrimary();
+            const condition = this.parseExpression();
 
             this.expect(TokenType.ParenthesisClose);
             this.next(); // Move past ')'
@@ -1159,15 +1187,15 @@ class Parser {
             })),
           );
         } else {
-          const parsePrimary = this.parsePrimary();
+          const caseExpr = this.parseExpression();
           cases.push({
             condition,
-            block: parsePrimary,
+            block: caseExpr,
           });
           cases.push(
             ...listCase.map((condition) => ({
               condition,
-              block: parsePrimary,
+              block: caseExpr,
             })),
           );
         }
@@ -1184,7 +1212,7 @@ class Parser {
           this.next(); // Move past 'return'
           defaultCase = this.parseReturnStatement(this.peek(-1));
         } else {
-          defaultCase = this.parsePrimary();
+          defaultCase = this.parseExpression();
         }
       } else {
         this.throwError(SyntaxCodeError.Unexpected, this.peek());
@@ -1263,7 +1291,7 @@ class Parser {
       return new DeferDeclaration(value, identifier.position);
     }
 
-    const value = this.parsePrimary();
+    const value = this.parseExpression();
     this.expectSemicolonOrEnd();
     return new DeferDeclaration(value, identifier.position);
   }
@@ -1283,11 +1311,11 @@ class Parser {
           const packageName = this.peek().value;
           this.next(); // Move past string
 
-          // @ts-ignore
-          packages[packageName] = packageName;
+          packages[packageName] = new StringLiteral(packageName, this.peek(-1).position);
 
           if (
-            (this.peek().type !== TokenType.Identifier || this.peek().type !== TokenType.String) &&
+            this.peek().type !== TokenType.Identifier &&
+            this.peek().type !== TokenType.String &&
             this.peek().type !== TokenType.ParenthesisClose
           ) {
             this.expect(TokenType.Comma);
@@ -1305,7 +1333,8 @@ class Parser {
           packages[packageName.value] = importNamePackage;
 
           if (
-            (this.peek().type !== TokenType.Identifier || this.peek().type !== TokenType.String) &&
+            this.peek().type !== TokenType.Identifier &&
+            this.peek().type !== TokenType.String &&
             this.peek().type !== TokenType.ParenthesisClose
           ) {
             this.expect(TokenType.Comma);
@@ -1405,7 +1434,8 @@ class Parser {
           exports[exportName.value] = importValue;
 
           if (
-            (this.peek().type !== TokenType.Identifier || this.peek().type !== TokenType.String) &&
+            this.peek().type !== TokenType.Identifier &&
+            this.peek().type !== TokenType.String &&
             this.peek().type !== TokenType.ParenthesisClose
           ) {
             this.expect(TokenType.Comma);
@@ -1415,7 +1445,8 @@ class Parser {
         exports[exportName.value] = new IdentifierLiteral(exportName.value, exportName.position);
 
         if (
-          (this.peek().type !== TokenType.Identifier || this.peek().type !== TokenType.String) &&
+          this.peek().type !== TokenType.Identifier &&
+          this.peek().type !== TokenType.String &&
           this.peek().type !== TokenType.ParenthesisClose
         ) {
           this.expect(TokenType.Comma);
@@ -1432,7 +1463,8 @@ class Parser {
         exports[exportName.value] = importValue;
 
         if (
-          (this.peek().type !== TokenType.Identifier || this.peek().type !== TokenType.String) &&
+          this.peek().type !== TokenType.Identifier &&
+          this.peek().type !== TokenType.String &&
           this.peek().type !== TokenType.ParenthesisClose
         ) {
           this.expect(TokenType.Comma);
@@ -1476,7 +1508,7 @@ class Parser {
         this.expect(TokenType.OperatorAssign);
         this.next(); // Move past '='
 
-        const value = this.parsePrimary();
+        const value = this.parseExpression();
 
         identifierList.push({
           name,
@@ -1587,9 +1619,17 @@ class Parser {
       const operator = this.peek();
       this.next();
 
-      const right = this.parsePrimary(this.getPrecedence(operator));
+      const right = this.parseExpression(undefined, this.getPrecedence(operator));
 
       left = new BinaryExpression(operator.value as OperatorType, left, right, operator.position);
+    }
+
+    if (this.isReflectOperator(this.peek().value)) {
+      return this.parseReflectExpression(left);
+    }
+
+    if (this.peek().type === TokenType.QuestionMark) {
+      return this.parseTernaryExpression(left);
     }
 
     return left;
@@ -1607,20 +1647,12 @@ class Parser {
 
   parseTernaryExpression(condition: StmtType): TernaryExpression {
     this.next(); // Move past '?'
-    const expressionIfTrue = this.parsePrimary();
-
-    if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(expressionIfTrue);
-    }
+    const expressionIfTrue = this.parseExpression();
 
     this.expect(TokenType.Colon);
     this.next(); // Move past ':'
 
-    const expressionIfFalse = this.parsePrimary();
-
-    if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(expressionIfFalse);
-    }
+    const expressionIfFalse = this.parseExpression();
 
     this.expectSemicolonOrEnd();
 
@@ -1723,7 +1755,7 @@ class Parser {
 
       if (this.peek().type === TokenType.OperatorAssign) {
         this.next(); // Move past '='
-        const defaultParameters = this.parsePrimary();
+        const defaultParameters = this.parseExpression();
         args.push([param.value, defaultParameters]);
         if (this.peek().type === TokenType.Comma) {
           this.next(); // Skip comma
@@ -1790,8 +1822,6 @@ class Parser {
 
     let object = identifier;
 
-    const isComputed = this.peek().type === TokenType.BracketOpen;
-
     while (isMemberExpression(this.peek().type)) {
       let isOptional = false;
       if (this.peek().type === TokenType.QuestionMark) {
@@ -1799,13 +1829,14 @@ class Parser {
         isOptional = true;
       }
       const tokenType = this.peek().type;
+      const isComputed = tokenType === TokenType.BracketOpen;
       this.next();
 
       let property;
 
       if (tokenType === TokenType.BracketOpen) {
         const token = this.peek();
-        property = this.parsePrimary();
+        property = this.parseExpression();
         this.expect(TokenType.BracketClose);
         this.next(); // Move past ']'
 
@@ -1872,7 +1903,7 @@ class Parser {
     if (this.isOperatorAssign(this.peek().type)) {
       const tokenType = this.peek();
       this.next(); // Move past assign operator
-      const expression = this.parsePrimary();
+      const expression = this.parseExpression();
 
       this.expectSemicolonOrEnd();
 
@@ -1890,180 +1921,71 @@ class Parser {
 
   parseAssignmentExpression(token: StmtType): AssignmentExpression {
     if (!this.isOperatorAssign(this.peek().type)) {
-      throw `Unexpected assignment ${this.peek().type}`;
+      this.throwError(SyntaxCodeError.Unexpected, this.peek());
     }
 
     const tokenType = this.peek();
     this.next(); // Move past assign operator
 
-    const expression = this.parsePrimary();
+    const expression = this.parseExpression();
 
     this.expectSemicolonOrEnd();
 
     return new AssignmentExpression(token, tokenType.type, expression, tokenType.position);
   }
 
-  parsePrimary(precedence?: number): StmtType {
+  parsePrimary(): StmtType {
     const token = this.peek();
 
     switch (token.type) {
       case TokenType.String: {
         const strings = new StringLiteral(token.value, token.position);
+        this.next();
         if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
+          this.peek().type === TokenType.BracketOpen ||
+          this.peek().type === TokenType.Period ||
+          (this.peek().type === TokenType.QuestionMark &&
+            (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period))
         ) {
-          this.next();
-          return this.parseExpression(strings, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(strings);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(strings);
-        } else if (
-          this.peek(1).type === TokenType.BracketOpen ||
-          this.peek(1).type === TokenType.Period ||
-          (this.peek(1).type === TokenType.QuestionMark &&
-            (this.peek(2).type === TokenType.BracketOpen || this.peek(2).type === TokenType.Period))
-        ) {
-          this.next();
           return this.parseMemberExpressions(strings);
         }
-        this.next();
         return strings;
       }
       case TokenType.InterpolatedString: {
         const strings = this.parseInterpolatedString(token);
+        this.next();
         if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
+          this.peek().type === TokenType.BracketOpen ||
+          this.peek().type === TokenType.Period ||
+          (this.peek().type === TokenType.QuestionMark &&
+            (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period))
         ) {
-          this.next();
-          return this.parseExpression(strings, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(strings);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(strings);
-        } else if (
-          this.peek(1).type === TokenType.BracketOpen ||
-          this.peek(1).type === TokenType.Period ||
-          (this.peek(1).type === TokenType.QuestionMark &&
-            (this.peek(2).type === TokenType.BracketOpen || this.peek(2).type === TokenType.Period))
-        ) {
-          this.next();
           return this.parseMemberExpressions(strings);
         }
-        this.next();
         return strings;
       }
       case TokenType.Int: {
         const ints = new IntLiteral(token.value, token.position);
-        if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
-        ) {
-          this.next();
-          return this.parseExpression(ints, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(ints);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(ints);
-        }
         this.next();
         return ints;
       }
       case TokenType.Float: {
         const floats = new FloatLiteral(token.value, token.position);
-        if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
-        ) {
-          this.next();
-          return this.parseExpression(floats, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(floats);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(floats);
-        }
         this.next();
         return floats;
       }
       case TokenType.Bool: {
         const bools = new BoolLiteral(token.value, token.position);
-        if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
-        ) {
-          this.next();
-          return this.parseExpression(bools, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(bools);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(bools);
-        }
         this.next();
         return bools;
       }
       case TokenType.Nil: {
         const nils = new NilLiteral(token.position);
-        if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
-        ) {
-          this.next();
-          return this.parseExpression(nils, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(nils);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
-          this.next();
-          return this.parseTernaryExpression(nils);
-        }
         this.next();
         return nils;
       }
       case TokenType.Identifier: {
         const identifier = new IdentifierLiteral(token.value, token.position);
-        if (
-          !(
-            this.isUnaryOperator(this.peek(-1).type) || this.isReflectOperator(this.peek(-1).value)
-          ) &&
-          this.isOperator(this.peek(1).type)
-        ) {
-          this.next();
-          return this.parseExpression(identifier, precedence);
-        } else if (this.isReflectOperator(this.peek(1).value)) {
-          this.next();
-          return this.parseReflectExpression(identifier);
-        } else if (
-          [OperatorType.PlusPlus, OperatorType.MinusMinus].includes(
-            this.peek(1).value as OperatorType,
-          )
-        ) {
-          this.next();
-          return this.parseUpdateExpression(identifier);
-        }
         if (this.peek(1).type === TokenType.ParenthesisOpen) {
           return this.parseFunctionCall(token);
         } else if (
@@ -2084,9 +2006,13 @@ class Parser {
         } else if (this.isOperatorAssign(this.peek(1).type)) {
           this.next();
           return this.parseAssignmentExpression(identifier);
-        } else if (this.peek(1).type === TokenType.QuestionMark) {
+        } else if (
+          [OperatorType.PlusPlus, OperatorType.MinusMinus].includes(
+            this.peek(1).value as OperatorType,
+          )
+        ) {
           this.next();
-          return this.parseTernaryExpression(identifier);
+          return this.parseUpdateExpression(identifier);
         }
         this.next();
         return identifier;
@@ -2164,12 +2090,12 @@ class Parser {
           this.next();
           return this.parseWaitExpression(this.peek(-1));
         } else if (token.value === KeywordType.Spawn) {
-          if (!isSpawnExperimental) {
+          if (!this.isSpawnExperimental) {
             emitWarning('"spawn" or "wait" is experimental.', {
               name: "WaitExperimental",
               code: "WARN003",
             });
-            isSpawnExperimental = true;
+            this.isSpawnExperimental = true;
           }
           this.next();
           return this.parseSpawnExpression(this.peek(-1));
@@ -2219,14 +2145,6 @@ class Parser {
         this.expect(TokenType.ParenthesisClose);
         this.next(); // Skip ')'
 
-        if (this.peek().type === TokenType.QuestionMark) {
-          return this.parseTernaryExpression(expr);
-        } else if (this.isOperator(this.peek().type)) {
-          return this.parseExpression(expr, precedence);
-        } else if (this.isReflectOperator(this.peek().value)) {
-          return this.parseReflectExpression(expr);
-        }
-
         return expr;
       }
       default: {
@@ -2252,67 +2170,23 @@ class Parser {
   }
 
   isOperator(tokenType: TokenType): boolean {
-    return [
-      TokenType.OperatorAdd,
-      TokenType.OperatorSubtract,
-      TokenType.OperatorMultiply,
-      TokenType.OperatorExponentiation,
-      TokenType.OperatorDivide,
-      TokenType.OperatorNotEqual,
-      TokenType.OperatorEqual,
-      TokenType.OperatorModulo,
-      TokenType.OperatorGreaterThanOrEqual,
-      TokenType.OperatorLessThan,
-      TokenType.OperatorGreaterThan,
-      TokenType.OperatorLessThanOrEqual,
-      TokenType.OperatorAnd,
-      TokenType.OperatorLogicalAnd,
-      TokenType.OperatorOr,
-      TokenType.OperatorLogicalOr,
-      TokenType.OperatorBitXor,
-      TokenType.OperatorShiftLeft,
-      TokenType.OperatorShiftRight,
-      TokenType.OperatorShiftRightZeroFill,
-    ].includes(tokenType);
+    return Parser.OPERATOR_SET.has(tokenType);
   }
 
   isOperatorAssign(tokenType: TokenType): boolean {
-    return [
-      TokenType.OperatorAssign,
-      TokenType.OperatorAssignPlus,
-      TokenType.OperatorAssignMinus,
-      TokenType.OperatorAssignMultiply,
-      TokenType.OperatorAssignDivide,
-      TokenType.OperatorAssignModule,
-      TokenType.OperatorAssignPow,
-      TokenType.OperatorAndAssign,
-      TokenType.OperatorOrAssign,
-      TokenType.OperatorBitAndAssign,
-      TokenType.OperatorBitOrAssign,
-      TokenType.OperatorBitXorAssign,
-      TokenType.OperatorShiftLeftAssign,
-      TokenType.OperatorShiftRightAssign,
-      TokenType.OperatorShiftRightZeroFillAssign,
-    ].includes(tokenType);
+    return Parser.OPERATOR_ASSIGN_SET.has(tokenType);
   }
 
   isUnaryOperator(tokenType: TokenType): boolean {
-    return [
-      TokenType.OperatorAdd,
-      TokenType.OperatorSubtract,
-      TokenType.OperatorNot,
-      TokenType.OperatorBitNot,
-    ].includes(tokenType);
+    return Parser.UNARY_OPERATOR_SET.has(tokenType);
   }
 
   isReflectOperator(tokenValue: string): boolean {
     return [ReflectType.Typeof, ReflectType.In].includes(tokenValue as ReflectType);
   }
 
-  getPrecedence(tokenType: Token) {
-    switch (tokenType.type) {
-      case TokenType.OperatorBitNot:
-        return 16;
+  getPrecedence(token: Token): number {
+    switch (token.type) {
       case TokenType.OperatorExponentiation:
         return 15;
       case TokenType.OperatorMultiply:
@@ -2359,13 +2233,8 @@ class Parser {
   }
 
   peek(offset = 0): Token {
-    const tokenType = this.tokens[this.offset + offset];
-
-    if (tokenType) {
-      return tokenType;
-    }
-
-    return this.tokens[this.tokens.length - 1]!;
+    const index = this.offset + offset;
+    return this.tokens[index] ?? this.tokens[this.tokens.length - 1]!;
   }
 
   next(): void {
@@ -2387,11 +2256,13 @@ class Parser {
   }
 
   eof(): boolean {
-    return this.peek() ? this.peek().type === TokenType.EndOf : true;
+    return this.peek()?.type === TokenType.EndOf;
   }
 
   throwError(code: SyntaxCodeError, format: Record<string, any>): never {
-    format.position ? null : (format = { position: format });
+    if (!format.position) {
+      format = { position: format };
+    }
 
     throw new SyntaxError(code, {
       line: format.position.line,
