@@ -61,54 +61,6 @@ class Parser {
   private isSpawnExperimental: boolean = false;
   public readonly tokens: Token[];
 
-  private static readonly OPERATOR_SET = new Set([
-    TokenType.OperatorAdd,
-    TokenType.OperatorSubtract,
-    TokenType.OperatorMultiply,
-    TokenType.OperatorExponentiation,
-    TokenType.OperatorDivide,
-    TokenType.OperatorNotEqual,
-    TokenType.OperatorEqual,
-    TokenType.OperatorModulo,
-    TokenType.OperatorGreaterThanOrEqual,
-    TokenType.OperatorLessThan,
-    TokenType.OperatorGreaterThan,
-    TokenType.OperatorLessThanOrEqual,
-    TokenType.OperatorAnd,
-    TokenType.OperatorLogicalAnd,
-    TokenType.OperatorOr,
-    TokenType.OperatorLogicalOr,
-    TokenType.OperatorBitXor,
-    TokenType.OperatorShiftLeft,
-    TokenType.OperatorShiftRight,
-    TokenType.OperatorShiftRightZeroFill,
-  ]);
-
-  private static readonly OPERATOR_ASSIGN_SET = new Set([
-    TokenType.OperatorAssign,
-    TokenType.OperatorAssignPlus,
-    TokenType.OperatorAssignMinus,
-    TokenType.OperatorAssignMultiply,
-    TokenType.OperatorAssignDivide,
-    TokenType.OperatorAssignModule,
-    TokenType.OperatorAssignPow,
-    TokenType.OperatorAndAssign,
-    TokenType.OperatorOrAssign,
-    TokenType.OperatorBitAndAssign,
-    TokenType.OperatorBitOrAssign,
-    TokenType.OperatorBitXorAssign,
-    TokenType.OperatorShiftLeftAssign,
-    TokenType.OperatorShiftRightAssign,
-    TokenType.OperatorShiftRightZeroFillAssign,
-  ]);
-
-  private static readonly UNARY_OPERATOR_SET = new Set([
-    TokenType.OperatorAdd,
-    TokenType.OperatorSubtract,
-    TokenType.OperatorNot,
-    TokenType.OperatorBitNot,
-  ]);
-
   constructor(tokens: Token[]) {
     this.tokens = tokens;
   }
@@ -147,20 +99,17 @@ class Parser {
       case TokenType.OperatorSubtract:
       case TokenType.OperatorNot:
       case TokenType.OperatorBitNot: {
-        return this.parseUnaryExpression(token);
+        this.next(); // Move past operator
+        const right = this.parsePrimary();
+        const unary = new VisitUnaryExpression(token.value as OperatorType, right, token.position);
+        return this.parseExpression(unary);
       }
       case TokenType.Reflect: {
-        return this.parseReflectExpression(token);
+        const reflect = this.parseReflectExpression(token);
+        return this.parseExpression(reflect);
       }
       case TokenType.ParenthesisOpen: {
-        this.next(); // Skip '('
-        const expr = this.parseExpression();
-        this.expect(TokenType.ParenthesisClose);
-        this.next(); // Skip ')'
-        if (this.peek().type === TokenType.QuestionMark) {
-          return this.parseTernaryExpression(expr);
-        }
-        return expr;
+        return this.parseExpression();
       }
       case TokenType.BraceOpen: {
         this.next(); // Skip '{'
@@ -239,12 +188,15 @@ class Parser {
           (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period)))
     ) {
       return this.parseMemberExpressions(arrayExpression);
-    } else if (this.isOperator(this.peek().type)) {
+    }
+
+    if (
+      this.peek(-1).type !== TokenType.Semicolon &&
+      (this.isOperator(this.peek().type) ||
+        this.isReflectOperator(this.peek().value) ||
+        this.peek().type === TokenType.QuestionMark)
+    ) {
       return this.parseExpression(arrayExpression);
-    } else if (this.isReflectOperator(this.peek().value)) {
-      return this.parseReflectExpression(arrayExpression);
-    } else if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(arrayExpression);
     }
 
     return arrayExpression;
@@ -280,7 +232,7 @@ class Parser {
         }
       } else if (this.peek().type === TokenType.BracketOpen) {
         this.next(); // Move past '['
-        const propertyName = this.parsePrimary();
+        const propertyName = this.parseExpression();
         this.expect(TokenType.BracketClose);
         this.next(); // Move past ']'
 
@@ -312,12 +264,15 @@ class Parser {
           (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period)))
     ) {
       return this.parseMemberExpressions(objExpression);
-    } else if (this.isOperator(this.peek().type)) {
+    }
+
+    if (
+      this.peek(-1).type !== TokenType.Semicolon &&
+      (this.isOperator(this.peek().type) ||
+        this.isReflectOperator(this.peek().value) ||
+        this.peek().type === TokenType.QuestionMark)
+    ) {
       return this.parseExpression(objExpression);
-    } else if (this.isReflectOperator(this.peek().value)) {
-      return this.parseReflectExpression(objExpression);
-    } else if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(objExpression);
     }
 
     return objExpression;
@@ -482,6 +437,18 @@ class Parser {
 
       this.next(); // Move past ')'
 
+      if (this.peek().type === TokenType.OperatorAssign) {
+        this.next(); // Move past "="
+        const iterableValue = this.parseExpression();
+        this.expectSemicolonOrEnd();
+        return new CombinedVariableDeclaration(
+          variableList,
+          iterableValue,
+          null,
+          identifier.position,
+        );
+      }
+
       let allOptionsVar: IOptionsVar | null = null;
 
       if (this.peek().value === KeywordType.As) {
@@ -513,7 +480,12 @@ class Parser {
 
       this.expectSemicolonOrEnd();
 
-      return new CombinedVariableDeclaration(variableList, allOptionsVar, identifier.position);
+      return new CombinedVariableDeclaration(
+        variableList,
+        null,
+        allOptionsVar,
+        identifier.position,
+      );
     }
 
     this.next(); // Move past Identifier
@@ -1269,12 +1241,14 @@ class Parser {
         (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period))
     ) {
       return this.parseMemberExpressions(functionCall);
-    } else if (this.isOperator(this.peek().type)) {
+    }
+
+    if (
+      this.isOperator(this.peek().type) ||
+      this.isReflectOperator(this.peek().value) ||
+      this.peek().type === TokenType.QuestionMark
+    ) {
       return this.parseExpression(functionCall);
-    } else if (this.isReflectOperator(this.peek().value)) {
-      return this.parseReflectExpression(functionCall);
-    } else if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(functionCall);
     }
 
     this.expectSemicolonOrEnd();
@@ -1616,20 +1590,27 @@ class Parser {
     left ??= this.parsePrimary();
 
     while (this.getPrecedence(this.peek()) > precedence) {
-      const operator = this.peek();
-      this.next();
+      const token = this.peek();
 
-      const right = this.parseExpression(undefined, this.getPrecedence(operator));
+      if (token.type === TokenType.QuestionMark) {
+        this.next(); // Move past '?'
+        const expressionIfTrue = this.parseExpression(undefined, 0);
 
-      left = new BinaryExpression(operator.value as OperatorType, left, right, operator.position);
+        this.expect(TokenType.Colon);
+        this.next(); // Move past ':'
+
+        const expressionIfFalse = this.parseExpression(undefined, this.getPrecedence(token));
+
+        left = new TernaryExpression(left, expressionIfTrue, expressionIfFalse, left.position);
+      } else {
+        this.next();
+        const right = this.parseExpression(undefined, this.getPrecedence(token));
+        left = new BinaryExpression(token.value as OperatorType, left, right, token.position);
+      }
     }
 
     if (this.isReflectOperator(this.peek().value)) {
       return this.parseReflectExpression(left);
-    }
-
-    if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(left);
     }
 
     return left;
@@ -1645,31 +1626,10 @@ class Parser {
     return new UpdateExpression(identifier, operator.value as OperatorType, operator.position);
   }
 
-  parseTernaryExpression(condition: StmtType): TernaryExpression {
-    this.next(); // Move past '?'
-    const expressionIfTrue = this.parseExpression();
-
-    this.expect(TokenType.Colon);
-    this.next(); // Move past ':'
-
-    const expressionIfFalse = this.parseExpression();
-
-    this.expectSemicolonOrEnd();
-
-    return new TernaryExpression(
-      condition,
-      expressionIfTrue,
-      expressionIfFalse,
-      condition.position,
-    );
-  }
-
   parseUnaryExpression(operator: Token): VisitUnaryExpression {
     this.next(); // Move past '!', '+', '~' and '-'
 
     const right = this.parsePrimary();
-
-    this.expectSemicolonOrEnd();
 
     return new VisitUnaryExpression(operator.value as OperatorType, right, operator.position);
   }
@@ -1681,7 +1641,7 @@ class Parser {
     if (this.peek().type === TokenType.ParenthesisOpen) {
       this.next(); // Move past '('
 
-      const right = this.parsePrimary();
+      const right = this.parseExpression();
       this.expect(TokenType.ParenthesisClose);
       this.next(); // Move past ')'
 
@@ -1702,8 +1662,6 @@ class Parser {
     }
 
     const right = this.parsePrimary();
-
-    this.expectSemicolonOrEnd();
 
     const reflect = new ReflectionExpression(
       operator.value as ReflectType,
@@ -1800,12 +1758,14 @@ class Parser {
         (this.peek(1).type === TokenType.BracketOpen || this.peek(1).type === TokenType.Period))
     ) {
       return this.parseMemberExpressions(callExpression);
-    } else if (this.isOperator(this.peek().type)) {
+    }
+
+    if (
+      this.isOperator(this.peek().type) ||
+      this.isReflectOperator(this.peek().value) ||
+      this.peek().type === TokenType.QuestionMark
+    ) {
       return this.parseExpression(callExpression);
-    } else if (this.isReflectOperator(this.peek().value)) {
-      return this.parseReflectExpression(callExpression);
-    } else if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(callExpression);
     }
 
     this.expectSemicolonOrEnd();
@@ -1908,12 +1868,14 @@ class Parser {
       this.expectSemicolonOrEnd();
 
       return new AssignmentExpression(object, tokenType.type, expression, tokenType.position);
-    } else if (this.isOperator(this.peek().type)) {
+    }
+
+    if (
+      this.isOperator(this.peek().type) ||
+      this.isReflectOperator(this.peek().value) ||
+      this.peek().type === TokenType.QuestionMark
+    ) {
       return this.parseExpression(object);
-    } else if (this.isReflectOperator(this.peek().value)) {
-      return this.parseReflectExpression(object);
-    } else if (this.peek().type === TokenType.QuestionMark) {
-      return this.parseTernaryExpression(object);
     }
 
     return object;
@@ -2041,8 +2003,6 @@ class Parser {
                 this.peek(1).type === TokenType.Period))
           ) {
             return this.parseMemberExpressions(importDeclaration);
-          } else if (this.peek().type === TokenType.QuestionMark) {
-            return this.parseTernaryExpression(importDeclaration);
           }
 
           return importDeclaration;
@@ -2069,8 +2029,6 @@ class Parser {
                 this.peek(1).type === TokenType.Period))
           ) {
             return this.parseMemberExpressions(waitDeclaration);
-          } else if (this.peek().type === TokenType.QuestionMark) {
-            return this.parseTernaryExpression(waitDeclaration);
           }
 
           return waitDeclaration;
@@ -2115,18 +2073,10 @@ class Parser {
       case TokenType.OperatorSubtract:
       case TokenType.OperatorNot:
       case TokenType.OperatorBitNot: {
-        const unary = this.parseUnaryExpression(token);
-        if (this.peek().type === TokenType.QuestionMark) {
-          return this.parseTernaryExpression(unary);
-        }
-        return unary;
+        return this.parseUnaryExpression(token);
       }
       case TokenType.Reflect: {
-        const reflect = this.parseReflectExpression(token);
-        if (this.peek().type === TokenType.QuestionMark) {
-          return this.parseTernaryExpression(reflect);
-        }
-        return reflect;
+        return this.parseReflectExpression(token);
       }
       case TokenType.ParenthesisOpen: {
         const identifier = this.peek(-1);
@@ -2168,6 +2118,54 @@ class Parser {
       this.next();
     }
   }
+
+  private static readonly OPERATOR_SET = new Set([
+    TokenType.OperatorAdd,
+    TokenType.OperatorSubtract,
+    TokenType.OperatorMultiply,
+    TokenType.OperatorExponentiation,
+    TokenType.OperatorDivide,
+    TokenType.OperatorNotEqual,
+    TokenType.OperatorEqual,
+    TokenType.OperatorModulo,
+    TokenType.OperatorGreaterThanOrEqual,
+    TokenType.OperatorLessThan,
+    TokenType.OperatorGreaterThan,
+    TokenType.OperatorLessThanOrEqual,
+    TokenType.OperatorAnd,
+    TokenType.OperatorLogicalAnd,
+    TokenType.OperatorOr,
+    TokenType.OperatorLogicalOr,
+    TokenType.OperatorBitXor,
+    TokenType.OperatorShiftLeft,
+    TokenType.OperatorShiftRight,
+    TokenType.OperatorShiftRightZeroFill,
+  ]);
+
+  private static readonly OPERATOR_ASSIGN_SET = new Set([
+    TokenType.OperatorAssign,
+    TokenType.OperatorAssignPlus,
+    TokenType.OperatorAssignMinus,
+    TokenType.OperatorAssignMultiply,
+    TokenType.OperatorAssignDivide,
+    TokenType.OperatorAssignModule,
+    TokenType.OperatorAssignPow,
+    TokenType.OperatorAndAssign,
+    TokenType.OperatorOrAssign,
+    TokenType.OperatorBitAndAssign,
+    TokenType.OperatorBitOrAssign,
+    TokenType.OperatorBitXorAssign,
+    TokenType.OperatorShiftLeftAssign,
+    TokenType.OperatorShiftRightAssign,
+    TokenType.OperatorShiftRightZeroFillAssign,
+  ]);
+
+  private static readonly UNARY_OPERATOR_SET = new Set([
+    TokenType.OperatorAdd,
+    TokenType.OperatorSubtract,
+    TokenType.OperatorNot,
+    TokenType.OperatorBitNot,
+  ]);
 
   isOperator(tokenType: TokenType): boolean {
     return Parser.OPERATOR_SET.has(tokenType);
@@ -2227,6 +2225,8 @@ class Parser {
         return 6;
       case TokenType.OperatorLogicalOr:
         return 5;
+      case TokenType.QuestionMark:
+        return 4;
       default:
         return 0;
     }
@@ -2234,7 +2234,7 @@ class Parser {
 
   peek(offset = 0): Token {
     const index = this.offset + offset;
-    return this.tokens[index] ?? this.tokens[this.tokens.length - 1]!;
+    return this.tokens[index] ?? this.tokens[this.tokens.length - 1];
   }
 
   next(): void {

@@ -47,6 +47,7 @@ const buildInModule = [
   "numbers/bigint",
   "utils",
   "json",
+  "crypto",
 ];
 
 class ImportDeclaration extends StmtType {
