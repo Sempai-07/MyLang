@@ -36,16 +36,43 @@ class StructExpression extends StmtType {
       [Environment.SymbolStruct]: true,
     });
 
-    for (let i = 0; i < this.fields.length; i++) {
-      const argument = args[i];
-      const field = this.fields[i]!;
+    const initStructMethod = this.methods.find(({ name }) => {
+      return name === "init";
+    });
 
-      fieldsData[field.name] = field.options;
-
-      callEnvironment.update("this", {
-        [field.name]: i in args ? argument : await field.value.evaluate(callEnvironment),
-        ...callEnvironment.get("this"),
+    if (initStructMethod) {
+      this.methods = this.methods.filter(({ name }) => {
+        return name !== "init";
       });
+
+      for (let i = 0; i < this.fields.length; i++) {
+        const field = this.fields[i]!;
+
+        fieldsData[field.name] = field.options;
+
+        callEnvironment.update("this", {
+          [field.name]: null,
+          ...callEnvironment.get("this"),
+        });
+      }
+
+      await initStructMethod.evaluate(callEnvironment).call(
+        args.map((arg) => ({
+          value: arg,
+        })),
+      );
+    } else {
+      for (let i = 0; i < this.fields.length; i++) {
+        const argument = args[i];
+        const field = this.fields[i]!;
+
+        fieldsData[field.name] = field.options;
+
+        callEnvironment.update("this", {
+          [field.name]: i in args ? argument : await field.value.evaluate(callEnvironment),
+          ...callEnvironment.get("this"),
+        });
+      }
     }
 
     for (let i = 0; i < this.methods.length; i++) {
