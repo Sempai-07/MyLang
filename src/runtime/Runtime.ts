@@ -56,7 +56,7 @@ class Runtime {
 
     this.callStack.pop();
 
-    return null;
+    return value;
   }
 
   get isBreak() {

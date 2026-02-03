@@ -1,6 +1,7 @@
 import { type StmtType } from "./StmtType";
 import { Lexer } from "../lexer/Lexer";
 import { Token } from "../lexer/token/Token";
+import { Position } from "../lexer/token/Position";
 import {
   TokenType,
   OperatorType,
@@ -1138,12 +1139,6 @@ class Parser {
             condition,
             block: blockStatement,
           });
-          cases.push(
-            ...listCase.map((condition) => ({
-              condition,
-              block: blockStatement,
-            })),
-          );
           this.next(); // Move past '}'
         } else if (this.peek().value === KeywordType.Return) {
           this.next(); // Move past 'return'
@@ -1152,24 +1147,26 @@ class Parser {
             condition,
             block: returnStatement,
           });
-          cases.push(
-            ...listCase.map((condition) => ({
-              condition,
-              block: new BlockStatement([returnStatement], returnStatement.position),
-            })),
-          );
+        } else if (this.peek().value === KeywordType.Break) {
+          this.next(); // Move past 'break'
+          const breakStatement = this.parseBreakStatement(this.peek(-1));
+          cases.push({
+            condition,
+            block: breakStatement,
+          });
+        } else if (this.peek().value === KeywordType.Continue) {
+          this.next(); // Move past 'continue'
+          const continueStatement = this.parseContinueStatement(this.peek(-1));
+          cases.push({
+            condition,
+            block: continueStatement,
+          });
         } else {
           const caseExpr = this.parseExpression();
           cases.push({
             condition,
             block: caseExpr,
           });
-          cases.push(
-            ...listCase.map((condition) => ({
-              condition,
-              block: caseExpr,
-            })),
-          );
         }
       } else if (this.peek().value === KeywordType.Default) {
         this.next(); // Move past 'default'
@@ -1183,6 +1180,12 @@ class Parser {
         } else if (this.peek().value === KeywordType.Return) {
           this.next(); // Move past 'return'
           defaultCase = this.parseReturnStatement(this.peek(-1));
+        } else if (this.peek().value === KeywordType.Break) {
+          this.next(); // Move past 'break'
+          defaultCase = this.parseBreakStatement(this.peek(-1));
+        } else if (this.peek().value === KeywordType.Continue) {
+          this.next(); // Move past 'continue'
+          defaultCase = this.parseContinueStatement(this.peek(-1));
         } else {
           defaultCase = this.parseExpression();
         }
@@ -2234,7 +2237,11 @@ class Parser {
 
   peek(offset = 0): Token {
     const index = this.offset + offset;
-    return this.tokens[index] ?? this.tokens[this.tokens.length - 1];
+    return (
+      this.tokens[index] ??
+      this.tokens[this.tokens.length - 1] ??
+      new Token("", TokenType.EndOf, new Position(0, 0))
+    );
   }
 
   next(): void {
