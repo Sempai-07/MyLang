@@ -2,6 +2,7 @@ import { CallStack } from "./CallStack";
 import { BaseError } from "../errors/BaseError";
 import { BreakStatement } from "../ast/statement/BreakStatement";
 import { ReturnStatement } from "../ast/statement/ReturnStatement";
+import { ForStatement } from "../ast/statement/ForStatement";
 import { ContinueStatement } from "../ast/statement/ContinueStatement";
 import { Scheduler } from "./Scheduler";
 
@@ -38,9 +39,10 @@ class Runtime {
         files: this.getFilePaths(environment),
       });
     }
+    
 
     const value = await statement.evaluate(environment);
-
+    
     if (statement instanceof ReturnStatement) {
       this._isReturn = true;
       this._lastExecutionResult = value;

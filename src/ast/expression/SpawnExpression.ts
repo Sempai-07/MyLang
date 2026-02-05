@@ -71,9 +71,9 @@ class SpawnExpression extends StmtType {
         runtime.finishFunction();
 
         return result;
+      } else {
+        return this.expression.evaluate(score);
       }
-
-      return this.expression.evaluate(score);
     };
 
     const handler = new Spawn(task);

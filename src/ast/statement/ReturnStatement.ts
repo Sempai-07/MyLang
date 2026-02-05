@@ -1,6 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
+import { runtime } from "../../runtime/Runtime";
 
 class ReturnStatement extends StmtType {
   public readonly body: StmtType | StmtType[];
@@ -13,7 +14,7 @@ class ReturnStatement extends StmtType {
 
     this.position = position;
   }
-
+  
   async evaluate(score: Environment) {
     if (Array.isArray(this.body)) {
       return Promise.all(this.body.map((value) => value.evaluate(score)));

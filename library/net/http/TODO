@@ -1,352 +1,1888 @@
-import { FunctionBuilder, FunctionBuilderCodeError } from "../../FunctionBuilder";
-import { Environment } from "../../../src/Environment";
-import { type StmtType } from "../../../src/ast/StmtType";
+import fs from "node:fs";
+import http from "node:http";
+import https from "node:https";
+import path from "node:path";
+import zlib from "node:zlib";
+import crypto from "node:crypto";
+import { URL } from "node:url";
 import { isTypeArgs } from "../../utils/utils";
-import  http from "node:http";
-import  https from "node:https";
-import  querystring from "node:querystring";
-import  zlib from "node:zlib";
+import { Environment } from "../../../src/Environment";
+import { Bytes } from "../../bytes/Bytes";
+import { HttpMethodBuilder } from "./HttpBuilder";
 
+type Handler = (ctx: RequestContext) => Promise<any> | any;
+type Middleware = (ctx: RequestContext, next: () => Promise<void>) => Promise<void> | void;
 
-
-interface CookieOptions {
-  expires?: Date;
-  maxAge?: number;
-  domain?: string;
-  path?: string;
-  secure?: boolean;
-  httpOnly?: boolean;
-  sameSite?: string;
+interface CacheOptions {
+  enabled?: boolean;
+  maxSize?: number;
+  ttl?: number;
+  clearOnRestart?: boolean;
+  memoryLimit?: number;
 }
 
-class HttpCookieJar extends HttpMethodBuilder {
+interface ServerOptions {
+  key?: Buffer | string;
+  cert?: Buffer | string;
+  port?: number;
+  host?: string;
+  cache?: CacheOptions;
+  static?: {
+    root?: string;
+    index?: string;
+    maxAge?: number;
+    spa?: boolean;
+    dotfiles?: "allow" | "deny" | "ignore";
+    etag?: boolean;
+    lastModified?: boolean;
+    noCache?: boolean;
+    cacheControl?: string;
+  };
+  cors?: {
+    origin?: string | HttpMethodBuilder | ((origin?: string) => boolean);
+    methods?: string[];
+    credentials?: boolean;
+    allowedHeaders?: string[];
+    exposedHeaders?: string[];
+    maxAge?: number;
+  };
+  bodyLimit?: number;
+  trustProxy?: boolean;
+  compression?: {
+    threshold?: number;
+    level?: number;
+    filter?: (req: http.IncomingMessage, res: http.ServerResponse) => boolean;
+  };
+  security?: {
+    helmet?: boolean;
+    xss?: boolean;
+    noSniff?: boolean;
+    frameOptions?: string;
+    hsts?: boolean;
+  };
+  timeout?: number;
+  keepAliveTimeout?: number;
+  maxConnections?: number;
+}
+
+interface RequestContext {
+  res: Res;
+  req: Req;
+  method: string;
+  url: string;
+  path: string;
+  query: Record<string, string | string[]>;
+  params: Record<string, string>;
+  headers: http.IncomingHttpHeaders;
+  body: any;
+  rawBody?: ReturnType<Bytes["call"]>;
+  ip?: string;
+  state?: Record<string, any>;
+  cookies?: Record<string, string>;
+  protocol: string;
+  secure: boolean;
+  hostname?: string;
+  fresh: boolean;
+  stale: boolean;
+  send: typeof HttpMethodBuilder;
+  json: typeof HttpMethodBuilder;
+  status: typeof HttpMethodBuilder;
+  cookie: typeof HttpMethodBuilder;
+  clearCookie: typeof HttpMethodBuilder;
+  redirect: typeof HttpMethodBuilder;
+  __req: http.IncomingMessage;
+  __res: http.ServerResponse;
+}
+
+interface Req {
+  url: string;
+  method: string;
+  httpVersion: string;
+  httpVersionMajor: number;
+  httpVersionMinor: number;
+  headers: http.IncomingHttpHeaders;
+  rawHeaders: string[];
+  // TODO:
+  // socket?: Socket;
+  aborted: boolean;
+}
+
+interface Res {
+  statusCode: number;
+  statusMessage: string | null;
+  setHeader: typeof HttpMethodBuilder;
+  getHeader: typeof HttpMethodBuilder;
+  removeHeader: typeof HttpMethodBuilder;
+  hasHeader: typeof HttpMethodBuilder;
+  // TODO:
+  // socket: Socket;
+}
+
+interface RouteEntry {
+  method: string;
+  pattern: string;
+  regex: RegExp;
+  keys: string[];
+  handler: Handler;
+}
+
+interface RateLimitEntry {
+  count: number;
+  expires: number;
+  resetTime: number;
+}
+
+class HttpServer extends HttpMethodBuilder {
+  private static readonly DEFAULT_MIME_TYPES: Record<string, string> = {
+    ".html": "text/html; charset=utf-8",
+    ".htm": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".mjs": "application/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".xml": "application/xml; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    ".txt": "text/plain; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".pdf": "application/pdf",
+    ".wasm": "application/wasm",
+    ".map": "application/json; charset=utf-8",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".zip": "application/zip",
+    ".tar": "application/x-tar",
+    ".gz": "application/gzip",
+  };
+
+  private static readonly SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy": "default-src 'self'",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  };
+
+  private static cache = new Map<string, { data: Buffer; timestamp: number; etag?: string }>();
+
+  private static cacheStats = { hits: 0, misses: 0, size: 0 };
+
   override call() {
-    const cookies = new Map();
+    const [options = {} as ServerOptions] = this.args;
 
-    return {
-      setCookie: class extends HttpMethodBuilder {
-        override call() {
-          const [domain, name, value, options = {}]: [
-            string,
-            string,
-            any,
-            CookieOptions,
-          ] = this.args;
-          
-          if (!cookies.has(domain)) {
-            cookies.set(domain, new Map());
+    this.validateOptions(options);
+
+    const routes: RouteEntry[] = [];
+    const middlewares: Middleware[] = [];
+    const staticOptions = {
+      root: this.validatePath(
+        options.static?.root || path.join(this.environment.get("import").base, "public"),
+      ),
+      index: options.static?.index || "index.html",
+      maxAge: Math.max(0, options.static?.maxAge ?? 3600),
+      spa: options.static?.spa ?? false,
+      dotfiles: options.static?.dotfiles || ("ignore" as const),
+      etag: options.static?.etag ?? true,
+      lastModified: options.static?.lastModified ?? true,
+    };
+
+    let server: http.Server | https.Server | null = null;
+    let shuttingDown = false;
+    const activeConnections = new Set<http.IncomingMessage>();
+    let connectionCount = 0;
+
+    this.ensureStaticDirectory(staticOptions.root);
+
+    const compilePath = (pattern: string): { regex: RegExp; keys: string[] } => {
+      this.validateRoute(pattern);
+
+      const keys: string[] = [];
+
+      const regexStr =
+        "^" +
+        pattern
+          .replace(/([.+?^=!:${}()|[\]\/\\])/g, "\\$1")
+          .replace(/\\:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, key) => {
+            if (keys.includes(key)) {
+              throw this.throwErrorFormatters(new Error(`Duplicate route parameter: ${key}`));
+            }
+            keys.push(key);
+            return "([^\\/]+)";
+          })
+          .replace(/\\\*/g, "(.*)") +
+        "\\/?$";
+
+      try {
+        return { regex: pattern === "/" ? new RegExp("/*") : new RegExp(regexStr, "i"), keys };
+      } catch (err) {
+        throw this.throwErrorFormatters(new Error(`Invalid route pattern: ${pattern}`));
+      }
+    };
+
+    const addRoute = (method: string, pattern: string, handler: Handler): void => {
+      this.validateHandler(handler);
+
+      const normalizedMethod = method.toUpperCase();
+      const validMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ALL"];
+
+      if (!validMethods.includes(normalizedMethod)) {
+        throw this.throwErrorFormatters(new Error(`Invalid HTTP method: ${method}`));
+      }
+
+      const { regex, keys } = compilePath(pattern);
+      
+      const existingRoute = routes.find(
+        (r) => r.method === normalizedMethod && r.pattern === pattern,
+      );
+
+      if (existingRoute) {
+        console.warn(`Warning: Overriding existing route ${normalizedMethod} ${pattern}`);
+        const index = routes.indexOf(existingRoute);
+        routes.splice(index, 1);
+      }
+
+      routes.push({ method: normalizedMethod, pattern, regex, keys, handler });
+    };
+
+    const parseUrl = (
+      req: http.IncomingMessage,
+    ): { pathname: string; query: Record<string, any> } => {
+      try {
+        const reqUrl = req.url || "/";
+        const full = new URL(reqUrl, `http://${req.headers.host || "localhost"}`);
+        const pathname = decodeURIComponent(full.pathname || "/");
+
+        if (pathname.includes("..") || pathname.includes("\0")) {
+          throw new Error("Invalid path");
+        }
+
+        const query: Record<string, any> = {};
+        full.searchParams.forEach((value, key) => {
+          const decodedKey = decodeURIComponent(key);
+          const decodedValue = decodeURIComponent(value);
+
+          if (query[decodedKey] === undefined) {
+            query[decodedKey] = decodedValue;
+          } else if (Array.isArray(query[decodedKey])) {
+            (query[decodedKey] as string[]).push(decodedValue);
+          } else {
+            query[decodedKey] = [query[decodedKey] as string, decodedValue];
           }
-          
-          const cookie = {
-            name,
-            value,
-            expires: options.expires,
-            maxAge: options.maxAge,
-            domain: options.domain || domain,
-            path: options.path || '/',
-            secure: options.secure || false,
-            httpOnly: options.httpOnly || false,
-            sameSite: options.sameSite || 'Lax'
+        });
+
+        return { pathname, query };
+      } catch (err) {
+        throw this.throwErrorFormatters(new Error("Invalid URL format"));
+      }
+    };
+
+    const matchRoute = (
+      method: string,
+      pathname: string,
+    ): { handler: Handler; params: Record<string, string> } | null => {
+      for (const route of routes.toReversed()) {
+        if (route.method !== method && route.method !== "ALL") continue;
+
+        const match = route.regex.exec(pathname);
+        if (match) {
+          const params: Record<string, string> = {};
+          route.keys.forEach((key, index) => {
+            const value = match[index + 1];
+            if (value !== undefined) {
+              try {
+                params[key] = decodeURIComponent(value);
+              } catch (err) {
+                params[key] = value;
+              }
+            }
+          });
+          return { handler: route.handler, params };
+        }
+      }
+      return null;
+    };
+
+    const parseBody = async (
+      req: http.IncomingMessage,
+      limit = options.bodyLimit ?? 2_000_000,
+    ): Promise<Buffer> => {
+      return new Promise<Buffer>((resolve, reject) => {
+        if (req.readableEnded) {
+          resolve(Buffer.alloc(0));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let length = 0;
+        let timeoutId: NodeJS.Timeout | null = null;
+
+        const cleanup = () => {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+        };
+
+        if (options.timeout) {
+          timeoutId = setTimeout(() => {
+            cleanup();
+            reject(this.throwErrorFormatters(new Error("Request timeout")));
+            req.destroy();
+          }, options.timeout);
+        }
+
+        req.on("data", (chunk: Buffer) => {
+          if (!Buffer.isBuffer(chunk)) {
+            chunk = Buffer.from(chunk);
+          }
+
+          length += chunk.length;
+          if (length > limit) {
+            cleanup();
+            reject(this.throwErrorFormatters(new Error("Payload too large")));
+            req.destroy();
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        req.on("end", () => {
+          cleanup();
+          resolve(Buffer.concat(chunks));
+        });
+
+        req.on("error", (err) => {
+          cleanup();
+          reject(err);
+        });
+
+        req.on("aborted", () => {
+          cleanup();
+          reject(this.throwErrorFormatters(new Error("Request aborted")));
+        });
+      });
+    };
+
+    const generateETag = (content: Buffer | string): string => {
+      const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
+      const hash = crypto.createHash("sha1").update(buffer).digest("hex");
+      return `W/"${hash.substring(0, 16)}"`;
+    };
+
+    const shouldCompress = (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      content: Buffer,
+    ): boolean => {
+      if (!options.compression) return false;
+
+      const threshold = options.compression.threshold ?? 1024;
+      if (content.length < threshold) return false;
+
+      const contentType = (res.getHeader("content-type") as string) || "";
+      const compressibleTypes = [
+        "text/",
+        "application/javascript",
+        "application/json",
+        "application/xml",
+        "image/svg+xml",
+      ];
+
+      const isCompressible = compressibleTypes.some((type) => contentType.includes(type));
+      if (!isCompressible) return false;
+
+      if (options.compression.filter) {
+        return options.compression.filter(req, res);
+      }
+
+      return true;
+    };
+
+    const compressContent = (
+      acceptEncoding: string | undefined,
+      content: Buffer,
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+    ): { data: Buffer; encoding?: string } => {
+      if (!acceptEncoding || !shouldCompress(req, res, content)) {
+        return { data: content };
+      }
+
+      const level = options.compression?.level ?? 6;
+
+      try {
+        if (acceptEncoding.includes("br") && content.length > 1024) {
+          return {
+            data: zlib.brotliCompressSync(content, {
+              params: {
+                [zlib.constants.BROTLI_PARAM_QUALITY]: level,
+                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: content.length,
+              },
+            }),
+            encoding: "br",
           };
+        }
+
+        if (acceptEncoding.includes("gzip")) {
+          return {
+            data: zlib.gzipSync(content, { level }),
+            encoding: "gzip",
+          };
+        }
+
+        if (acceptEncoding.includes("deflate")) {
+          return {
+            data: zlib.deflateSync(content, { level }),
+            encoding: "deflate",
+          };
+        }
+      } catch (err) {
+        console.warn("Compression failed:", err);
+      }
+
+      return { data: content };
+    };
+
+    const parseCookies = (cookieHeader: string | undefined): Record<string, string> => {
+      const cookies: Record<string, string> = {};
+
+      if (!cookieHeader) return cookies;
+
+      try {
+        cookieHeader.split(";").forEach((cookie) => {
+          const [name, ...rest] = cookie.trim().split("=");
+          if (name && rest.length > 0) {
+            cookies[decodeURIComponent(name)] = decodeURIComponent(rest.join("="));
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to parse cookies:", err);
+      }
+
+      return cookies;
+    };
+
+    const checkFreshness = (
+      req: http.IncomingMessage,
+      etag?: string,
+      lastModified?: string,
+    ): boolean => {
+      const ifNoneMatch = req.headers["if-none-match"];
+      const ifModifiedSince = req.headers["if-modified-since"];
+
+      if (ifNoneMatch && etag) {
+        const clientETags = ifNoneMatch.split(",").map((tag) => tag.trim());
+        if (clientETags.includes(etag) || clientETags.includes("*")) {
+          return true;
+        }
+      }
+
+      if (ifModifiedSince && lastModified) {
+        const clientDate = new Date(ifModifiedSince);
+        const serverDate = new Date(lastModified);
+
+        if (!isNaN(clientDate.getTime()) && !isNaN(serverDate.getTime())) {
+          return clientDate >= serverDate;
+        }
+      }
+
+      return false;
+    };
+
+    const defaultSend =
+      (res: http.ServerResponse, req: http.IncomingMessage) =>
+      (body: any, status = 200, headers: Record<string, string> = {}): void => {
+        if (res.writableEnded || res.headersSent) return;
+
+        if (body?.[Environment.SymbolBuffer]) {
+          body = body[Environment.SymbolBuffer];
+        }
+
+        try {
+          let content: Buffer;
+          let contentType = headers["Content-Type"] || headers["content-type"];
           
-          cookies.get(domain).set(name, cookie);
-          return null;
-        }
-      },
-
-      getCookie: class extends HttpMethodBuilder {
-        override call() {
-          const [domain, name] = this.args;
-          return cookies.get(domain)?.get(name) || null;
-        }
-      },
-
-      getCookies: class extends HttpMethodBuilder {
-        override call() {
-          const [domain] = this.args;
-          const domainCookies = cookies.get(domain);
-          return domainCookies ? Array.from(domainCookies.values()) : [];
-        }
-      },
-
-      deleteCookie: class extends HttpMethodBuilder {
-        override call() {
-          const [domain, name] = this.args;
-          return cookies.get(domain)?.delete(name) || false;
-        }
-      },
-
-      clearDomain: class extends HttpMethodBuilder {
-        override call() {
-          const [domain] = this.args;
-          return cookies.delete(domain);
-        }
-      },
-
-      clearAll: class extends HttpMethodBuilder {
-        override call() {
-          cookies.clear();
-          return null;
-        }
-      },
-
-      toHeaderString: class extends HttpMethodBuilder {
-        override call() {
-          const [domain] = this.args;
-          const domainCookies = cookies.get(domain);
-          
-          if (!domainCookies) return '';
-          
-          return Array.from(domainCookies.values())
-            .map((cookie: any) => `${cookie.name}=${cookie.value}`)
-            .join('; ');
-        }
-      },
-
-      fromSetCookieHeader: class extends HttpMethodBuilder {
-        override call() {
-          const [domain, setCookieHeader] = this.args;
-          
-          const parts = setCookieHeader.split(';').map((p: string) => p.trim());
-          const [nameValue] = parts;
-          const [name, value] = nameValue.split('=');
-          
-          const options: CookieOptions = {};
-          for (let i = 1; i < parts.length; i++) {
-            const [key, val] = parts[i].split('=');
-            if (key.toLowerCase() === 'expires') {
-              options.expires = new Date(val);
-            } else if (key.toLowerCase() === 'max-age') {
-              options.maxAge = parseInt(val);
-            } else if (key.toLowerCase() === 'domain') {
-              options.domain = val;
-            } else if (key.toLowerCase() === 'path') {
-              options.path = val;
-            } else if (key.toLowerCase() === 'secure') {
-              options.secure = true;
-            } else if (key.toLowerCase() === 'httponly') {
-              options.httpOnly = true;
-            } else if (key.toLowerCase() === 'samesite') {
-              options.sameSite = val;
+          if (Buffer.isBuffer(body)) {
+            content = body;
+            contentType = contentType || "application/octet-stream";
+          } else if (typeof body === "string") {
+            content = Buffer.from(body, "utf8");
+            contentType = contentType || "text/plain; charset=utf-8";
+          } else if (body === null || body === undefined) {
+            content = Buffer.alloc(0);
+            contentType = contentType || "text/plain; charset=utf-8";
+          } else {
+            try {
+              const jsonString = JSON.stringify(body);
+              content = Buffer.from(jsonString, "utf8");
+              contentType = contentType || "application/json; charset=utf-8";
+            } catch (err) {
+              content = Buffer.from(String(body), "utf8");
+              contentType = contentType || "text/plain; charset=utf-8";
             }
           }
-          
-          const setCookieMethod = new (this.constructor as any)([domain, name, value, options], [], this.environment);
-          return setCookieMethod.call();
+
+          const etag = staticOptions.etag ? generateETag(content) : undefined;
+          const lastModified = new Date().toUTCString();
+
+          if (checkFreshness(req, etag, lastModified)) {
+            res.writeHead(304);
+            res.end();
+            return;
+          }
+
+          const compressed = compressContent(
+            req.headers["accept-encoding"] as string,
+            content,
+            req,
+            res,
+          );
+
+          const responseHeaders: Record<string, string> = {
+            "Content-Length": String(compressed.data.length),
+            ...headers,
+          };
+
+          if (contentType) responseHeaders["Content-Type"] = contentType;
+          if (compressed.encoding) responseHeaders["Content-Encoding"] = compressed.encoding;
+          if (etag) responseHeaders["ETag"] = etag;
+          if (staticOptions.lastModified) responseHeaders["Last-Modified"] = lastModified;
+
+          if (options.security?.helmet !== false) {
+            Object.assign(responseHeaders, HttpServer.SECURITY_HEADERS);
+          }
+
+          res.writeHead(status, responseHeaders);
+          res.end(compressed.data);
+        } catch (err) {
+          console.error("Error sending response:", err);
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Internal Server Error" }));
+          }
+        }
+      };
+
+    const cacheOptions = {
+      enabled: options.cache?.enabled ?? true,
+      maxSize: options.cache?.maxSize ?? 1000,
+      ttl: options.cache?.ttl ?? 300000,
+      clearOnRestart: options.cache?.clearOnRestart ?? true,
+      memoryLimit: options.cache?.memoryLimit ?? 100 * 1024 * 1024,
+      ...options.cache,
+    };
+
+    const clearCache = (pattern?: string | RegExp): number => {
+      let cleared = 0;
+
+      if (!pattern) {
+        cleared = HttpServer.cache.size;
+        HttpServer.cache.clear();
+        HttpServer.cacheStats.size = 0;
+      } else if (typeof pattern === "string") {
+        const keys = Array.from(HttpServer.cache.keys());
+        for (const key of keys) {
+          if (key.includes(pattern)) {
+            HttpServer.cache.delete(key);
+            cleared++;
+          }
+        }
+        HttpServer.cacheStats.size = HttpServer.cache.size;
+      } else if (pattern instanceof RegExp) {
+        const keys = Array.from(HttpServer.cache.keys());
+        for (const key of keys) {
+          if (pattern.test(key)) {
+            HttpServer.cache.delete(key);
+            cleared++;
+          }
+        }
+        HttpServer.cacheStats.size = HttpServer.cache.size;
+      }
+
+      return cleared;
+    };
+    
+    const clearCookie = (
+  res: http.ServerResponse,
+) => (
+  name: string,
+  options: {
+    path?: string;
+    domain?: string;
+    secure?: boolean;
+    sameSite?: "Strict" | "Lax" | "None";
+  } = {},
+) => {
+  const parts: string[] = [];
+
+  parts.push(`${encodeURIComponent(name)}=`);
+  parts.push("Max-Age=0");
+  parts.push("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
+
+  parts.push(`Path=${options.path ?? "/"}`);
+
+  if (options.domain) parts.push(`Domain=${options.domain}`);
+  if (options.secure) parts.push("Secure");
+  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
+
+  res.setHeader("Set-Cookie", parts.join("; "));
+};
+
+    const pruneExpiredCache = (): number => {
+      const now = Date.now();
+      let removed = 0;
+
+      for (const [key, entry] of HttpServer.cache.entries()) {
+        if (now - entry.timestamp > cacheOptions.ttl) {
+          HttpServer.cache.delete(key);
+          removed++;
         }
       }
+
+      HttpServer.cacheStats.size = HttpServer.cache.size;
+      return removed;
     };
-  }
-}
 
-class HttpFormData extends HttpMethodBuilder {
-  override call() {
-    const fields = new Map();
-    const files = new Map();
-    const boundary = `----formdata-${Date.now()}-${Math.random().toString(36)}`;
+    const pruneCacheBySize = (): number => {
+      if (HttpServer.cache.size <= cacheOptions.maxSize) return 0;
 
-    return {
-      append: class extends HttpMethodBuilder {
-        override call() {
-          const [name, value, options = {}] = this.args;
-          
-          if (options.filename || Buffer.isBuffer(value)) {
-            // File field
-            files.set(name, {
-              value,
-              filename: options.filename || 'file',
-              contentType: options.contentType || 'application/octet-stream'
-            });
+      const entries = Array.from(HttpServer.cache.entries()).sort(
+        (a, b) => a[1].timestamp - b[1].timestamp,
+      );
+
+      const toRemove = HttpServer.cache.size - cacheOptions.maxSize;
+      let removed = 0;
+
+      for (let i = 0; i < toRemove && i < entries.length; i++) {
+        HttpServer.cache.delete(entries[i]![0]);
+        removed++;
+      }
+
+      HttpServer.cacheStats.size = HttpServer.cache.size;
+      return removed;
+    };
+
+    const getCacheMemoryUsage = (): number => {
+      let totalSize = 0;
+      for (const [key, entry] of HttpServer.cache.entries()) {
+        totalSize += Buffer.byteLength(key, "utf8") + entry.data.length;
+      }
+      return totalSize;
+    };
+
+    const pruneCacheByMemory = (): number => {
+      const currentMemory = getCacheMemoryUsage();
+      if (currentMemory <= cacheOptions.memoryLimit) return 0;
+
+      const entries = Array.from(HttpServer.cache.entries()).sort(
+        (a, b) => a[1].timestamp - b[1].timestamp,
+      );
+
+      let removedMemory = 0;
+      let removed = 0;
+
+      for (const [key, entry] of entries) {
+        if (currentMemory - removedMemory <= cacheOptions.memoryLimit) break;
+
+        removedMemory += Buffer.byteLength(key, "utf8") + entry.data.length;
+        HttpServer.cache.delete(key);
+        removed++;
+      }
+
+      HttpServer.cacheStats.size = HttpServer.cache.size;
+      return removed;
+    };
+
+    const cacheCleanupInterval = setInterval(() => {
+      if (cacheOptions.enabled) {
+        pruneExpiredCache();
+        pruneCacheBySize();
+        pruneCacheByMemory();
+      }
+    }, 60000);
+
+    process.on("exit", () => {
+      clearInterval(cacheCleanupInterval);
+      if (cacheOptions.clearOnRestart) {
+        clearCache();
+      }
+    });
+
+    const sendFile = async (ctx: RequestContext, filePath: string): Promise<boolean> => {
+      const { __req, __res } = ctx;
+
+      if (__res.writableEnded) return false;
+
+      const cacheKey = `file:${filePath}`;
+      const now = Date.now();
+
+      if (cacheOptions.enabled && HttpServer.cache.has(cacheKey)) {
+        const cached = HttpServer.cache.get(cacheKey)!;
+
+        if (now - cached.timestamp < cacheOptions.ttl) {
+          HttpServer.cacheStats.hits++;
+
+          if (cached.etag && checkFreshness(__req, cached.etag, undefined)) {
+            __res.writeHead(304);
+            __res.end();
+            return true;
+          }
+
+          const ext = path.extname(filePath).toLowerCase();
+          const contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
+
+          const headers: Record<string, string> = {
+            "Content-Type": contentType,
+            "Content-Length": String(cached.data.length),
+          };
+
+          if (options.static?.noCache) {
+            headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            headers["Pragma"] = "no-cache";
+            headers["Expires"] = "0";
+          } else if (options.static?.cacheControl) {
+            headers["Cache-Control"] = options.static.cacheControl;
           } else {
-            // Text field
-            fields.set(name, value);
+            headers["Cache-Control"] = `public, max-age=${staticOptions.maxAge}`;
           }
-          return null;
-        }
-      },
 
-      delete: class extends HttpMethodBuilder {
-        override call() {
-          const [name] = this.args;
-          fields.delete(name);
-          files.delete(name);
-          return null;
-        }
-      },
+          if (cached.etag) headers["ETag"] = cached.etag;
 
-      get: class extends HttpMethodBuilder {
-        override call() {
-          const [name] = this.args;
-          return fields.get(name) || files.get(name) || null;
-        }
-      },
-
-      has: class extends HttpMethodBuilder {
-        override call() {
-          const [name] = this.args;
-          return fields.has(name) || files.has(name);
-        }
-      },
-
-      set: class extends HttpMethodBuilder {
-        override call() {
-          const [name, value, options = {}] = this.args;
-          fields.delete(name);
-          files.delete(name);
-          const appendMethod = new (this.constructor as any)([name, value, options], [], this.environment);
-          return appendMethod.call();
-        }
-      },
-
-      getBoundary: class extends HttpMethodBuilder {
-        override call() {
-          return boundary;
-        }
-      },
-
-      getContentType: class extends HttpMethodBuilder {
-        override call() {
-          return `multipart/form-data; boundary=${boundary}`;
-        }
-      },
-
-      toString: class extends HttpMethodBuilder {
-        override call() {
-          let result = '';
-          
-          // Add text fields
-          for (const [name, value] of fields) {
-            result += `--${boundary}\r\n`;
-            result += `Content-Disposition: form-data; name="${name}"\r\n\r\n`;
-            result += `${value}\r\n`;
-          }
-          
-          // Add file fields
-          for (const [name, file] of files) {
-            result += `--${boundary}\r\n`;
-            result += `Content-Disposition: form-data; name="${name}"; filename="${file.filename}"\r\n`;
-            result += `Content-Type: ${file.contentType}\r\n\r\n`;
-            result += file.value.toString();
-            result += '\r\n';
-          }
-          
-          result += `--${boundary}--\r\n`;
-          return result;
-        }
-      },
-
-      toBuffer: class extends HttpMethodBuilder {
-        override call() {
-          const toStringMethod = new (this.constructor as any)([], [], this.environment);
-          return Buffer.from(toStringMethod.toString());
+          __res.writeHead(200, headers);
+          __res.end(cached.data);
+          return true;
+        } else {
+          HttpServer.cache.delete(cacheKey);
         }
       }
+
+      HttpServer.cacheStats.misses++;
+
+      try {
+        const normalizedPath = path.normalize(filePath);
+        const normalizedRoot = path.normalize(staticOptions.root);
+
+        if (!normalizedPath.startsWith(normalizedRoot)) {
+          return false;
+        }
+
+        const stat = await fs.promises.stat(filePath);
+
+        if (!stat.isFile()) {
+          return false;
+        }
+
+        if (staticOptions.dotfiles === "deny" && path.basename(filePath).startsWith(".")) {
+          __res.writeHead(403, { "Content-Type": "application/json" });
+          __res.end(JSON.stringify({ error: "Forbidden" }));
+          return true;
+        }
+
+        if (staticOptions.dotfiles === "ignore" && path.basename(filePath).startsWith(".")) {
+          return false;
+        }
+
+        const content = await fs.promises.readFile(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+        const contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
+
+        const lastModified = stat.mtime.toUTCString();
+        const etag = staticOptions.etag ? generateETag(content) : undefined;
+
+        if (cacheOptions.enabled && content.length < 1024 * 1024) {
+          HttpServer.cache.set(cacheKey, {
+            data: content,
+            timestamp: now,
+            ...(etag && { etag }),
+          });
+          HttpServer.cacheStats.size = HttpServer.cache.size;
+        }
+
+        if (checkFreshness(__req, etag, lastModified)) {
+          __res.writeHead(304);
+          __res.end();
+          return true;
+        }
+
+        const headers: Record<string, string> = {
+          "Content-Type": contentType,
+          "Content-Length": String(stat.size),
+          "Accept-Ranges": "bytes",
+        };
+
+        if (options.static?.noCache) {
+          headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+          headers["Pragma"] = "no-cache";
+          headers["Expires"] = "0";
+        } else if (options.static?.cacheControl) {
+          headers["Cache-Control"] = options.static.cacheControl;
+        } else {
+          headers["Cache-Control"] = `public, max-age=${staticOptions.maxAge}`;
+        }
+
+        if (etag) headers["ETag"] = etag;
+        if (staticOptions.lastModified) headers["Last-Modified"] = lastModified;
+
+        const range = __req.headers.range;
+        if (range && range.startsWith("bytes=")) {
+          const parts = range.substring(6).split("-");
+          const start = parseInt(parts[0]!, 10);
+          const end = parts[1] ? parseInt(parts[1]!, 10) : stat.size - 1;
+
+          if (isNaN(start) || isNaN(end) || start > end || start < 0 || end >= stat.size) {
+            __res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+            __res.end();
+            return true;
+          }
+
+          const stream = fs.createReadStream(filePath, { start, end });
+          headers["Content-Length"] = String(end - start + 1);
+          headers["Content-Range"] = `bytes ${start}-${end}/${stat.size}`;
+
+          __res.writeHead(206, headers);
+          stream.pipe(__res);
+          return true;
+        }
+
+        __res.writeHead(200, headers);
+        const stream = fs.createReadStream(filePath);
+
+        stream.on("error", (err) => {
+          console.error("File stream error:", err);
+          if (!__res.headersSent) {
+            __res.writeHead(500, { "Content-Type": "application/json" });
+            __res.end(JSON.stringify({ error: "Internal Server Error" }));
+          }
+        });
+
+        stream.pipe(__res);
+        return true;
+      } catch (err) {
+        return false;
+      }
     };
-  }
-}
 
-interface CacheEntry {
-  data: any;
-  expires: number;
-  lastAccessed: number;
-}
+    const use = (middleware: Middleware): void => {
+      if (typeof middleware !== "function") {
+        throw this.throwErrorFormatters(new Error("Middleware must be a function"));
+      }
+      middlewares.push(middleware);
+    };
 
-class HttpCache extends HttpMethodBuilder {
-  override call() {
-    const cache = new Map<string, CacheEntry>();
-    const [maxSize = 100, ttl = 300000] = this.args; // Default 5 minutes TTL
+    const cors = (corsOptions = options.cors || {}): Middleware => {
+      return async (ctx: RequestContext, next: () => Promise<void>): Promise<void> => {
+        const origin = ctx.__req.headers.origin as string | undefined;
 
-    return {
-      get: class extends HttpMethodBuilder {
-        override call() {
-          const [key] = this.args;
-          const entry = cache.get(key);
-          
-          if (!entry) return null;
-          
-          if (Date.now() > entry.expires) {
-            cache.delete(key);
+        let allowOrigin: string;
+        if (typeof corsOptions.origin === "function") {
+          const originChecker = corsOptions.origin as (origin?: string) => boolean;
+          allowOrigin = originChecker(origin) ? origin || "*" : "null";
+        } else if (corsOptions.origin) {
+          allowOrigin = corsOptions.origin as string;
+        } else {
+          allowOrigin = "*";
+        }
+
+        ctx.__res.setHeader("Access-Control-Allow-Origin", allowOrigin);
+        ctx.__res.setHeader(
+          "Access-Control-Allow-Methods",
+          (corsOptions.methods || ["GET", "POST", "PUT", "DELETE", "OPTIONS"]).join(", "),
+        );
+        ctx.__res.setHeader(
+          "Access-Control-Allow-Headers",
+          (corsOptions.allowedHeaders || ["Content-Type", "Authorization"]).join(", "),
+        );
+
+        if (corsOptions.credentials) {
+          ctx.__res.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+
+        if (corsOptions.exposedHeaders?.length) {
+          ctx.__res.setHeader(
+            "Access-Control-Expose-Headers",
+            corsOptions.exposedHeaders.join(", "),
+          );
+        }
+
+        if (corsOptions.maxAge) {
+          ctx.__res.setHeader("Access-Control-Max-Age", String(corsOptions.maxAge));
+        }
+
+        if (ctx.method === "OPTIONS") {
+          ctx.__res.writeHead(204);
+          ctx.__res.end();
+          return;
+        }
+        
+        console.log(ctx.__res)
+
+        await new next().call();
+      };
+    };
+
+    const rateLimit = (
+      rateLimitOptions: {
+        windowMs?: number;
+        max?: number;
+        keyGenerator?: (ctx: RequestContext) => string;
+      } = {},
+    ): Middleware => {
+      const windowMs = rateLimitOptions.windowMs ?? 60_000;
+      const max = rateLimitOptions.max ?? 60;
+      const store = new Map<string, RateLimitEntry>();
+
+      const cleanupInterval = setInterval(() => {
+        const now = Date.now();
+        for (const [key, entry] of store.entries()) {
+          if (entry.expires < now) {
+            store.delete(key);
+          }
+        }
+      }, windowMs);
+
+      process.on("exit", () => clearInterval(cleanupInterval));
+
+      return async (ctx: RequestContext, next: () => Promise<void>): Promise<void> => {
+        const key = rateLimitOptions.keyGenerator
+          ? rateLimitOptions.keyGenerator(ctx)
+          : ctx.ip || "unknown";
+
+        const now = Date.now();
+        const record = store.get(key);
+
+        if (!record || record.expires < now) {
+          store.set(key, {
+            count: 1,
+            expires: now + windowMs,
+            resetTime: now + windowMs,
+          });
+        } else {
+          record.count++;
+          if (record.count > max) {
+            ctx.__res.setHeader("X-RateLimit-Limit", String(max));
+            ctx.__res.setHeader("X-RateLimit-Remaining", "0");
+            ctx.__res.setHeader("X-RateLimit-Reset", String(Math.ceil(record.resetTime / 1000)));
+
+            ctx.__res.writeHead(429, { "Content-Type": "application/json" });
+            ctx.__res.end(
+              JSON.stringify({
+                error: "Too Many Requests",
+                retryAfter: Math.ceil((record.resetTime - now) / 1000),
+              }),
+            );
+            return;
+          }
+        }
+
+        const currentRecord = store.get(key)!;
+        ctx.__res.setHeader("X-RateLimit-Limit", String(max));
+        ctx.__res.setHeader(
+          "X-RateLimit-Remaining",
+          String(Math.max(0, max - currentRecord.count)),
+        );
+        ctx.__res.setHeader("X-RateLimit-Reset", String(Math.ceil(currentRecord.resetTime / 1000)));
+
+        await next();
+      };
+    };
+
+    const compose = (ctx: RequestContext, finalHandler: () => Promise<void>): Promise<void> => {
+      let index = -1;
+
+      const dispatch = async (i: number): Promise<void> => {
+        if (i <= index) {
+          throw this.throwErrorFormatters(new Error("next() called multiple times"));
+        }
+
+        index = i;
+
+        const fn = i === middlewares.length ? finalHandler : middlewares[i];
+        if (!fn) return;
+
+        try {
+          if (isTypeArgs(fn) === "function" && isTypeArgs(fn)) {
+            const nextFn = class extends HttpMethodBuilder {
+              override call() {
+                dispatch(i + 1);
+                return null;
+              }
+            }
+            await this.executeCallback(fn, [ctx, nextFn]);
+          } else {
+            const middleware = fn as Middleware;
+            const nextFn = class extends HttpMethodBuilder {
+              override call() {
+                dispatch(i + 1);
+                return null;
+              }
+            }
+            await middleware(ctx, nextFn);
+          }
+        } catch (err) {
+          console.error("Middleware error:", err);
+          throw err;
+        }
+      };
+
+      return dispatch(0);
+    };
+
+    let currentStatus = 200;
+
+    const createContext = (req: http.IncomingMessage, res: http.ServerResponse): RequestContext => {
+      const { pathname, query } = parseUrl(req);
+      const forwarded = req.headers["x-forwarded-for"] as string | undefined;
+      const ip =
+        options.trustProxy && forwarded
+          ? forwarded.split(",")[0]?.trim()
+          : req.socket.remoteAddress || "unknown";
+
+      const protocol =
+        options.trustProxy && req.headers["x-forwarded-proto"]
+          ? (req.headers["x-forwarded-proto"] as string)
+          : (req.socket as any)?.encrypted
+            ? "https"
+            : "http";
+
+      const hostname = req.headers.host?.split(":")[0];
+      const cookies = parseCookies(req.headers.cookie);
+
+      const reqCtx: Req = {
+        url: req.url || "/",
+        method: (req.method || "GET").toUpperCase(),
+        httpVersion: req.httpVersion,
+        httpVersionMajor: req.httpVersionMajor,
+        httpVersionMinor: req.httpVersionMinor,
+        headers: req.headers,
+        rawHeaders: req.rawHeaders,
+        aborted: req.aborted,
+      };
+
+      const resCtx: Res = {
+        statusCode: res.statusCode,
+        statusMessage: res.statusMessage || null,
+
+        setHeader: class extends HttpMethodBuilder {
+          override call() {
+            const [name, value] = this.args;
+            res.setHeader(name, value);
+            return resCtx;
+          }
+        },
+        getHeader: class extends HttpMethodBuilder {
+          override call() {
+            const [name] = this.args;
+            return res.getHeader(name);
+          }
+        },
+        removeHeader: class extends HttpMethodBuilder {
+          override call() {
+            const [name] = this.args;
+            res.removeHeader(name);
+            return resCtx;
+          }
+        },
+        hasHeader: class extends HttpMethodBuilder {
+          override call() {
+            const [name] = this.args;
+            return res.hasHeader(name);
+          }
+        },
+      };
+
+      const ctx: RequestContext = {
+        req: reqCtx,
+        res: resCtx,
+        method: (req.method || "GET").toUpperCase(),
+        url: req.url || "/",
+        path: pathname,
+        query,
+        params: {},
+        headers: req.headers,
+        body: null,
+        ...(ip && { ip }),
+        state: {},
+        cookies,
+        protocol,
+        secure: protocol === "https",
+        ...(hostname && { hostname }),
+        fresh: false,
+        stale: true,
+
+        send: class extends HttpMethodBuilder {
+          override call() {
+            const [body, status = currentStatus, headers] = this.args;
+            defaultSend(res, req)(body, status, headers);
             return null;
           }
-          
-          entry.lastAccessed = Date.now();
-          return entry.data;
+        },
+
+        json: class extends HttpMethodBuilder {
+          override call() {
+            const [body, status = currentStatus, headers = {}] = this.args;
+            defaultSend(res, req)(body, status, {
+              "Content-Type": "application/json; charset=utf-8",
+              ...headers,
+            });
+            return null;
+          }
+        },
+
+        status: class extends HttpMethodBuilder {
+          override call() {
+            const [code] = this.args;
+            if (typeof code === "number" && code >= 100 && code <= 599) {
+              currentStatus = code;
+            }
+            return ctx;
+          }
+        },
+
+        cookie: class extends HttpMethodBuilder {
+          override call() {
+            const [name, value, options = {}] = this.args;
+            if (typeof name !== "string" || value === undefined) return ctx;
+
+            let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(String(value))}`;
+
+            if (options.maxAge) cookieStr += `; Max-Age=${options.maxAge}`;
+            if (options.expires) cookieStr += `; Expires=${options.expires.toUTCString()}`;
+            if (options.path) cookieStr += `; Path=${options.path}`;
+            if (options.domain) cookieStr += `; Domain=${options.domain}`;
+            if (options.secure) cookieStr += `; Secure`;
+            if (options.httpOnly) cookieStr += `; HttpOnly`;
+            if (options.sameSite) cookieStr += `; SameSite=${options.sameSite}`;
+
+            const existingCookies = (res.getHeader("Set-Cookie") as string[]) || [];
+            res.setHeader("Set-Cookie", [...existingCookies, cookieStr]);
+            return ctx;
+          }
+        },
+        
+        clearCookie: class extends HttpMethodBuilder {
+          override call() {
+            const [name, options] = this.args;
+            return clearCookie(res)(name, options);
+          }
+        },
+
+        redirect: class extends HttpMethodBuilder {
+          override call() {
+            const [url, status = 302] = this.args;
+            if (typeof url === "string") {
+              res.setHeader("Location", url);
+              res.writeHead(status);
+              res.end();
+            }
+            return ctx;
+          }
+        },
+
+        __req: req,
+        __res: res,
+      };
+
+      const etag = res.getHeader("ETag") as string;
+      const lastModified = res.getHeader("Last-Modified") as string;
+      ctx.fresh = checkFreshness(req, etag, lastModified);
+      ctx.stale = !ctx.fresh;
+
+      return ctx;
+    };
+
+    const requestHandler = async (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+    ): Promise<void> => {
+      connectionCount++;
+      activeConnections.add(req);
+
+      if (options.maxConnections && connectionCount > options.maxConnections) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "Service Unavailable - Too many connections",
+          }),
+        );
+        return;
+      }
+
+      const cleanup = () => {
+        activeConnections.delete(req);
+        connectionCount = Math.max(0, connectionCount - 1);
+      };
+
+      req.on("close", cleanup);
+      req.on("error", cleanup);
+
+      if (shuttingDown) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Server shutting down" }));
+        cleanup();
+        return;
+      }
+
+      let timeoutId: NodeJS.Timeout | null = null;
+      if (options.timeout) {
+        timeoutId = setTimeout(() => {
+          if (!res.writableEnded) {
+            res.writeHead(408, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Request Timeout" }));
+          }
+          req.destroy();
+        }, options.timeout);
+      }
+
+      try {
+        const ctx = createContext(req, res);
+
+        const tryStatic = async (): Promise<boolean> => {
+          if (ctx.method !== "GET" && ctx.method !== "HEAD") return false;
+
+          const urlPath = ctx.path;
+
+          const sensitivePatterns = [
+            /\.env/,
+            /\.git/,
+            /node_modules/,
+            /package\.json/,
+            /yarn\.lock/,
+            /\.DS_Store/,
+            /Thumbs\.db/,
+          ];
+
+          if (sensitivePatterns.some((pattern) => pattern.test(urlPath))) {
+            return false;
+          }
+
+          let targetPath = path.join(staticOptions.root, urlPath.slice(1) || staticOptions.index);
+
+          try {
+            const stat = await fs.promises.stat(targetPath);
+            if (stat.isDirectory()) {
+              targetPath = path.join(targetPath, staticOptions.index);
+              if (
+                !(await fs.promises
+                  .access(targetPath)
+                  .then(() => true)
+                  .catch(() => false))
+              ) {
+                return false;
+              }
+            }
+
+            return await sendFile(ctx, targetPath);
+          } catch (err) {
+            if (staticOptions.spa && ctx.method === "GET") {
+              const indexPath = path.join(staticOptions.root, staticOptions.index);
+              try {
+                await fs.promises.access(indexPath);
+                return await sendFile(ctx, indexPath);
+              } catch (spaErr) {
+                return false;
+              }
+            }
+            return false;
+          }
+        };
+
+        const finalHandler = async (): Promise<void> => {
+          const bodyMethods = ["POST", "PUT", "PATCH", "DELETE"];
+          if (bodyMethods.includes(ctx.method)) {
+            try {
+              const rawBody = await parseBody(req, options.bodyLimit);
+              ctx.rawBody = new Bytes([rawBody], [], this.environment).call();
+
+              const contentType = (req.headers["content-type"] || "").toLowerCase();
+
+              if (contentType.includes("application/json")) {
+                try {
+                  ctx.body = JSON.parse(
+                    new ctx.rawBody.toString(["utf8"], [], this.environment).call(),
+                  );
+                } catch (err) {
+                  throw this.throwErrorFormatters(new Error("Invalid JSON"));
+                }
+              } else if (contentType.includes("application/x-www-form-urlencoded")) {
+                const formData: Record<string, string> = {};
+                const pairs = new ctx.rawBody.toString(["utf8"], [], this.environment)
+                  .call()
+                  .split("&");
+
+                for (const pair of pairs) {
+                  const [key, value] = pair.split("=");
+                  if (key) {
+                    try {
+                      formData[decodeURIComponent(key)] = decodeURIComponent(value || "");
+                    } catch (err) {
+                      formData[key] = value || "";
+                    }
+                  }
+                }
+                ctx.body = formData;
+              } else if (contentType.includes("multipart/form-data")) {
+                ctx.body = rawBody;
+              } else if (contentType.startsWith("text/")) {
+                ctx.body = new ctx.rawBody.toString(["utf8"], [], this.environment).call();
+              } else {
+                ctx.body = new Bytes([rawBody], [], this.environment).call();
+              }
+            } catch (err: any) {
+              if (err.message === "Payload too large") {
+                res.writeHead(413, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Payload Too Large" }));
+                return;
+              } else if (err.message === "Invalid JSON") {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Invalid JSON" }));
+                return;
+              }
+              throw err;
+            }
+          }
+
+          if (await tryStatic()) return;
+
+          const match = matchRoute(ctx.method, ctx.path) || matchRoute("ALL", ctx.path);
+          if (!match) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                error: "Not Found",
+                path: ctx.path,
+                method: ctx.method,
+              }),
+            );
+            return;
+          }
+
+          ctx.params = match.params;
+
+          try {
+            let result = await this.executeCallback(match.handler, [ctx]);
+
+            if (result?.[Environment.SymbolBuffer]) {
+              result = result[Environment.SymbolBuffer];
+            }
+
+            if (!res.writableEnded && !res.headersSent) {
+              if (result === undefined || result === null) {
+                if (!res.writableEnded) {
+                  res.writeHead(204);
+                  res.end();
+                }
+              } else if (typeof result === "object" && !Buffer.isBuffer(result)) {
+                if (result && typeof result.pipe === "function") {
+                  result.pipe(res);
+                } else {
+                  defaultSend(res, req)(result, currentStatus, {
+                    "Content-Type": "application/json; charset=utf-8",
+                  });
+                }
+              } else if (typeof result === "string") {
+                defaultSend(res, req)(result, currentStatus, {
+                  "Content-Type": "text/html; charset=utf-8",
+                });
+              } else {
+                defaultSend(res, req)(result, currentStatus);
+              }
+            }
+          } catch (handlerErr: any) {
+            console.error("Handler error:", handlerErr);
+            if (!res.writableEnded && !res.headersSent) {
+              const isDevelopment = process.env.NODE_ENV === "development";
+              const errorResponse: any = {
+                error: "Internal Server Error",
+                timestamp: new Date().toISOString(),
+                path: ctx.path,
+                method: ctx.method,
+              };
+
+              if (isDevelopment) {
+                errorResponse.details = handlerErr.message;
+                errorResponse.stack = handlerErr.stack;
+              }
+
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify(errorResponse));
+            }
+          }
+        };
+
+        await compose(ctx, finalHandler);
+      } catch (err: any) {
+        console.error("Request processing error:", err);
+
+        if (!res.writableEnded && !res.headersSent) {
+          try {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                error: "Internal Server Error",
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          } catch (sendErr) {
+            console.error("Error sending error response:", sendErr);
+          }
+        }
+      } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        cleanup();
+      }
+    };
+
+    const validatePath = (pathStr: string): string => {
+      if (!pathStr || typeof pathStr !== "string") {
+        throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
+      }
+
+      const resolved = path.resolve(pathStr);
+      if (!resolved.startsWith(this.environment.get("import").base)) {
+        throw this.throwErrorFormatters(
+          new Error("Static path must be within current working directory"),
+        );
+      }
+
+      return resolved;
+    };
+
+    const ensureStaticDirectory = (dir: string): void => {
+      try {
+        const stat = fs.statSync(dir);
+        if (!stat.isDirectory()) {
+          throw this.throwErrorFormatters(new Error(`Static path is not a directory: ${dir}`));
+        }
+      } catch (err: any) {
+        if (err.code === "ENOENT") {
+          console.warn(`Static directory does not exist: ${dir}`);
+        } else {
+          throw err;
+        }
+      }
+    };
+
+    return {
+      use: class extends HttpMethodBuilder {
+        override call() {
+          const [middleware] = this.args;
+          if (typeof middleware === "function") {
+            use(middleware as Middleware);
+          } else if (isTypeArgs(middleware) === "function") {
+            use(async (ctx, next) => {
+              await this.executeCallback(middleware, [ctx, next]);
+            });
+          } else if (isTypeArgs(middleware) === "array") {
+            for (const func of middleware) {
+              use(async (ctx, next) => {
+                await this.executeCallback(func, [ctx, next]);
+              });
+            }
+          }
+          return null;
         }
       },
 
-      set: class extends HttpMethodBuilder {
+      cors: class extends HttpMethodBuilder {
         override call() {
-          const [key, data, customTtl] = this.args;
-          
-          // Remove oldest entries if cache is full
-          if (cache.size >= maxSize) {
-            const entries = Array.from(cache.entries());
-            entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
-            const oldestEntry = entries[0];
-            if (oldestEntry) {
-              cache.delete(oldestEntry[0]);
-            }
-          }
-          
-          cache.set(key, {
-            data,
-            expires: Date.now() + (customTtl || ttl),
-            lastAccessed: Date.now()
-          });
-          
+          const [corsConfig] = this.args;
+          use(cors(corsConfig));
+          return null;
+        }
+      },
+
+      rateLimit: class extends HttpMethodBuilder {
+        override call() {
+          const [rateLimitConfig] = this.args;
+          use(rateLimit(rateLimitConfig));
+          return null;
+        }
+      },
+
+      clearCache: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern] = this.args;
+          return clearCache(pattern);
+        }
+      },
+
+      getCacheStats: class extends HttpMethodBuilder {
+        override call() {
+          return {
+            ...HttpServer.cacheStats,
+            memoryUsage: getCacheMemoryUsage(),
+            entries: Array.from(HttpServer.cache.keys()),
+          };
+        }
+      },
+
+      setCacheOptions: class extends HttpMethodBuilder {
+        override call() {
+          const [newOptions] = this.args;
+          Object.assign(cacheOptions, newOptions);
+          return cacheOptions;
+        }
+      },
+
+      pruneCache: class extends HttpMethodBuilder {
+        override call() {
+          const expired = pruneExpiredCache();
+          const bySize = pruneCacheBySize();
+          const byMemory = pruneCacheByMemory();
+
+          return {
+            expired,
+            bySize,
+            byMemory,
+            total: expired + bySize + byMemory,
+          };
+        }
+      },
+
+      get: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          addRoute("GET", pattern, handler);
+          return null;
+        }
+      },
+
+      post: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          addRoute("POST", pattern, handler);
+          return null;
+        }
+      },
+
+      put: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          addRoute("PUT", pattern, handler);
+          return null;
+        }
+      },
+
+      patch: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          addRoute("PATCH", pattern, handler);
           return null;
         }
       },
 
       delete: class extends HttpMethodBuilder {
         override call() {
-          const [key] = this.args;
-          return cache.delete(key);
-        }
-      },
-
-      clear: class extends HttpMethodBuilder {
-        override call() {
-          cache.clear();
+          const [pattern, handler] = this.args;
+          addRoute("DELETE", pattern, handler);
           return null;
         }
       },
 
-      size: class extends HttpMethodBuilder {
+      head: class extends HttpMethodBuilder {
         override call() {
-          return cache.size;
+          const [pattern, handler] = this.args;
+          addRoute("HEAD", pattern, handler);
+          return null;
         }
       },
 
-      keys: class extends HttpMethodBuilder {
+      options: class extends HttpMethodBuilder {
         override call() {
-          return Array.from(cache.keys());
+          const [pattern, handler] = this.args;
+          addRoute("OPTIONS", pattern, handler);
+          return null;
         }
       },
 
-      generateKey: class extends HttpMethodBuilder {
+      all: class extends HttpMethodBuilder {
         override call() {
-          const [method, url, headers = {}] = this.args;
-          const relevantHeaders = ['authorization', 'accept', 'content-type'];
-          const headerStr = relevantHeaders
-            .filter(h => headers[h])
-            .map(h => `${h}:${headers[h]}`)
-            .join('|');
-          
-          return `${method}:${url}:${headerStr}`;
+          const [pattern, handler] = this.args;
+          addRoute("ALL", pattern, handler);
+          return null;
         }
-      }
+      },
+
+      static: class extends HttpMethodBuilder {
+        override call() {
+          const [root, config] = this.args;
+
+          if (root) {
+            staticOptions.root = validatePath(root);
+            ensureStaticDirectory(staticOptions.root ?? root);
+          }
+
+          if (config && typeof config === "object") {
+            if (config.index) staticOptions.index = config.index;
+            if (typeof config.maxAge === "number")
+              staticOptions.maxAge = Math.max(0, config.maxAge);
+            if (typeof config.spa === "boolean") staticOptions.spa = config.spa;
+            if (config.dotfiles && ["allow", "deny", "ignore"].includes(config.dotfiles)) {
+              staticOptions.dotfiles = config.dotfiles;
+            }
+            if (typeof config.etag === "boolean") staticOptions.etag = config.etag;
+            if (typeof config.lastModified === "boolean")
+              staticOptions.lastModified = config.lastModified;
+          }
+
+          return null;
+        }
+      },
+
+      listen: class extends HttpMethodBuilder {
+        override call() {
+          let [port = options.port || 3000, host = options.host || "0.0.0.0", callback] = this.args;
+
+          if (isTypeArgs(callback) !== "function" && isTypeArgs(host) === "function") {
+            callback = host;
+            host = "0.0.0.0";
+          }
+
+          if (server) {
+            throw this.throwErrorFormatters(new Error("Server is already listening"));
+          }
+
+          try {
+            if (options.key && options.cert) {
+              server = https.createServer(
+                {
+                  key: options.key,
+                  cert: options.cert,
+                },
+                requestHandler,
+              );
+            } else {
+              server = http.createServer(requestHandler);
+            }
+
+            if (options.keepAliveTimeout) {
+              server.keepAliveTimeout = options.keepAliveTimeout;
+            }
+
+            if (options.timeout) {
+              server.timeout = options.timeout;
+            }
+
+            server.on("error", (err: any) => {
+              console.error("Server error:", err);
+              if (err.code === "EADDRINUSE") {
+                console.error(`Port ${port} is already in use`);
+              } else if (err.code === "EACCES") {
+                console.error(`Permission denied to bind to port ${port}`);
+              }
+              process.exit(1);
+            });
+
+            server.on("clientError", (err, socket) => {
+              console.error("Client error:", err);
+              if (!socket.destroyed) {
+                socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+              }
+            });
+
+            server.listen(port, host, () => {
+              const address = server?.address();
+              const actualPort = typeof address === "object" && address ? address.port : port;
+              const protocol = options.key && options.cert ? "https" : "http";
+
+              if (isTypeArgs(callback) === "function") {
+                this.executeCallback(callback, [{ port: actualPort, host, protocol }]);
+              }
+            });
+
+            const gracefulShutdown = () => {
+              if (shuttingDown) return;
+
+              shuttingDown = true;
+
+              server?.close((err) => {
+                if (err) {
+                  console.error("Error during server shutdown:", err);
+                  process.exit(1);
+                }
+
+                const shutdownTimeout = setTimeout(() => {
+                  for (const connection of activeConnections) {
+                    connection.destroy();
+                  }
+                  process.exit(0);
+                }, 10000);
+
+                const checkConnections = () => {
+                  if (activeConnections.size === 0) {
+                    clearTimeout(shutdownTimeout);
+                    process.exit(0);
+                  } else {
+                    setTimeout(checkConnections, 100);
+                  }
+                };
+
+                checkConnections();
+              });
+            };
+
+            process.on("SIGTERM", () => gracefulShutdown());
+            process.on("SIGINT", () => gracefulShutdown());
+
+            process.on("uncaughtException", (err) => {
+              console.error("Uncaught exception:", err);
+              gracefulShutdown();
+            });
+
+            process.on("unhandledRejection", (reason, promise) => {
+              console.error("Unhandled rejection at:", promise, "reason:", reason);
+              gracefulShutdown();
+            });
+          } catch (err) {
+            console.error("Failed to start server:", err);
+            throw err;
+          }
+
+          return null;
+        }
+      },
+
+      close: class extends HttpMethodBuilder {
+        override call() {
+          const [callback] = this.args;
+
+          if (!server) {
+            if (isTypeArgs(callback) === "function") {
+              this.executeCallback(callback, [false]);
+            }
+            return false;
+          }
+
+          shuttingDown = true;
+
+          server.close((err) => {
+            const success = !err;
+            server = null;
+            shuttingDown = false;
+
+            if (err) {
+              console.error("Error closing server:", err);
+            }
+
+            if (isTypeArgs(callback) === "function") {
+              this.executeCallback(callback, [success, err]);
+            }
+          });
+
+          return true;
+        }
+      },
+
+      info: class extends HttpMethodBuilder {
+        override call() {
+          const address = server?.address();
+          return {
+            listening: !!server && server.listening,
+            address: address,
+            connections: connectionCount,
+            shuttingDown,
+            routes: routes.length,
+            middlewares: middlewares.length,
+            static: staticOptions,
+          };
+        }
+      },
+
+      [Environment.SymbolFormatedText]: `Server ${JSON.stringify(
+        {
+          listening: !!server && (server as any).listening,
+          address: (server as any)?.address() || null,
+          connections: connectionCount,
+          shuttingDown,
+          routes: routes.length,
+          middlewares: middlewares.length,
+          static: staticOptions,
+        },
+        null,
+        2,
+      )}`,
     };
+  }
+
+  private validateRoute(pattern: string): void {
+    if (!pattern || typeof pattern !== "string") {
+      throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
+    }
+    if (!pattern.startsWith("/")) {
+      throw this.throwErrorFormatters(new Error('Route pattern must start with "/"'));
+    }
+  }
+
+  private validateHandler(handler: any): void {
+    if (!handler || (typeof handler !== "function" && isTypeArgs(handler) !== "function")) {
+      throw this.throwErrorFormatters(
+        new Error("Route handler must be a function or HttpMethodBuilder"),
+      );
+    }
+  }
+
+  private validateOptions(options: ServerOptions): void {
+    if (
+      options.port &&
+      (typeof options.port !== "number" || options.port < 1 || options.port > 65535)
+    ) {
+      throw this.throwErrorFormatters(new Error("Port must be a number between 1 and 65535"));
+    }
+
+    if (options.bodyLimit && (typeof options.bodyLimit !== "number" || options.bodyLimit < 0)) {
+      throw this.throwErrorFormatters(new Error("bodyLimit must be a positive number"));
+    }
+
+    if (options.timeout && (typeof options.timeout !== "number" || options.timeout < 0)) {
+      throw this.throwErrorFormatters(new Error("timeout must be a positive number"));
+    }
+
+    if (
+      options.maxConnections &&
+      (typeof options.maxConnections !== "number" || options.maxConnections < 1)
+    ) {
+      throw this.throwErrorFormatters(new Error("maxConnections must be a positive number"));
+    }
+  }
+
+  private validatePath(pathStr: string): string {
+    if (!pathStr || typeof pathStr !== "string") {
+      throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
+    }
+
+    const resolved = path.resolve(pathStr);
+    return resolved;
+  }
+
+  private ensureStaticDirectory(dir: string): void {
+    try {
+      const stat = fs.statSync(dir);
+      if (!stat.isDirectory()) {
+        throw this.throwErrorFormatters(new Error(`Static path is not a directory: ${dir}`));
+      }
+    } catch (err: any) {
+      if (err.code === "ENOENT") {
+        console.warn(`Static directory does not exist: ${dir}`);
+      } else {
+        throw err;
+      }
+    }
   }
 }
 
-module.exports = {
-  HttpRequest,
-  HttpResponse,
-  HttpClient,
-  HttpServer: request("./Server"),
-  HttpsCertificateManager,
-  HttpCookieJar,
-  HttpFormData,
-  HttpCache
-};
+export { HttpServer };

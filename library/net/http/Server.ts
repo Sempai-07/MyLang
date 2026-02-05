@@ -2,9 +2,8 @@ import fs from "node:fs";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
-import zlib from "node:zlib";
 import crypto from "node:crypto";
-import { URL } from "node:url";
+import express, { Request, Response, NextFunction, Application } from "express";
 import { isTypeArgs } from "../../utils/utils";
 import { Environment } from "../../../src/Environment";
 import { Bytes } from "../../bytes/Bytes";
@@ -12,6 +11,14 @@ import { HttpMethodBuilder } from "./HttpBuilder";
 
 type Handler = (ctx: RequestContext) => Promise<any> | any;
 type Middleware = (ctx: RequestContext, next: () => Promise<void>) => Promise<void> | void;
+
+interface RouteEntry {
+  method: string;
+  pattern: string;
+  regex: RegExp;
+  keys: string[];
+  handler: Handler;
+}
 
 interface CacheOptions {
   enabled?: boolean;
@@ -85,12 +92,15 @@ interface RequestContext {
   fresh: boolean;
   stale: boolean;
   send: typeof HttpMethodBuilder;
+  sendFile: typeof HttpMethodBuilder;
   json: typeof HttpMethodBuilder;
   status: typeof HttpMethodBuilder;
   cookie: typeof HttpMethodBuilder;
+  clearCookie: typeof HttpMethodBuilder;
   redirect: typeof HttpMethodBuilder;
-  __req: http.IncomingMessage;
-  __res: http.ServerResponse;
+  __req: Request;
+  __res: Response;
+  [key: string]: any;
 }
 
 interface Req {
@@ -101,8 +111,6 @@ interface Req {
   httpVersionMinor: number;
   headers: http.IncomingHttpHeaders;
   rawHeaders: string[];
-  // TODO:
-  // socket?: Socket;
   aborted: boolean;
 }
 
@@ -113,16 +121,6 @@ interface Res {
   getHeader: typeof HttpMethodBuilder;
   removeHeader: typeof HttpMethodBuilder;
   hasHeader: typeof HttpMethodBuilder;
-  // TODO:
-  // socket: Socket;
-}
-
-interface RouteEntry {
-  method: string;
-  pattern: string;
-  regex: RegExp;
-  keys: string[];
-  handler: Handler;
 }
 
 interface RateLimitEntry {
@@ -176,7 +174,6 @@ class HttpServer extends HttpMethodBuilder {
   };
 
   private static cache = new Map<string, { data: Buffer; timestamp: number; etag?: string }>();
-
   private static cacheStats = { hits: 0, misses: 0, size: 0 };
 
   override call() {
@@ -184,10 +181,38 @@ class HttpServer extends HttpMethodBuilder {
 
     this.validateOptions(options);
 
-    const routes: RouteEntry[] = [];
-    const middlewares: Middleware[] = [];
+    // Local helper functions
+    const validatePath = (pathStr: string): string => {
+      if (!pathStr || typeof pathStr !== "string") {
+        throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
+      }
+      const resolved = path.resolve(pathStr);
+      return resolved;
+    };
+
+    const ensureStaticDirectory = (dir: string): void => {
+      try {
+        const stat = fs.statSync(dir);
+        if (!stat.isDirectory()) {
+          throw this.throwErrorFormatters(new Error(`Static path is not a directory: ${dir}`));
+        }
+      } catch (err: any) {
+        if (err.code === "ENOENT") {
+          console.warn(`Static directory does not exist: ${dir}`);
+        } else {
+          throw err;
+        }
+      }
+    };
+
+    const app: Application = express();
+    let server: http.Server | https.Server | null = null;
+    let shuttingDown = false;
+    let connectionCount = 0;
+    const activeConnections = new Set<any>();
+
     const staticOptions = {
-      root: this.validatePath(
+      root: validatePath(
         options.static?.root || path.join(this.environment.get("import").base, "public"),
       ),
       index: options.static?.index || "index.html",
@@ -198,15 +223,159 @@ class HttpServer extends HttpMethodBuilder {
       lastModified: options.static?.lastModified ?? true,
     };
 
-    let server: http.Server | https.Server | null = null;
-    let shuttingDown = false;
-    const activeConnections = new Set<http.IncomingMessage>();
-    let connectionCount = 0;
+    ensureStaticDirectory(staticOptions.root);
 
-    this.ensureStaticDirectory(staticOptions.root);
+    // Setup Express middleware
+    if (options.trustProxy) {
+      app.set("trust proxy", true);
+    }
+
+    // Connection tracking
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      connectionCount++;
+      activeConnections.add(req);
+
+      const cleanup = () => {
+        activeConnections.delete(req);
+        connectionCount = Math.max(0, connectionCount - 1);
+      };
+
+      res.on("finish", cleanup);
+      res.on("close", cleanup);
+      req.on("error", cleanup);
+
+      if (options.maxConnections && connectionCount > options.maxConnections) {
+        return res.status(503).json({ error: "Service Unavailable - Too many connections" });
+      }
+
+      if (shuttingDown) {
+        return res.status(503).json({ error: "Server shutting down" });
+      }
+
+      next();
+    });
+
+    // Security headers
+    if (options.security) {
+      app.use((_req: Request, res: Response, next: NextFunction) => {
+        if (options.security?.helmet !== false) {
+          Object.entries(HttpServer.SECURITY_HEADERS).forEach(([key, value]) => {
+            res.setHeader(key, value);
+          });
+        }
+        next();
+      });
+    }
+
+    // CORS
+    if (options.cors) {
+      app.use((req: Request, res: Response, next: NextFunction) => {
+        const origin = req.headers.origin;
+        const corsOptions = options.cors!;
+
+        let allowOrigin: string = "*";
+        if (typeof corsOptions.origin === "function") {
+          allowOrigin = corsOptions.origin(origin) ? (origin || "*") : "null";
+        } else if (typeof corsOptions.origin === "string") {
+          allowOrigin = corsOptions.origin;
+        }
+
+        res.setHeader("Access-Control-Allow-Origin", allowOrigin);
+        res.setHeader(
+          "Access-Control-Allow-Methods",
+          (corsOptions.methods || ["GET", "POST", "PUT", "DELETE", "OPTIONS"]).join(", "),
+        );
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          (corsOptions.allowedHeaders || ["Content-Type", "Authorization"]).join(", "),
+        );
+
+        if (corsOptions.credentials) {
+          res.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+
+        if (corsOptions.exposedHeaders?.length) {
+          res.setHeader("Access-Control-Expose-Headers", corsOptions.exposedHeaders.join(", "));
+        }
+
+        if (corsOptions.maxAge) {
+          res.setHeader("Access-Control-Max-Age", String(corsOptions.maxAge));
+        }
+
+        if (req.method === "OPTIONS") {
+          return res.sendStatus(204);
+        }
+
+        next();
+      });
+    }
+
+    // Compression
+    if (options.compression) {
+      const zlib = require("zlib");
+      app.use((req: Request, res: Response, next: NextFunction) => {
+        const threshold = options.compression?.threshold || 1024;
+        const level = options.compression?.level || 6;
+
+        const originalSend = res.send;
+        res.send = function (body: any): Response {
+          if (!body || (typeof body !== "string" && !Buffer.isBuffer(body))) {
+            return originalSend.call(this, body);
+          }
+
+          const buffer = Buffer.isBuffer(body) ? body : Buffer.from(body);
+          if (buffer.length < threshold) {
+            return originalSend.call(this, body);
+          }
+
+          const acceptEncoding = req.headers["accept-encoding"] || "";
+
+          if (acceptEncoding.includes("gzip")) {
+            res.setHeader("Content-Encoding", "gzip");
+            return originalSend.call(this, zlib.gzipSync(buffer, { level }));
+          } else if (acceptEncoding.includes("deflate")) {
+            res.setHeader("Content-Encoding", "deflate");
+            return originalSend.call(this, zlib.deflateSync(buffer, { level }));
+          }
+
+          return originalSend.call(this, body);
+        };
+        next();
+      });
+    }
+
+    // Body parsing (перед cookie parser)
+    const bodyLimit = options.bodyLimit || 2000000;
+    app.use(express.json({ limit: bodyLimit }));
+    app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
+    app.use(express.raw({ limit: bodyLimit }));
+    app.use(express.text({ limit: bodyLimit }));
+
+    // Cookie parser
+    app.use((req: Request, _res: Response, next: NextFunction) => {
+      req.cookies = {};
+      const cookieHeader = req.headers.cookie;
+      if (cookieHeader) {
+        cookieHeader.split(";").forEach((cookie: string) => {
+          const [name, ...rest] = cookie.trim().split("=");
+          if (name && rest.length > 0) {
+            try {
+              req.cookies[decodeURIComponent(name)] = decodeURIComponent(rest.join("="));
+            } catch (err) {
+              req.cookies[name] = rest.join("=");
+            }
+          }
+        });
+      }
+      next();
+    });
+
+    // Routes и middlewares хранилища
+    const routes: RouteEntry[] = [];
+    const middlewares: Middleware[] = [];
 
     const compilePath = (pattern: string): { regex: RegExp; keys: string[] } => {
-      this.validateRoute(pattern);
+      validateRoute(pattern);
 
       const keys: string[] = [];
 
@@ -225,14 +394,14 @@ class HttpServer extends HttpMethodBuilder {
         "\\/?$";
 
       try {
-        return { regex: new RegExp(regexStr, "i"), keys };
+        return { regex: pattern === "/" ? new RegExp("^\\/?$") : new RegExp(regexStr, "i"), keys };
       } catch (err) {
         throw this.throwErrorFormatters(new Error(`Invalid route pattern: ${pattern}`));
       }
     };
 
     const addRoute = (method: string, pattern: string, handler: Handler): void => {
-      this.validateHandler(handler);
+      validateHandler(handler);
 
       const normalizedMethod = method.toUpperCase();
       const validMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "ALL"];
@@ -256,43 +425,13 @@ class HttpServer extends HttpMethodBuilder {
       routes.push({ method: normalizedMethod, pattern, regex, keys, handler });
     };
 
-    const parseUrl = (
-      req: http.IncomingMessage,
-    ): { pathname: string; query: Record<string, any> } => {
-      try {
-        const reqUrl = req.url || "/";
-        const full = new URL(reqUrl, `http://${req.headers.host || "localhost"}`);
-        const pathname = decodeURIComponent(full.pathname || "/");
-
-        if (pathname.includes("..") || pathname.includes("\0")) {
-          throw new Error("Invalid path");
-        }
-
-        const query: Record<string, any> = {};
-        full.searchParams.forEach((value, key) => {
-          const decodedKey = decodeURIComponent(key);
-          const decodedValue = decodeURIComponent(value);
-
-          if (query[decodedKey] === undefined) {
-            query[decodedKey] = decodedValue;
-          } else if (Array.isArray(query[decodedKey])) {
-            (query[decodedKey] as string[]).push(decodedValue);
-          } else {
-            query[decodedKey] = [query[decodedKey] as string, decodedValue];
-          }
-        });
-
-        return { pathname, query };
-      } catch (err) {
-        throw this.throwErrorFormatters(new Error("Invalid URL format"));
-      }
-    };
-
     const matchRoute = (
       method: string,
       pathname: string,
     ): { handler: Handler; params: Record<string, string> } | null => {
-      for (const route of routes) {
+      // Обрабатываем роуты в обратном порядке (последний зарегистрированный имеет приоритет)
+      for (let i = routes.length - 1; i >= 0; i--) {
+        const route = routes[i]!;
         if (route.method !== method && route.method !== "ALL") continue;
 
         const match = route.regex.exec(pathname);
@@ -314,696 +453,14 @@ class HttpServer extends HttpMethodBuilder {
       return null;
     };
 
-    const parseBody = async (
-      req: http.IncomingMessage,
-      limit = options.bodyLimit ?? 2_000_000,
-    ): Promise<Buffer> => {
-      return new Promise<Buffer>((resolve, reject) => {
-        if (req.readableEnded) {
-          resolve(Buffer.alloc(0));
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-        let length = 0;
-        let timeoutId: NodeJS.Timeout | null = null;
-
-        const cleanup = () => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
-        };
-
-        if (options.timeout) {
-          timeoutId = setTimeout(() => {
-            cleanup();
-            reject(this.throwErrorFormatters(new Error("Request timeout")));
-            req.destroy();
-          }, options.timeout);
-        }
-
-        req.on("data", (chunk: Buffer) => {
-          if (!Buffer.isBuffer(chunk)) {
-            chunk = Buffer.from(chunk);
-          }
-
-          length += chunk.length;
-          if (length > limit) {
-            cleanup();
-            reject(this.throwErrorFormatters(new Error("Payload too large")));
-            req.destroy();
-            return;
-          }
-          chunks.push(chunk);
-        });
-
-        req.on("end", () => {
-          cleanup();
-          resolve(Buffer.concat(chunks));
-        });
-
-        req.on("error", (err) => {
-          cleanup();
-          reject(err);
-        });
-
-        req.on("aborted", () => {
-          cleanup();
-          reject(this.throwErrorFormatters(new Error("Request aborted")));
-        });
-      });
-    };
-
+    // Helper functions
     const generateETag = (content: Buffer | string): string => {
       const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
       const hash = crypto.createHash("sha1").update(buffer).digest("hex");
       return `W/"${hash.substring(0, 16)}"`;
     };
 
-    const shouldCompress = (
-      req: http.IncomingMessage,
-      res: http.ServerResponse,
-      content: Buffer,
-    ): boolean => {
-      if (!options.compression) return false;
-
-      const threshold = options.compression.threshold ?? 1024;
-      if (content.length < threshold) return false;
-
-      const contentType = (res.getHeader("content-type") as string) || "";
-      const compressibleTypes = [
-        "text/",
-        "application/javascript",
-        "application/json",
-        "application/xml",
-        "image/svg+xml",
-      ];
-
-      const isCompressible = compressibleTypes.some((type) => contentType.includes(type));
-      if (!isCompressible) return false;
-
-      if (options.compression.filter) {
-        return options.compression.filter(req, res);
-      }
-
-      return true;
-    };
-
-    const compressContent = (
-      acceptEncoding: string | undefined,
-      content: Buffer,
-      req: http.IncomingMessage,
-      res: http.ServerResponse,
-    ): { data: Buffer; encoding?: string } => {
-      if (!acceptEncoding || !shouldCompress(req, res, content)) {
-        return { data: content };
-      }
-
-      const level = options.compression?.level ?? 6;
-
-      try {
-        if (acceptEncoding.includes("br") && content.length > 1024) {
-          return {
-            data: zlib.brotliCompressSync(content, {
-              params: {
-                [zlib.constants.BROTLI_PARAM_QUALITY]: level,
-                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: content.length,
-              },
-            }),
-            encoding: "br",
-          };
-        }
-
-        if (acceptEncoding.includes("gzip")) {
-          return {
-            data: zlib.gzipSync(content, { level }),
-            encoding: "gzip",
-          };
-        }
-
-        if (acceptEncoding.includes("deflate")) {
-          return {
-            data: zlib.deflateSync(content, { level }),
-            encoding: "deflate",
-          };
-        }
-      } catch (err) {
-        console.warn("Compression failed:", err);
-      }
-
-      return { data: content };
-    };
-
-    const parseCookies = (cookieHeader: string | undefined): Record<string, string> => {
-      const cookies: Record<string, string> = {};
-
-      if (!cookieHeader) return cookies;
-
-      try {
-        cookieHeader.split(";").forEach((cookie) => {
-          const [name, ...rest] = cookie.trim().split("=");
-          if (name && rest.length > 0) {
-            cookies[decodeURIComponent(name)] = decodeURIComponent(rest.join("="));
-          }
-        });
-      } catch (err) {
-        console.warn("Failed to parse cookies:", err);
-      }
-
-      return cookies;
-    };
-
-    const checkFreshness = (
-      req: http.IncomingMessage,
-      etag?: string,
-      lastModified?: string,
-    ): boolean => {
-      const ifNoneMatch = req.headers["if-none-match"];
-      const ifModifiedSince = req.headers["if-modified-since"];
-
-      if (ifNoneMatch && etag) {
-        const clientETags = ifNoneMatch.split(",").map((tag) => tag.trim());
-        if (clientETags.includes(etag) || clientETags.includes("*")) {
-          return true;
-        }
-      }
-
-      if (ifModifiedSince && lastModified) {
-        const clientDate = new Date(ifModifiedSince);
-        const serverDate = new Date(lastModified);
-
-        if (!isNaN(clientDate.getTime()) && !isNaN(serverDate.getTime())) {
-          return clientDate >= serverDate;
-        }
-      }
-
-      return false;
-    };
-
-    const defaultSend =
-      (res: http.ServerResponse, req: http.IncomingMessage) =>
-      (body: any, status = 200, headers: Record<string, string> = {}): void => {
-        if (res.writableEnded || res.headersSent) return;
-
-        if (body?.[Environment.SymbolBuffer]) {
-          body = body[Environment.SymbolBuffer];
-        }
-
-        try {
-          let content: Buffer;
-          let contentType = headers["Content-Type"] || headers["content-type"];
-
-          if (Buffer.isBuffer(body)) {
-            content = body;
-            contentType = contentType || "application/octet-stream";
-          } else if (typeof body === "string") {
-            content = Buffer.from(body, "utf8");
-            contentType = contentType || "text/plain; charset=utf-8";
-          } else if (body === null || body === undefined) {
-            content = Buffer.alloc(0);
-            contentType = contentType || "text/plain; charset=utf-8";
-          } else {
-            try {
-              const jsonString = JSON.stringify(body);
-              content = Buffer.from(jsonString, "utf8");
-              contentType = contentType || "application/json; charset=utf-8";
-            } catch (err) {
-              content = Buffer.from(String(body), "utf8");
-              contentType = contentType || "text/plain; charset=utf-8";
-            }
-          }
-
-          const etag = staticOptions.etag ? generateETag(content) : undefined;
-          const lastModified = new Date().toUTCString();
-
-          if (checkFreshness(req, etag, lastModified)) {
-            res.writeHead(304);
-            res.end();
-            return;
-          }
-
-          const compressed = compressContent(
-            req.headers["accept-encoding"] as string,
-            content,
-            req,
-            res,
-          );
-
-          const responseHeaders: Record<string, string> = {
-            "Content-Length": String(compressed.data.length),
-            ...headers,
-          };
-
-          if (contentType) responseHeaders["Content-Type"] = contentType;
-          if (compressed.encoding) responseHeaders["Content-Encoding"] = compressed.encoding;
-          if (etag) responseHeaders["ETag"] = etag;
-          if (staticOptions.lastModified) responseHeaders["Last-Modified"] = lastModified;
-
-          if (options.security?.helmet !== false) {
-            Object.assign(responseHeaders, HttpServer.SECURITY_HEADERS);
-          }
-
-          res.writeHead(status, responseHeaders);
-          res.end(compressed.data);
-        } catch (err) {
-          console.error("Error sending response:", err);
-          if (!res.headersSent) {
-            res.writeHead(500, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Internal Server Error" }));
-          }
-        }
-      };
-
-    const cacheOptions = {
-      enabled: options.cache?.enabled ?? true,
-      maxSize: options.cache?.maxSize ?? 1000,
-      ttl: options.cache?.ttl ?? 300000,
-      clearOnRestart: options.cache?.clearOnRestart ?? true,
-      memoryLimit: options.cache?.memoryLimit ?? 100 * 1024 * 1024,
-      ...options.cache,
-    };
-
-    const clearCache = (pattern?: string | RegExp): number => {
-      let cleared = 0;
-
-      if (!pattern) {
-        cleared = HttpServer.cache.size;
-        HttpServer.cache.clear();
-        HttpServer.cacheStats.size = 0;
-      } else if (typeof pattern === "string") {
-        const keys = Array.from(HttpServer.cache.keys());
-        for (const key of keys) {
-          if (key.includes(pattern)) {
-            HttpServer.cache.delete(key);
-            cleared++;
-          }
-        }
-        HttpServer.cacheStats.size = HttpServer.cache.size;
-      } else if (pattern instanceof RegExp) {
-        const keys = Array.from(HttpServer.cache.keys());
-        for (const key of keys) {
-          if (pattern.test(key)) {
-            HttpServer.cache.delete(key);
-            cleared++;
-          }
-        }
-        HttpServer.cacheStats.size = HttpServer.cache.size;
-      }
-
-      return cleared;
-    };
-
-    const pruneExpiredCache = (): number => {
-      const now = Date.now();
-      let removed = 0;
-
-      for (const [key, entry] of HttpServer.cache.entries()) {
-        if (now - entry.timestamp > cacheOptions.ttl) {
-          HttpServer.cache.delete(key);
-          removed++;
-        }
-      }
-
-      HttpServer.cacheStats.size = HttpServer.cache.size;
-      return removed;
-    };
-
-    const pruneCacheBySize = (): number => {
-      if (HttpServer.cache.size <= cacheOptions.maxSize) return 0;
-
-      const entries = Array.from(HttpServer.cache.entries()).sort(
-        (a, b) => a[1].timestamp - b[1].timestamp,
-      );
-
-      const toRemove = HttpServer.cache.size - cacheOptions.maxSize;
-      let removed = 0;
-
-      for (let i = 0; i < toRemove && i < entries.length; i++) {
-        HttpServer.cache.delete(entries[i]![0]);
-        removed++;
-      }
-
-      HttpServer.cacheStats.size = HttpServer.cache.size;
-      return removed;
-    };
-
-    const getCacheMemoryUsage = (): number => {
-      let totalSize = 0;
-      for (const [key, entry] of HttpServer.cache.entries()) {
-        totalSize += Buffer.byteLength(key, "utf8") + entry.data.length;
-      }
-      return totalSize;
-    };
-
-    const pruneCacheByMemory = (): number => {
-      const currentMemory = getCacheMemoryUsage();
-      if (currentMemory <= cacheOptions.memoryLimit) return 0;
-
-      const entries = Array.from(HttpServer.cache.entries()).sort(
-        (a, b) => a[1].timestamp - b[1].timestamp,
-      );
-
-      let removedMemory = 0;
-      let removed = 0;
-
-      for (const [key, entry] of entries) {
-        if (currentMemory - removedMemory <= cacheOptions.memoryLimit) break;
-
-        removedMemory += Buffer.byteLength(key, "utf8") + entry.data.length;
-        HttpServer.cache.delete(key);
-        removed++;
-      }
-
-      HttpServer.cacheStats.size = HttpServer.cache.size;
-      return removed;
-    };
-
-    const cacheCleanupInterval = setInterval(() => {
-      if (cacheOptions.enabled) {
-        pruneExpiredCache();
-        pruneCacheBySize();
-        pruneCacheByMemory();
-      }
-    }, 60000);
-
-    process.on("exit", () => {
-      clearInterval(cacheCleanupInterval);
-      if (cacheOptions.clearOnRestart) {
-        clearCache();
-      }
-    });
-
-    const sendFile = async (ctx: RequestContext, filePath: string): Promise<boolean> => {
-      const { __req, __res } = ctx;
-
-      if (__res.writableEnded) return false;
-
-      const cacheKey = `file:${filePath}`;
-      const now = Date.now();
-
-      if (cacheOptions.enabled && HttpServer.cache.has(cacheKey)) {
-        const cached = HttpServer.cache.get(cacheKey)!;
-
-        if (now - cached.timestamp < cacheOptions.ttl) {
-          HttpServer.cacheStats.hits++;
-
-          if (cached.etag && checkFreshness(__req, cached.etag, undefined)) {
-            __res.writeHead(304);
-            __res.end();
-            return true;
-          }
-
-          const ext = path.extname(filePath).toLowerCase();
-          const contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
-
-          const headers: Record<string, string> = {
-            "Content-Type": contentType,
-            "Content-Length": String(cached.data.length),
-          };
-
-          if (options.static?.noCache) {
-            headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-            headers["Pragma"] = "no-cache";
-            headers["Expires"] = "0";
-          } else if (options.static?.cacheControl) {
-            headers["Cache-Control"] = options.static.cacheControl;
-          } else {
-            headers["Cache-Control"] = `public, max-age=${staticOptions.maxAge}`;
-          }
-
-          if (cached.etag) headers["ETag"] = cached.etag;
-
-          __res.writeHead(200, headers);
-          __res.end(cached.data);
-          return true;
-        } else {
-          HttpServer.cache.delete(cacheKey);
-        }
-      }
-
-      HttpServer.cacheStats.misses++;
-
-      try {
-        const normalizedPath = path.normalize(filePath);
-        const normalizedRoot = path.normalize(staticOptions.root);
-
-        if (!normalizedPath.startsWith(normalizedRoot)) {
-          return false;
-        }
-
-        const stat = await fs.promises.stat(filePath);
-
-        if (!stat.isFile()) {
-          return false;
-        }
-
-        if (staticOptions.dotfiles === "deny" && path.basename(filePath).startsWith(".")) {
-          __res.writeHead(403, { "Content-Type": "application/json" });
-          __res.end(JSON.stringify({ error: "Forbidden" }));
-          return true;
-        }
-
-        if (staticOptions.dotfiles === "ignore" && path.basename(filePath).startsWith(".")) {
-          return false;
-        }
-
-        const content = await fs.promises.readFile(filePath);
-        const ext = path.extname(filePath).toLowerCase();
-        const contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
-
-        const lastModified = stat.mtime.toUTCString();
-        const etag = staticOptions.etag ? generateETag(content) : undefined;
-
-        if (cacheOptions.enabled && content.length < 1024 * 1024) {
-          HttpServer.cache.set(cacheKey, {
-            data: content,
-            timestamp: now,
-            ...(etag && { etag }),
-          });
-          HttpServer.cacheStats.size = HttpServer.cache.size;
-        }
-
-        if (checkFreshness(__req, etag, lastModified)) {
-          __res.writeHead(304);
-          __res.end();
-          return true;
-        }
-
-        const headers: Record<string, string> = {
-          "Content-Type": contentType,
-          "Content-Length": String(stat.size),
-          "Accept-Ranges": "bytes",
-        };
-
-        if (options.static?.noCache) {
-          headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-          headers["Pragma"] = "no-cache";
-          headers["Expires"] = "0";
-        } else if (options.static?.cacheControl) {
-          headers["Cache-Control"] = options.static.cacheControl;
-        } else {
-          headers["Cache-Control"] = `public, max-age=${staticOptions.maxAge}`;
-        }
-
-        if (etag) headers["ETag"] = etag;
-        if (staticOptions.lastModified) headers["Last-Modified"] = lastModified;
-
-        const range = __req.headers.range;
-        if (range && range.startsWith("bytes=")) {
-          const parts = range.substring(6).split("-");
-          const start = parseInt(parts[0]!, 10);
-          const end = parts[1] ? parseInt(parts[1]!, 10) : stat.size - 1;
-
-          if (isNaN(start) || isNaN(end) || start > end || start < 0 || end >= stat.size) {
-            __res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
-            __res.end();
-            return true;
-          }
-
-          const stream = fs.createReadStream(filePath, { start, end });
-          headers["Content-Length"] = String(end - start + 1);
-          headers["Content-Range"] = `bytes ${start}-${end}/${stat.size}`;
-
-          __res.writeHead(206, headers);
-          stream.pipe(__res);
-          return true;
-        }
-
-        __res.writeHead(200, headers);
-        const stream = fs.createReadStream(filePath);
-
-        stream.on("error", (err) => {
-          console.error("File stream error:", err);
-          if (!__res.headersSent) {
-            __res.writeHead(500, { "Content-Type": "application/json" });
-            __res.end(JSON.stringify({ error: "Internal Server Error" }));
-          }
-        });
-
-        stream.pipe(__res);
-        return true;
-      } catch (err) {
-        return false;
-      }
-    };
-
-    const use = (middleware: Middleware): void => {
-      if (typeof middleware !== "function") {
-        throw this.throwErrorFormatters(new Error("Middleware must be a function"));
-      }
-      middlewares.push(middleware);
-    };
-
-    const cors = (corsOptions = options.cors || {}): Middleware => {
-      return async (ctx: RequestContext, next: () => Promise<void>): Promise<void> => {
-        const origin = ctx.__req.headers.origin as string | undefined;
-
-        let allowOrigin: string;
-        if (typeof corsOptions.origin === "function") {
-          const originChecker = corsOptions.origin as (origin?: string) => boolean;
-          allowOrigin = originChecker(origin) ? origin || "*" : "null";
-        } else if (corsOptions.origin) {
-          allowOrigin = corsOptions.origin as string;
-        } else {
-          allowOrigin = "*";
-        }
-
-        ctx.__res.setHeader("Access-Control-Allow-Origin", allowOrigin);
-        ctx.__res.setHeader(
-          "Access-Control-Allow-Methods",
-          (corsOptions.methods || ["GET", "POST", "PUT", "DELETE", "OPTIONS"]).join(", "),
-        );
-        ctx.__res.setHeader(
-          "Access-Control-Allow-Headers",
-          (corsOptions.allowedHeaders || ["Content-Type", "Authorization"]).join(", "),
-        );
-
-        if (corsOptions.credentials) {
-          ctx.__res.setHeader("Access-Control-Allow-Credentials", "true");
-        }
-
-        if (corsOptions.exposedHeaders?.length) {
-          ctx.__res.setHeader(
-            "Access-Control-Expose-Headers",
-            corsOptions.exposedHeaders.join(", "),
-          );
-        }
-
-        if (corsOptions.maxAge) {
-          ctx.__res.setHeader("Access-Control-Max-Age", String(corsOptions.maxAge));
-        }
-
-        if (ctx.method === "OPTIONS") {
-          ctx.__res.writeHead(204);
-          ctx.__res.end();
-          return;
-        }
-
-        await next();
-      };
-    };
-
-    const rateLimit = (
-      rateLimitOptions: {
-        windowMs?: number;
-        max?: number;
-        keyGenerator?: (ctx: RequestContext) => string;
-      } = {},
-    ): Middleware => {
-      const windowMs = rateLimitOptions.windowMs ?? 60_000;
-      const max = rateLimitOptions.max ?? 60;
-      const store = new Map<string, RateLimitEntry>();
-
-      const cleanupInterval = setInterval(() => {
-        const now = Date.now();
-        for (const [key, entry] of store.entries()) {
-          if (entry.expires < now) {
-            store.delete(key);
-          }
-        }
-      }, windowMs);
-
-      process.on("exit", () => clearInterval(cleanupInterval));
-
-      return async (ctx: RequestContext, next: () => Promise<void>): Promise<void> => {
-        const key = rateLimitOptions.keyGenerator
-          ? rateLimitOptions.keyGenerator(ctx)
-          : ctx.ip || "unknown";
-
-        const now = Date.now();
-        const record = store.get(key);
-
-        if (!record || record.expires < now) {
-          store.set(key, {
-            count: 1,
-            expires: now + windowMs,
-            resetTime: now + windowMs,
-          });
-        } else {
-          record.count++;
-          if (record.count > max) {
-            ctx.__res.setHeader("X-RateLimit-Limit", String(max));
-            ctx.__res.setHeader("X-RateLimit-Remaining", "0");
-            ctx.__res.setHeader("X-RateLimit-Reset", String(Math.ceil(record.resetTime / 1000)));
-
-            ctx.__res.writeHead(429, { "Content-Type": "application/json" });
-            ctx.__res.end(
-              JSON.stringify({
-                error: "Too Many Requests",
-                retryAfter: Math.ceil((record.resetTime - now) / 1000),
-              }),
-            );
-            return;
-          }
-        }
-
-        const currentRecord = store.get(key)!;
-        ctx.__res.setHeader("X-RateLimit-Limit", String(max));
-        ctx.__res.setHeader(
-          "X-RateLimit-Remaining",
-          String(Math.max(0, max - currentRecord.count)),
-        );
-        ctx.__res.setHeader("X-RateLimit-Reset", String(Math.ceil(currentRecord.resetTime / 1000)));
-
-        await next();
-      };
-    };
-
-    const compose = (ctx: RequestContext, finalHandler: () => Promise<void>): Promise<void> => {
-      let index = -1;
-
-      const dispatch = async (i: number): Promise<void> => {
-        if (i <= index) {
-          throw this.throwErrorFormatters(new Error("next() called multiple times"));
-        }
-
-        index = i;
-
-        const fn = i === middlewares.length ? finalHandler : middlewares[i];
-        if (!fn) return;
-
-        try {
-          if (isTypeArgs(fn) === "function" && isTypeArgs(fn)) {
-            const nextFn = () => dispatch(i + 1);
-            await this.executeCallback(fn, [ctx, nextFn]);
-          } else {
-            const middleware = fn as Middleware;
-            await middleware(ctx, () => dispatch(i + 1));
-          }
-        } catch (err) {
-          console.error("Middleware error:", err);
-          throw err;
-        }
-      };
-
-      return dispatch(0);
-    };
-
-    let currentStatus = 200;
-
-    const createContext = (req: http.IncomingMessage, res: http.ServerResponse): RequestContext => {
-      const { pathname, query } = parseUrl(req);
+    const createContext = (req: Request, res: Response): RequestContext => {
       const forwarded = req.headers["x-forwarded-for"] as string | undefined;
       const ip =
         options.trustProxy && forwarded
@@ -1013,22 +470,22 @@ class HttpServer extends HttpMethodBuilder {
       const protocol =
         options.trustProxy && req.headers["x-forwarded-proto"]
           ? (req.headers["x-forwarded-proto"] as string)
-          : (req.socket as any)?.encrypted
+          : req.secure
             ? "https"
             : "http";
 
-      const hostname = req.headers.host?.split(":")[0];
-      const cookies = parseCookies(req.headers.cookie);
+      const hostname = req.hostname;
+      const cookies = req.cookies || {};
 
       const reqCtx: Req = {
         url: req.url || "/",
-        method: (req.method || "GET").toUpperCase(),
+        method: req.method.toUpperCase(),
         httpVersion: req.httpVersion,
         httpVersionMajor: req.httpVersionMajor,
         httpVersionMinor: req.httpVersionMinor,
         headers: req.headers,
         rawHeaders: req.rawHeaders,
-        aborted: req.aborted,
+        aborted: (req as any).aborted || false,
       };
 
       const resCtx: Res = {
@@ -1063,29 +520,119 @@ class HttpServer extends HttpMethodBuilder {
         },
       };
 
+      let currentStatus = 200;
+
       const ctx: RequestContext = {
         req: reqCtx,
         res: resCtx,
-        method: (req.method || "GET").toUpperCase(),
+        method: req.method.toUpperCase(),
         url: req.url || "/",
-        path: pathname,
-        query,
-        params: {},
+        path: req.path,
+        query: req.query as Record<string, string | string[]>,
+        params: req.params,
         headers: req.headers,
-        body: null,
+        body: req.body,
         ...(ip && { ip }),
         state: {},
         cookies,
         protocol,
         secure: protocol === "https",
         ...(hostname && { hostname }),
-        fresh: false,
-        stale: true,
+        fresh: req.fresh,
+        stale: req.stale,
 
         send: class extends HttpMethodBuilder {
           override call() {
             const [body, status = currentStatus, headers] = this.args;
-            defaultSend(res, req)(body, status, headers);
+            if (headers && typeof headers === "object") {
+              Object.entries(headers).forEach(([key, value]) => {
+                res.setHeader(key, value as string);
+              });
+            }
+            res.status(status).send(body);
+            return null;
+          }
+        },
+
+        sendFile: class extends HttpMethodBuilder {
+          override call() {
+            let [filePathOrBuffer, options = {}, callback] = this.args;
+
+            if (filePathOrBuffer?.[Environment.SymbolBuffer]) {
+              filePathOrBuffer = filePathOrBuffer?.[Environment.SymbolBuffer];
+            }
+
+            // Если это Buffer
+            if (Buffer.isBuffer(filePathOrBuffer)) {
+              if (options && typeof options === "object" && options.headers) {
+                Object.entries(options.headers).forEach(([key, value]) => {
+                  res.setHeader(key, value as string);
+                });
+              }
+
+              let contentType = options["Content-Type"];
+
+              if (!contentType && options.filename) {
+                const ext = path.extname(options.filename).toLowerCase();
+                contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
+              }
+
+              if (!contentType) {
+                contentType = "application/octet-stream";
+              }
+
+              res.setHeader("Content-Type", contentType);
+
+              if (options.download === true && options.filename) {
+                res.setHeader("Content-Disposition", `attachment; filename="${options.filename}"`);
+              } else if (options.download === false && options.filename) {
+                res.setHeader("Content-Disposition", `inline; filename="${options.filename}"`);
+              }
+
+              res.setHeader("Content-Length", filePathOrBuffer.length);
+
+              try {
+                res.send(filePathOrBuffer);
+
+                if (callback && isTypeArgs(callback) === "function") {
+                  this.executeCallback(callback, [null]);
+                }
+              } catch (err: any) {
+                if (!res.headersSent) {
+                  res.status(500).json({
+                    error: "Error sending file",
+                    message: err.message,
+                  });
+                }
+
+                if (callback && isTypeArgs(callback) === "function") {
+                  this.executeCallback(callback, [err]);
+                }
+              }
+            }
+            // Если это путь к файлу (string)
+            else if (typeof filePathOrBuffer === "string") {
+              res.sendFile(filePathOrBuffer, options, (err) => {
+                if (err && !res.headersSent) {
+                  res.status(err.status || 500).json({
+                    error: "Error sending file",
+                    message: err.message,
+                  });
+                }
+
+                if (callback && isTypeArgs(callback) === "function") {
+                  this.executeCallback(callback, [err]);
+                }
+              });
+            } else {
+              const error = new Error("sendFile requires a file path (string) or Buffer");
+              if (callback && isTypeArgs(callback) === "function") {
+                this.executeCallback(callback, [error]);
+              } else {
+                throw this.throwErrorFormatters(error);
+              }
+            }
+
             return null;
           }
         },
@@ -1093,10 +640,12 @@ class HttpServer extends HttpMethodBuilder {
         json: class extends HttpMethodBuilder {
           override call() {
             const [body, status = currentStatus, headers = {}] = this.args;
-            defaultSend(res, req)(body, status, {
-              "Content-Type": "application/json; charset=utf-8",
-              ...headers,
-            });
+            if (headers && typeof headers === "object") {
+              Object.entries(headers).forEach(([key, value]) => {
+                res.setHeader(key, value as string);
+              });
+            }
+            res.status(status).json(body);
             return null;
           }
         },
@@ -1113,21 +662,17 @@ class HttpServer extends HttpMethodBuilder {
 
         cookie: class extends HttpMethodBuilder {
           override call() {
-            const [name, value, options = {}] = this.args;
+            const [name, value, opts = {}] = this.args;
             if (typeof name !== "string" || value === undefined) return ctx;
+            res.cookie(name, value, opts);
+            return ctx;
+          }
+        },
 
-            let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(String(value))}`;
-
-            if (options.maxAge) cookieStr += `; Max-Age=${options.maxAge}`;
-            if (options.expires) cookieStr += `; Expires=${options.expires.toUTCString()}`;
-            if (options.path) cookieStr += `; Path=${options.path}`;
-            if (options.domain) cookieStr += `; Domain=${options.domain}`;
-            if (options.secure) cookieStr += `; Secure`;
-            if (options.httpOnly) cookieStr += `; HttpOnly`;
-            if (options.sameSite) cookieStr += `; SameSite=${options.sameSite}`;
-
-            const existingCookies = (res.getHeader("Set-Cookie") as string[]) || [];
-            res.setHeader("Set-Cookie", [...existingCookies, cookieStr]);
+        clearCookie: class extends HttpMethodBuilder {
+          override call() {
+            const [name, opts] = this.args;
+            res.clearCookie(name, opts);
             return ctx;
           }
         },
@@ -1136,9 +681,7 @@ class HttpServer extends HttpMethodBuilder {
           override call() {
             const [url, status = 302] = this.args;
             if (typeof url === "string") {
-              res.setHeader("Location", url);
-              res.writeHead(status);
-              res.end();
+              res.redirect(status, url);
             }
             return ctx;
           }
@@ -1148,315 +691,479 @@ class HttpServer extends HttpMethodBuilder {
         __res: res,
       };
 
-      const etag = res.getHeader("ETag") as string;
-      const lastModified = res.getHeader("Last-Modified") as string;
-      ctx.fresh = checkFreshness(req, etag, lastModified);
-      ctx.stale = !ctx.fresh;
-
       return ctx;
     };
 
-    const requestHandler = async (
-      req: http.IncomingMessage,
-      res: http.ServerResponse,
-    ): Promise<void> => {
-      connectionCount++;
-      activeConnections.add(req);
-
-      if (options.maxConnections && connectionCount > options.maxConnections) {
-        res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "Service Unavailable - Too many connections",
-          }),
-        );
-        return;
-      }
-
-      const cleanup = () => {
-        activeConnections.delete(req);
-        connectionCount = Math.max(0, connectionCount - 1);
-      };
-
-      req.on("close", cleanup);
-      req.on("error", cleanup);
-
-      if (shuttingDown) {
-        res.writeHead(503, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Server shutting down" }));
-        cleanup();
-        return;
-      }
-
-      let timeoutId: NodeJS.Timeout | null = null;
-      if (options.timeout) {
-        timeoutId = setTimeout(() => {
-          if (!res.writableEnded) {
-            res.writeHead(408, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "Request Timeout" }));
-          }
-          req.destroy();
-        }, options.timeout);
-      }
-
+    // Главный middleware для обработки роутов
+    app.use(async (req: Request, res: Response, next: NextFunction) => {
       try {
         const ctx = createContext(req, res);
 
-        const tryStatic = async (): Promise<boolean> => {
-          if (ctx.method !== "GET" && ctx.method !== "HEAD") return false;
-
-          const urlPath = ctx.path;
-
-          const sensitivePatterns = [
-            /\.env/,
-            /\.git/,
-            /node_modules/,
-            /package\.json/,
-            /yarn\.lock/,
-            /\.DS_Store/,
-            /Thumbs\.db/,
-          ];
-
-          if (sensitivePatterns.some((pattern) => pattern.test(urlPath))) {
-            return false;
-          }
-
-          let targetPath = path.join(staticOptions.root, urlPath.slice(1) || staticOptions.index);
-
-          try {
-            const stat = await fs.promises.stat(targetPath);
-            if (stat.isDirectory()) {
-              targetPath = path.join(targetPath, staticOptions.index);
-              if (
-                !(await fs.promises
-                  .access(targetPath)
-                  .then(() => true)
-                  .catch(() => false))
-              ) {
-                return false;
-              }
-            }
-
-            return await sendFile(ctx, targetPath);
-          } catch (err) {
-            if (staticOptions.spa && ctx.method === "GET") {
-              const indexPath = path.join(staticOptions.root, staticOptions.index);
-              try {
-                await fs.promises.access(indexPath);
-                return await sendFile(ctx, indexPath);
-              } catch (spaErr) {
-                return false;
-              }
-            }
-            return false;
-          }
-        };
-
-        const finalHandler = async (): Promise<void> => {
-          const bodyMethods = ["POST", "PUT", "PATCH", "DELETE"];
-          if (bodyMethods.includes(ctx.method)) {
-            try {
-              const rawBody = await parseBody(req, options.bodyLimit);
-              ctx.rawBody = new Bytes([rawBody], [], this.environment).call();
-
-              const contentType = (req.headers["content-type"] || "").toLowerCase();
-
-              if (contentType.includes("application/json")) {
-                try {
-                  ctx.body = JSON.parse(
-                    new ctx.rawBody.toString(["utf8"], [], this.environment).call(),
-                  );
-                } catch (err) {
-                  throw this.throwErrorFormatters(new Error("Invalid JSON"));
-                }
-              } else if (contentType.includes("application/x-www-form-urlencoded")) {
-                const formData: Record<string, string> = {};
-                const pairs = new ctx.rawBody.toString(["utf8"], [], this.environment)
-                  .call()
-                  .split("&");
-
-                for (const pair of pairs) {
-                  const [key, value] = pair.split("=");
-                  if (key) {
-                    try {
-                      formData[decodeURIComponent(key)] = decodeURIComponent(value || "");
-                    } catch (err) {
-                      formData[key] = value || "";
-                    }
-                  }
-                }
-                ctx.body = formData;
-              } else if (contentType.includes("multipart/form-data")) {
-                ctx.body = rawBody;
-              } else if (contentType.startsWith("text/")) {
-                ctx.body = new ctx.rawBody.toString(["utf8"], [], this.environment).call();
-              } else {
-                ctx.body = new Bytes([rawBody], [], this.environment).call();
-              }
-            } catch (err: any) {
-              if (err.message === "Payload too large") {
-                res.writeHead(413, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ error: "Payload Too Large" }));
-                return;
-              } else if (err.message === "Invalid JSON") {
-                res.writeHead(400, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ error: "Invalid JSON" }));
-                return;
-              }
-              throw err;
-            }
-          }
-
-          if (await tryStatic()) return;
-
-          const match = matchRoute(ctx.method, ctx.path) || matchRoute("ALL", ctx.path);
-          if (!match) {
-            res.writeHead(404, { "Content-Type": "application/json" });
-            res.end(
-              JSON.stringify({
-                error: "Not Found",
-                path: ctx.path,
-                method: ctx.method,
-              }),
-            );
+        // Выполняем все middlewares последовательно
+        let middlewareIndex = 0;
+        const executeNextMiddleware = async (): Promise<void> => {
+          if (middlewareIndex >= middlewares.length) {
             return;
           }
 
-          ctx.params = match.params;
+          const middleware = middlewares[middlewareIndex]!;
+          middlewareIndex++;
 
-          try {
-            let result = await this.executeCallback(match.handler, [ctx]);
-
-            if (result?.[Environment.SymbolBuffer]) {
-              result = result[Environment.SymbolBuffer];
-            }
-
-            if (!res.writableEnded && !res.headersSent) {
-              if (result === undefined || result === null) {
-                if (!res.writableEnded) {
-                  res.writeHead(204);
-                  res.end();
-                }
-              } else if (typeof result === "object" && !Buffer.isBuffer(result)) {
-                if (result && typeof result.pipe === "function") {
-                  result.pipe(res);
-                } else {
-                  defaultSend(res, req)(result, currentStatus, {
-                    "Content-Type": "application/json; charset=utf-8",
-                  });
-                }
-              } else if (typeof result === "string") {
-                defaultSend(res, req)(result, currentStatus, {
-                  "Content-Type": "text/html; charset=utf-8",
-                });
-              } else {
-                defaultSend(res, req)(result, currentStatus);
-              }
-            }
-          } catch (handlerErr: any) {
-            console.error("Handler error:", handlerErr);
-            if (!res.writableEnded && !res.headersSent) {
-              const isDevelopment = process.env.NODE_ENV === "development";
-              const errorResponse: any = {
-                error: "Internal Server Error",
-                timestamp: new Date().toISOString(),
-                path: ctx.path,
-                method: ctx.method,
-              };
-
-              if (isDevelopment) {
-                errorResponse.details = handlerErr.message;
-                errorResponse.stack = handlerErr.stack;
-              }
-
-              res.writeHead(500, { "Content-Type": "application/json" });
-              res.end(JSON.stringify(errorResponse));
-            }
-          }
+          await this.executeCallback(middleware, [ctx, class extends HttpMethodBuilder { async call() {
+            await executeNextMiddleware();
+            return null;
+          }}]);
         };
 
-        await compose(ctx, finalHandler);
-      } catch (err: any) {
-        console.error("Request processing error:", err);
+        await executeNextMiddleware();
 
-        if (!res.writableEnded && !res.headersSent) {
-          try {
-            res.writeHead(500, { "Content-Type": "application/json" });
-            res.end(
-              JSON.stringify({
-                error: "Internal Server Error",
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          } catch (sendErr) {
-            console.error("Error sending error response:", sendErr);
+        // Ищем подходящий роут
+        const match = matchRoute(ctx.method, ctx.path);
+
+        if (!match) {
+          // Если роут не найден, передаём управление следующему middleware (например, статическим файлам)
+          return next();
+        }
+
+        // Устанавливаем параметры роута
+        ctx.params = match.params;
+
+        // Выполняем обработчик роута
+        const result = await this.executeCallback(match.handler, [ctx]);
+
+        // Если ответ ещё не отправлен и есть результат
+        if (!res.headersSent && result !== undefined && result !== null) {
+          let finalResult = result;
+
+          // Разворачиваем SymbolBuffer если есть
+          if (finalResult?.[Environment.SymbolBuffer]) {
+            finalResult = finalResult[Environment.SymbolBuffer];
+          }
+
+          if (typeof finalResult === "object" && !Buffer.isBuffer(finalResult)) {
+            if (finalResult && typeof finalResult.pipe === "function") {
+              finalResult.pipe(res);
+            } else {
+              res.json(finalResult);
+            }
+          } else {
+            res.send(finalResult);
           }
         }
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
+      } catch (err) {
+        next(err);
+      }
+    });
+
+    // Cache options
+    const cacheOptions = {
+      enabled: options.cache?.enabled ?? true,
+      maxSize: options.cache?.maxSize ?? 1000,
+      ttl: options.cache?.ttl ?? 300000,
+      clearOnRestart: options.cache?.clearOnRestart ?? true,
+      memoryLimit: options.cache?.memoryLimit ?? 100 * 1024 * 1024,
+      ...options.cache,
+    };
+
+    // Static file handler with caching
+    if (options.static) {
+      app.use(async (req: Request, res: Response, next: NextFunction) => {
+        if (req.method !== "GET" && req.method !== "HEAD") {
+          return next();
         }
-        cleanup();
+
+        const urlPath = decodeURIComponent(req.path);
+        const sensitivePatterns = [
+          /\.env/,
+          /\.git/,
+          /node_modules/,
+          /package\.json/,
+          /yarn\.lock/,
+          /\.DS_Store/,
+          /Thumbs\.db/,
+        ];
+
+        if (sensitivePatterns.some((pattern) => pattern.test(urlPath))) {
+          return next();
+        }
+
+        let targetPath = path.join(staticOptions.root, urlPath || staticOptions.index);
+
+        try {
+          const stat = await fs.promises.stat(targetPath);
+
+          if (stat.isDirectory()) {
+            targetPath = path.join(targetPath, staticOptions.index);
+            await fs.promises.access(targetPath);
+          }
+
+          // Cache check
+          const cacheKey = `file:${targetPath}`;
+          const cached = HttpServer.cache.get(cacheKey);
+
+          if (cached && cacheOptions.enabled) {
+            if (Date.now() - cached.timestamp < cacheOptions.ttl) {
+              HttpServer.cacheStats.hits++;
+
+              const ext = path.extname(targetPath).toLowerCase();
+              const contentType =
+                HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
+
+              res.setHeader("Content-Type", contentType);
+              res.setHeader("Content-Length", String(cached.data.length));
+
+              if (cached.etag) {
+                res.setHeader("ETag", cached.etag);
+              }
+
+              if (options.static?.noCache) {
+                res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+              } else if (options.static?.cacheControl) {
+                res.setHeader("Cache-Control", options.static.cacheControl);
+              } else {
+                res.setHeader("Cache-Control", `public, max-age=${staticOptions.maxAge}`);
+              }
+
+              return res.send(cached.data);
+            } else {
+              HttpServer.cache.delete(cacheKey);
+            }
+          }
+
+          HttpServer.cacheStats.misses++;
+
+          const content = await fs.promises.readFile(targetPath);
+          const ext = path.extname(targetPath).toLowerCase();
+          const contentType = HttpServer.DEFAULT_MIME_TYPES[ext] || "application/octet-stream";
+          const fileStat = await fs.promises.stat(targetPath);
+
+          const lastModified = fileStat.mtime.toUTCString();
+          const etag = staticOptions.etag ? generateETag(content) : undefined;
+
+          if (cacheOptions.enabled && content.length < 1024 * 1024) {
+            HttpServer.cache.set(cacheKey, {
+              data: content,
+              timestamp: Date.now(),
+              ...(etag && { etag }),
+            });
+            HttpServer.cacheStats.size = HttpServer.cache.size;
+          }
+
+          res.setHeader("Content-Type", contentType);
+          res.setHeader("Content-Length", String(content.length));
+
+          if (etag) {
+            res.setHeader("ETag", etag);
+          }
+
+          if (staticOptions.lastModified) {
+            res.setHeader("Last-Modified", lastModified);
+          }
+
+          if (options.static?.noCache) {
+            res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          } else if (options.static?.cacheControl) {
+            res.setHeader("Cache-Control", options.static.cacheControl);
+          } else {
+            res.setHeader("Cache-Control", `public, max-age=${staticOptions.maxAge}`);
+          }
+
+          res.send(content);
+        } catch (err) {
+          if (staticOptions.spa && req.method === "GET") {
+            const indexPath = path.join(staticOptions.root, staticOptions.index);
+            try {
+              await fs.promises.access(indexPath);
+              return res.sendFile(indexPath);
+            } catch (spaErr) {
+              next();
+            }
+          } else {
+            next();
+          }
+        }
+      });
+    }
+
+    // Cache cleanup
+    if (cacheOptions.enabled) {
+      const cacheCleanupInterval = setInterval(() => {
+        this.pruneExpiredCache(cacheOptions.ttl);
+        this.pruneCacheBySize(cacheOptions.maxSize);
+        this.pruneCacheByMemory(cacheOptions.memoryLimit);
+      }, 60000);
+
+      process.on("exit", () => {
+        clearInterval(cacheCleanupInterval);
+        if (cacheOptions.clearOnRestart) {
+          this.clearCache();
+        }
+      });
+    }
+
+    // Error handler (должен быть последним)
+    app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+      console.error("Error:", err);
+      
+      if (res.headersSent) {
+        return next(err);
+      }
+
+      res.status(err.status || 500).json({
+        error: err.message || "Internal Server Error",
+        ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+      });
+    });
+
+    // Graceful shutdown
+    const setupGracefulShutdown = () => {
+      const gracefulShutdown = () => {
+        if (shuttingDown) return;
+
+        shuttingDown = true;
+
+        server?.close((err) => {
+          if (err) {
+            console.error("Error during server shutdown:", err);
+            process.exit(1);
+          }
+
+          const shutdownTimeout = setTimeout(() => {
+            for (const connection of activeConnections) {
+              if (connection.destroy) {
+                connection.destroy();
+              }
+            }
+            process.exit(0);
+          }, 10000);
+
+          const checkConnections = () => {
+            if (activeConnections.size === 0) {
+              clearTimeout(shutdownTimeout);
+              process.exit(0);
+            } else {
+              setTimeout(checkConnections, 100);
+            }
+          };
+
+          checkConnections();
+        });
+      };
+
+      process.on("SIGTERM", gracefulShutdown);
+      process.on("SIGINT", gracefulShutdown);
+      process.on("uncaughtException", (err) => {
+        console.error("Uncaught exception:", err);
+        gracefulShutdown();
+      });
+      process.on("unhandledRejection", (reason, promise) => {
+        console.error("Unhandled rejection at:", promise, "reason:", reason);
+        gracefulShutdown();
+      });
+    };
+
+    // Validation functions
+    const validateRoute = (pattern: string): void => {
+      if (!pattern || typeof pattern !== "string") {
+        throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
+      }
+      if (!pattern.startsWith("/")) {
+        throw this.throwErrorFormatters(new Error('Route pattern must start with "/"'));
       }
     };
 
-    const validatePath = (pathStr: string): string => {
-      if (!pathStr || typeof pathStr !== "string") {
-        throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
-      }
-
-      const resolved = path.resolve(pathStr);
-      if (!resolved.startsWith(this.environment.get("import").base)) {
+    const validateHandler = (handler: any): void => {
+      if (!handler || (typeof handler !== "function" && isTypeArgs(handler) !== "function")) {
         throw this.throwErrorFormatters(
-          new Error("Static path must be within current working directory"),
+          new Error("Route handler must be a function or HttpMethodBuilder"),
         );
       }
-
-      return resolved;
     };
 
-    const ensureStaticDirectory = (dir: string): void => {
-      try {
-        const stat = fs.statSync(dir);
-        if (!stat.isDirectory()) {
-          throw this.throwErrorFormatters(new Error(`Static path is not a directory: ${dir}`));
+    const clearCache = (pattern?: string | RegExp): number => {
+      let cleared = 0;
+
+      if (!pattern) {
+        cleared = HttpServer.cache.size;
+        HttpServer.cache.clear();
+        HttpServer.cacheStats.size = 0;
+      } else if (typeof pattern === "string") {
+        const keys = Array.from(HttpServer.cache.keys());
+        for (const key of keys) {
+          if (key.includes(pattern)) {
+            HttpServer.cache.delete(key);
+            cleared++;
+          }
         }
-      } catch (err: any) {
-        if (err.code === "ENOENT") {
-          console.warn(`Static directory does not exist: ${dir}`);
-        } else {
-          throw err;
+        HttpServer.cacheStats.size = HttpServer.cache.size;
+      } else if (pattern instanceof RegExp) {
+        const keys = Array.from(HttpServer.cache.keys());
+        for (const key of keys) {
+          if (pattern.test(key)) {
+            HttpServer.cache.delete(key);
+            cleared++;
+          }
         }
+        HttpServer.cacheStats.size = HttpServer.cache.size;
       }
+
+      return cleared;
     };
 
     return {
+      get: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("GET", pattern, handler);
+          return null;
+        }
+      },
+
+      post: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("POST", pattern, handler);
+          return null;
+        }
+      },
+
+      put: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("PUT", pattern, handler);
+          return null;
+        }
+      },
+
+      patch: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("PATCH", pattern, handler);
+          return null;
+        }
+      },
+
+      delete: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("DELETE", pattern, handler);
+          return null;
+        }
+      },
+
+      head: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("HEAD", pattern, handler);
+          return null;
+        }
+      },
+
+      options: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("OPTIONS", pattern, handler);
+          return null;
+        }
+      },
+
+      all: class extends HttpMethodBuilder {
+        override call() {
+          const [pattern, handler] = this.args;
+          validateRoute(pattern);
+          validateHandler(handler);
+          addRoute("ALL", pattern, handler);
+          return null;
+        }
+      },
+
       use: class extends HttpMethodBuilder {
         override call() {
           const [middleware] = this.args;
-          if (typeof middleware === "function") {
-            use(middleware as Middleware);
-          } else if (isTypeArgs(middleware)) {
-            use(async (ctx, next) => {
-              await this.executeCallback(middleware, [ctx, next]);
-            });
+          if (typeof middleware !== "function" && isTypeArgs(middleware) !== "function") {
+            throw this.throwErrorFormatters(new Error("Middleware must be a function"));
           }
+
+          middlewares.push(middleware);
           return null;
         }
       },
 
       cors: class extends HttpMethodBuilder {
         override call() {
-          const [corsConfig] = this.args;
-          use(cors(corsConfig));
+          // CORS уже настроен выше
           return null;
         }
       },
 
       rateLimit: class extends HttpMethodBuilder {
         override call() {
-          const [rateLimitConfig] = this.args;
-          use(rateLimit(rateLimitConfig));
+          const [rateLimitOptions = {}] = this.args;
+          const windowMs = rateLimitOptions.windowMs ?? 60000;
+          const max = rateLimitOptions.max ?? 60;
+          const store = new Map<string, RateLimitEntry>();
+
+          const cleanupInterval = setInterval(() => {
+            const now = Date.now();
+            for (const [key, entry] of store.entries()) {
+              if (entry.expires < now) {
+                store.delete(key);
+              }
+            }
+          }, windowMs);
+
+          process.on("exit", () => clearInterval(cleanupInterval));
+
+          app.use((req: Request, res: Response, next: NextFunction) => {
+            const key = rateLimitOptions.keyGenerator
+              ? rateLimitOptions.keyGenerator(createContext(req, res))
+              : req.ip || "unknown";
+
+            const now = Date.now();
+            const record = store.get(key);
+
+            if (!record || record.expires < now) {
+              store.set(key, {
+                count: 1,
+                expires: now + windowMs,
+                resetTime: now + windowMs,
+              });
+            } else {
+              record.count++;
+              if (record.count > max) {
+                res.setHeader("X-RateLimit-Limit", String(max));
+                res.setHeader("X-RateLimit-Remaining", "0");
+                res.setHeader("X-RateLimit-Reset", String(Math.ceil(record.resetTime / 1000)));
+
+                return res.status(429).json({
+                  error: "Too Many Requests",
+                  retryAfter: Math.ceil((record.resetTime - now) / 1000),
+                });
+              }
+            }
+
+            const currentRecord = store.get(key)!;
+            res.setHeader("X-RateLimit-Limit", String(max));
+            res.setHeader("X-RateLimit-Remaining", String(Math.max(0, max - currentRecord.count)));
+            res.setHeader("X-RateLimit-Reset", String(Math.ceil(currentRecord.resetTime / 1000)));
+
+            next();
+          });
+
           return null;
         }
       },
@@ -1468,100 +1175,9 @@ class HttpServer extends HttpMethodBuilder {
         }
       },
 
-      getCacheStats: class extends HttpMethodBuilder {
+      cacheStats: class extends HttpMethodBuilder {
         override call() {
-          return {
-            ...HttpServer.cacheStats,
-            memoryUsage: getCacheMemoryUsage(),
-            entries: Array.from(HttpServer.cache.keys()),
-          };
-        }
-      },
-
-      setCacheOptions: class extends HttpMethodBuilder {
-        override call() {
-          const [newOptions] = this.args;
-          Object.assign(cacheOptions, newOptions);
-          return cacheOptions;
-        }
-      },
-
-      pruneCache: class extends HttpMethodBuilder {
-        override call() {
-          const expired = pruneExpiredCache();
-          const bySize = pruneCacheBySize();
-          const byMemory = pruneCacheByMemory();
-
-          return {
-            expired,
-            bySize,
-            byMemory,
-            total: expired + bySize + byMemory,
-          };
-        }
-      },
-
-      get: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("GET", pattern, handler);
-          return null;
-        }
-      },
-
-      post: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("POST", pattern, handler);
-          return null;
-        }
-      },
-
-      put: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("PUT", pattern, handler);
-          return null;
-        }
-      },
-
-      patch: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("PATCH", pattern, handler);
-          return null;
-        }
-      },
-
-      delete: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("DELETE", pattern, handler);
-          return null;
-        }
-      },
-
-      head: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("HEAD", pattern, handler);
-          return null;
-        }
-      },
-
-      options: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("OPTIONS", pattern, handler);
-          return null;
-        }
-      },
-
-      all: class extends HttpMethodBuilder {
-        override call() {
-          const [pattern, handler] = this.args;
-          addRoute("ALL", pattern, handler);
-          return null;
+          return HttpServer.cacheStats;
         }
       },
 
@@ -1571,13 +1187,12 @@ class HttpServer extends HttpMethodBuilder {
 
           if (root) {
             staticOptions.root = validatePath(root);
-            ensureStaticDirectory(staticOptions.root);
+            ensureStaticDirectory(staticOptions.root ?? root);
           }
 
           if (config && typeof config === "object") {
             if (config.index) staticOptions.index = config.index;
-            if (typeof config.maxAge === "number")
-              staticOptions.maxAge = Math.max(0, config.maxAge);
+            if (typeof config.maxAge === "number") staticOptions.maxAge = Math.max(0, config.maxAge);
             if (typeof config.spa === "boolean") staticOptions.spa = config.spa;
             if (config.dotfiles && ["allow", "deny", "ignore"].includes(config.dotfiles)) {
               staticOptions.dotfiles = config.dotfiles;
@@ -1611,10 +1226,10 @@ class HttpServer extends HttpMethodBuilder {
                   key: options.key,
                   cert: options.cert,
                 },
-                requestHandler,
+                app,
               );
             } else {
-              server = http.createServer(requestHandler);
+              server = http.createServer(app);
             }
 
             if (options.keepAliveTimeout) {
@@ -1652,49 +1267,7 @@ class HttpServer extends HttpMethodBuilder {
               }
             });
 
-            const gracefulShutdown = () => {
-              if (shuttingDown) return;
-
-              shuttingDown = true;
-
-              server?.close((err) => {
-                if (err) {
-                  console.error("Error during server shutdown:", err);
-                  process.exit(1);
-                }
-
-                const shutdownTimeout = setTimeout(() => {
-                  for (const connection of activeConnections) {
-                    connection.destroy();
-                  }
-                  process.exit(0);
-                }, 10000);
-
-                const checkConnections = () => {
-                  if (activeConnections.size === 0) {
-                    clearTimeout(shutdownTimeout);
-                    process.exit(0);
-                  } else {
-                    setTimeout(checkConnections, 100);
-                  }
-                };
-
-                checkConnections();
-              });
-            };
-
-            process.on("SIGTERM", () => gracefulShutdown());
-            process.on("SIGINT", () => gracefulShutdown());
-
-            process.on("uncaughtException", (err) => {
-              console.error("Uncaught exception:", err);
-              gracefulShutdown();
-            });
-
-            process.on("unhandledRejection", (reason, promise) => {
-              console.error("Unhandled rejection at:", promise, "reason:", reason);
-              gracefulShutdown();
-            });
+            setupGracefulShutdown();
           } catch (err) {
             console.error("Failed to start server:", err);
             throw err;
@@ -1743,9 +1316,8 @@ class HttpServer extends HttpMethodBuilder {
             address: address,
             connections: connectionCount,
             shuttingDown,
-            routes: routes.length,
-            middlewares: middlewares.length,
             static: staticOptions,
+            cache: HttpServer.cacheStats,
           };
         }
       },
@@ -1756,31 +1328,12 @@ class HttpServer extends HttpMethodBuilder {
           address: (server as any)?.address() || null,
           connections: connectionCount,
           shuttingDown,
-          routes: routes.length,
-          middlewares: middlewares.length,
           static: staticOptions,
         },
         null,
         2,
       )}`,
     };
-  }
-
-  private validateRoute(pattern: string): void {
-    if (!pattern || typeof pattern !== "string") {
-      throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
-    }
-    if (!pattern.startsWith("/")) {
-      throw this.throwErrorFormatters(new Error('Route pattern must start with "/"'));
-    }
-  }
-
-  private validateHandler(handler: any): void {
-    if (!handler || (typeof handler !== "function" && isTypeArgs(handler) !== "function")) {
-      throw this.throwErrorFormatters(
-        new Error("Route handler must be a function or HttpMethodBuilder"),
-      );
-    }
   }
 
   private validateOptions(options: ServerOptions): void {
@@ -1807,28 +1360,74 @@ class HttpServer extends HttpMethodBuilder {
     }
   }
 
-  private validatePath(pathStr: string): string {
-    if (!pathStr || typeof pathStr !== "string") {
-      throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
+  private pruneExpiredCache(ttl: number): number {
+    const now = Date.now();
+    let removed = 0;
+
+    for (const [key, entry] of HttpServer.cache.entries()) {
+      if (now - entry.timestamp > ttl) {
+        HttpServer.cache.delete(key);
+        removed++;
+      }
     }
 
-    const resolved = path.resolve(pathStr);
-    return resolved;
+    HttpServer.cacheStats.size = HttpServer.cache.size;
+    return removed;
   }
 
-  private ensureStaticDirectory(dir: string): void {
-    try {
-      const stat = fs.statSync(dir);
-      if (!stat.isDirectory()) {
-        throw this.throwErrorFormatters(new Error(`Static path is not a directory: ${dir}`));
-      }
-    } catch (err: any) {
-      if (err.code === "ENOENT") {
-        console.warn(`Static directory does not exist: ${dir}`);
-      } else {
-        throw err;
-      }
+  private pruneCacheBySize(maxSize: number): number {
+    if (HttpServer.cache.size <= maxSize) return 0;
+
+    const entries = Array.from(HttpServer.cache.entries()).sort(
+      (a, b) => a[1].timestamp - b[1].timestamp,
+    );
+
+    const toRemove = HttpServer.cache.size - maxSize;
+    let removed = 0;
+
+    for (let i = 0; i < toRemove && i < entries.length; i++) {
+      HttpServer.cache.delete(entries[i]![0]);
+      removed++;
     }
+
+    HttpServer.cacheStats.size = HttpServer.cache.size;
+    return removed;
+  }
+
+  private getCacheMemoryUsage(): number {
+    let totalSize = 0;
+    for (const [key, entry] of HttpServer.cache.entries()) {
+      totalSize += Buffer.byteLength(key, "utf8") + entry.data.length;
+    }
+    return totalSize;
+  }
+
+  private pruneCacheByMemory(memoryLimit: number): number {
+    const currentMemory = this.getCacheMemoryUsage();
+    if (currentMemory <= memoryLimit) return 0;
+
+    const entries = Array.from(HttpServer.cache.entries()).sort(
+      (a, b) => a[1].timestamp - b[1].timestamp,
+    );
+
+    let removedMemory = 0;
+    let removed = 0;
+
+    for (const [key, entry] of entries) {
+      if (currentMemory - removedMemory <= memoryLimit) break;
+
+      removedMemory += Buffer.byteLength(key, "utf8") + entry.data.length;
+      HttpServer.cache.delete(key);
+      removed++;
+    }
+
+    HttpServer.cacheStats.size = HttpServer.cache.size;
+    return removed;
+  }
+
+  private clearCache(): void {
+    HttpServer.cache.clear();
+    HttpServer.cacheStats = { hits: 0, misses: 0, size: 0 };
   }
 }
 

@@ -35,7 +35,7 @@ class ForStatement extends StmtType {
     try {
       runtime.markIterationCallPosition();
       const bridgeEnvironment = new Environment(score);
-
+      
       await this.init?.evaluate(bridgeEnvironment);
 
       if (this.test) {

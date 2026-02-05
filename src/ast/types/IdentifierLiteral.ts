@@ -1,6 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
+import { runtime } from "../../runtime/Runtime";
 
 class IdentifierLiteral extends StmtType {
   public readonly value: string;
