@@ -28,8 +28,8 @@ class ForInStatement extends StmtType {
 
   async evaluate(score: Environment) {
     try {
-      runtime.markIterationCallPosition();
       const bridgeEnvironment = new Environment(score);
+      runtime.markIterationCallPosition();
 
       await this.variable.evaluate(bridgeEnvironment);
       let variable: string | null = null;
@@ -104,7 +104,6 @@ class ForInStatement extends StmtType {
       runtime.resetBreak();
       runtime.finishIteration();
     } catch (err) {
-      console.log(err);
       throw super.throwErrorFormatters(err, score);
     }
   }

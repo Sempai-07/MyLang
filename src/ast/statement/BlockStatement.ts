@@ -44,8 +44,6 @@ class BlockStatement extends StmtType {
           }
         }
       }
-    } catch (err) {
-      throw err;
     } finally {
       const _isBreak = runtime.isBreak;
       const _isReturn = runtime.isReturn;
