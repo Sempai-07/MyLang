@@ -78,7 +78,13 @@ class SpawnExpression extends StmtType {
 
     const handler = new Spawn(task);
 
-    runtime.schedulerStack.go(() => handler.run());
+    await runtime.schedulerStack.go(async () => {
+      try {
+        return await handler.run();
+      } catch (err) {
+        throw super.throwErrorFormatters(err, score);
+      }
+    });
 
     if (this.isWait) {
       await handler.promise;
