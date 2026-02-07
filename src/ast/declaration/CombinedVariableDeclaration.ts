@@ -91,8 +91,11 @@ class CombinedVariableDeclaration extends StmtType {
       }
 
       for (let i = 0; i < this.value.length; i++) {
-        this.value[i].value = iterableValue[i] ?? this.value[i].value;
-        const { name, value, options } = this.value[i]!;
+        const currentItem = this.value[i];
+        if (!currentItem) continue;
+
+        currentItem.value = iterableValue?.[i] ?? currentItem.value;
+        const { name, value, options } = currentItem;
 
         if (value instanceof FunctionExpression || value instanceof StructExpression) {
           value.name = name;
