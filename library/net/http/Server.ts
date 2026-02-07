@@ -129,6 +129,11 @@ interface RateLimitEntry {
   resetTime: number;
 }
 
+// Расширяем тип Error для поддержки status
+interface HttpError extends Error {
+  status?: number;
+}
+
 class HttpServer extends HttpMethodBuilder {
   private static readonly DEFAULT_MIME_TYPES: Record<string, string> = {
     ".html": "text/html; charset=utf-8",
@@ -231,7 +236,7 @@ class HttpServer extends HttpMethodBuilder {
     }
 
     // Connection tracking
-    app.use((req: Request, res: Response, next: NextFunction) => {
+    app.use((req: Request, res: Response, next: NextFunction): void => {
       connectionCount++;
       activeConnections.add(req);
 
@@ -245,11 +250,13 @@ class HttpServer extends HttpMethodBuilder {
       req.on("error", cleanup);
 
       if (options.maxConnections && connectionCount > options.maxConnections) {
-        return res.status(503).json({ error: "Service Unavailable - Too many connections" });
+        res.status(503).json({ error: "Service Unavailable - Too many connections" });
+        return;
       }
 
       if (shuttingDown) {
-        return res.status(503).json({ error: "Server shutting down" });
+        res.status(503).json({ error: "Server shutting down" });
+        return;
       }
 
       next();
@@ -269,7 +276,7 @@ class HttpServer extends HttpMethodBuilder {
 
     // CORS
     if (options.cors) {
-      app.use((req: Request, res: Response, next: NextFunction) => {
+      app.use((req: Request, res: Response, next: NextFunction): void => {
         const origin = req.headers.origin;
         const corsOptions = options.cors!;
 
@@ -303,7 +310,8 @@ class HttpServer extends HttpMethodBuilder {
         }
 
         if (req.method === "OPTIONS") {
-          return res.sendStatus(204);
+          res.sendStatus(204);
+          return;
         }
 
         next();
@@ -522,6 +530,16 @@ class HttpServer extends HttpMethodBuilder {
 
       let currentStatus = 200;
 
+      // Преобразуем params в правильный тип
+      const normalizedParams: Record<string, string> = {};
+      Object.entries(req.params).forEach(([key, value]) => {
+        if (typeof value === 'string') {
+          normalizedParams[key] = value;
+        } else if (Array.isArray(value)) {
+          normalizedParams[key] = value[0] || '';
+        }
+      });
+
       const ctx: RequestContext = {
         req: reqCtx,
         res: resCtx,
@@ -529,7 +547,7 @@ class HttpServer extends HttpMethodBuilder {
         url: req.url || "/",
         path: req.path,
         query: req.query as Record<string, string | string[]>,
-        params: req.params,
+        params: normalizedParams,
         headers: req.headers,
         body: req.body,
         ...(ip && { ip }),
@@ -614,7 +632,8 @@ class HttpServer extends HttpMethodBuilder {
             else if (typeof filePathOrBuffer === "string") {
               res.sendFile(filePathOrBuffer, options, (err) => {
                 if (err && !res.headersSent) {
-                  res.status(err.status || 500).json({
+                  const httpError = err as HttpError;
+                  res.status(httpError.status || 500).json({
                     error: "Error sending file",
                     message: err.message,
                   });
@@ -625,12 +644,9 @@ class HttpServer extends HttpMethodBuilder {
                 }
               });
             } else {
-              const error = new Error("sendFile requires a file path (string) or Buffer");
-              if (callback && isTypeArgs(callback) === "function") {
-                this.executeCallback(callback, [error]);
-              } else {
-                throw this.throwErrorFormatters(error);
-              }
+              throw this.throwErrorFormatters(
+                new Error("sendFile requires a file path (string) or Buffer"),
+              );
             }
 
             return null;
@@ -639,13 +655,8 @@ class HttpServer extends HttpMethodBuilder {
 
         json: class extends HttpMethodBuilder {
           override call() {
-            const [body, status = currentStatus, headers = {}] = this.args;
-            if (headers && typeof headers === "object") {
-              Object.entries(headers).forEach(([key, value]) => {
-                res.setHeader(key, value as string);
-              });
-            }
-            res.status(status).json(body);
+            const [data, status = currentStatus] = this.args;
+            res.status(status).json(data);
             return null;
           }
         },
@@ -653,37 +664,84 @@ class HttpServer extends HttpMethodBuilder {
         status: class extends HttpMethodBuilder {
           override call() {
             const [code] = this.args;
-            if (typeof code === "number" && code >= 100 && code <= 599) {
-              currentStatus = code;
-            }
+            currentStatus = code;
+            res.status(code);
             return ctx;
           }
         },
 
         cookie: class extends HttpMethodBuilder {
           override call() {
-            const [name, value, opts = {}] = this.args;
-            if (typeof name !== "string" || value === undefined) return ctx;
-            res.cookie(name, value, opts);
+            const [name, value, options = {}] = this.args;
+            let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`;
+
+            if (options.maxAge) {
+              cookieStr += `; Max-Age=${options.maxAge}`;
+            }
+            if (options.domain) {
+              cookieStr += `; Domain=${options.domain}`;
+            }
+            if (options.path) {
+              cookieStr += `; Path=${options.path}`;
+            }
+            if (options.expires) {
+              cookieStr += `; Expires=${options.expires.toUTCString()}`;
+            }
+            if (options.httpOnly) {
+              cookieStr += "; HttpOnly";
+            }
+            if (options.secure) {
+              cookieStr += "; Secure";
+            }
+            if (options.sameSite) {
+              cookieStr += `; SameSite=${options.sameSite}`;
+            }
+
+            const currentCookies = res.getHeader("Set-Cookie") || [];
+            const cookiesArray = Array.isArray(currentCookies)
+              ? currentCookies
+              : [currentCookies.toString()];
+            cookiesArray.push(cookieStr);
+            res.setHeader("Set-Cookie", cookiesArray);
+
             return ctx;
           }
         },
 
         clearCookie: class extends HttpMethodBuilder {
           override call() {
-            const [name, opts] = this.args;
-            res.clearCookie(name, opts);
+            const [name, options = {}] = this.args;
+            let cookieStr = `${encodeURIComponent(name)}=; Max-Age=0`;
+
+            if (options.domain) {
+              cookieStr += `; Domain=${options.domain}`;
+            }
+            if (options.path) {
+              cookieStr += `; Path=${options.path}`;
+            }
+
+            const currentCookies = res.getHeader("Set-Cookie") || [];
+            const cookiesArray = Array.isArray(currentCookies)
+              ? currentCookies
+              : [currentCookies.toString()];
+            cookiesArray.push(cookieStr);
+            res.setHeader("Set-Cookie", cookiesArray);
+
             return ctx;
           }
         },
 
         redirect: class extends HttpMethodBuilder {
           override call() {
-            const [url, status = 302] = this.args;
-            if (typeof url === "string") {
-              res.redirect(status, url);
+            const [statusOrUrl, url] = this.args;
+
+            if (typeof statusOrUrl === "number") {
+              res.redirect(statusOrUrl, url);
+            } else {
+              res.redirect(statusOrUrl);
             }
-            return ctx;
+
+            return null;
           }
         },
 
@@ -694,7 +752,47 @@ class HttpServer extends HttpMethodBuilder {
       return ctx;
     };
 
-    // Главный middleware для обработки роутов
+    const validateRoute = (pattern: string): void => {
+      if (!pattern || typeof pattern !== "string") {
+        throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
+      }
+      if (!pattern.startsWith("/") && pattern !== "*") {
+        throw this.throwErrorFormatters(
+          new Error(`Route pattern must start with / or be *, got: ${pattern}`),
+        );
+      }
+    };
+
+    const validateHandler = (handler: any): void => {
+      if (typeof handler !== "function" && !handler?.call) {
+        throw this.throwErrorFormatters(
+          new Error("Route handler must be a function or HttpMethodBuilder"),
+        );
+      }
+    };
+
+    const clearCache = (pattern?: string): number => {
+      if (!pattern) {
+        const size = HttpServer.cache.size;
+        this.clearCache();
+        return size;
+      }
+
+      const regex = new RegExp(pattern);
+      let removed = 0;
+
+      for (const key of HttpServer.cache.keys()) {
+        if (regex.test(key)) {
+          HttpServer.cache.delete(key);
+          removed++;
+        }
+      }
+
+      HttpServer.cacheStats.size = HttpServer.cache.size;
+      return removed;
+    };
+
+    // Routes handler
     app.use(async (req: Request, res: Response, next: NextFunction) => {
       try {
         const ctx = createContext(req, res);
@@ -709,10 +807,12 @@ class HttpServer extends HttpMethodBuilder {
           const middleware = middlewares[middlewareIndex]!;
           middlewareIndex++;
 
-          await this.executeCallback(middleware, [ctx, class extends HttpMethodBuilder { async call() {
-            await executeNextMiddleware();
-            return null;
-          }}]);
+          await this.executeCallback(middleware, [ctx, class extends HttpMethodBuilder { 
+            override async call() {
+              await executeNextMiddleware();
+              return null;
+            }
+          }]);
         };
 
         await executeNextMiddleware();
@@ -902,14 +1002,15 @@ class HttpServer extends HttpMethodBuilder {
     }
 
     // Error handler (должен быть последним)
-    app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
       console.error("Error:", err);
       
       if (res.headersSent) {
         return next(err);
       }
 
-      res.status(err.status || 500).json({
+      const httpError = err as HttpError;
+      res.status(httpError.status || 500).json({
         error: err.message || "Internal Server Error",
         ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
       });
@@ -952,70 +1053,13 @@ class HttpServer extends HttpMethodBuilder {
 
       process.on("SIGTERM", gracefulShutdown);
       process.on("SIGINT", gracefulShutdown);
-      process.on("uncaughtException", (err) => {
-        console.error("Uncaught exception:", err);
-        gracefulShutdown();
-      });
-      process.on("unhandledRejection", (reason, promise) => {
-        console.error("Unhandled rejection at:", promise, "reason:", reason);
-        gracefulShutdown();
-      });
     };
 
-    // Validation functions
-    const validateRoute = (pattern: string): void => {
-      if (!pattern || typeof pattern !== "string") {
-        throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
-      }
-      if (!pattern.startsWith("/")) {
-        throw this.throwErrorFormatters(new Error('Route pattern must start with "/"'));
-      }
-    };
-
-    const validateHandler = (handler: any): void => {
-      if (!handler || (typeof handler !== "function" && isTypeArgs(handler) !== "function")) {
-        throw this.throwErrorFormatters(
-          new Error("Route handler must be a function or HttpMethodBuilder"),
-        );
-      }
-    };
-
-    const clearCache = (pattern?: string | RegExp): number => {
-      let cleared = 0;
-
-      if (!pattern) {
-        cleared = HttpServer.cache.size;
-        HttpServer.cache.clear();
-        HttpServer.cacheStats.size = 0;
-      } else if (typeof pattern === "string") {
-        const keys = Array.from(HttpServer.cache.keys());
-        for (const key of keys) {
-          if (key.includes(pattern)) {
-            HttpServer.cache.delete(key);
-            cleared++;
-          }
-        }
-        HttpServer.cacheStats.size = HttpServer.cache.size;
-      } else if (pattern instanceof RegExp) {
-        const keys = Array.from(HttpServer.cache.keys());
-        for (const key of keys) {
-          if (pattern.test(key)) {
-            HttpServer.cache.delete(key);
-            cleared++;
-          }
-        }
-        HttpServer.cacheStats.size = HttpServer.cache.size;
-      }
-
-      return cleared;
-    };
-
+    // API для роутов
     return {
       get: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("GET", pattern, handler);
           return null;
         }
@@ -1024,8 +1068,6 @@ class HttpServer extends HttpMethodBuilder {
       post: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("POST", pattern, handler);
           return null;
         }
@@ -1034,8 +1076,6 @@ class HttpServer extends HttpMethodBuilder {
       put: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("PUT", pattern, handler);
           return null;
         }
@@ -1044,8 +1084,6 @@ class HttpServer extends HttpMethodBuilder {
       patch: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("PATCH", pattern, handler);
           return null;
         }
@@ -1054,8 +1092,6 @@ class HttpServer extends HttpMethodBuilder {
       delete: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("DELETE", pattern, handler);
           return null;
         }
@@ -1064,8 +1100,6 @@ class HttpServer extends HttpMethodBuilder {
       head: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("HEAD", pattern, handler);
           return null;
         }
@@ -1074,8 +1108,6 @@ class HttpServer extends HttpMethodBuilder {
       options: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("OPTIONS", pattern, handler);
           return null;
         }
@@ -1084,8 +1116,6 @@ class HttpServer extends HttpMethodBuilder {
       all: class extends HttpMethodBuilder {
         override call() {
           const [pattern, handler] = this.args;
-          validateRoute(pattern);
-          validateHandler(handler);
           addRoute("ALL", pattern, handler);
           return null;
         }
@@ -1094,7 +1124,8 @@ class HttpServer extends HttpMethodBuilder {
       use: class extends HttpMethodBuilder {
         override call() {
           const [middleware] = this.args;
-          if (typeof middleware !== "function" && isTypeArgs(middleware) !== "function") {
+
+          if (typeof middleware !== "function" && !middleware?.call) {
             throw this.throwErrorFormatters(new Error("Middleware must be a function"));
           }
 
@@ -1128,7 +1159,7 @@ class HttpServer extends HttpMethodBuilder {
 
           process.on("exit", () => clearInterval(cleanupInterval));
 
-          app.use((req: Request, res: Response, next: NextFunction) => {
+          app.use((req: Request, res: Response, next: NextFunction): void => {
             const key = rateLimitOptions.keyGenerator
               ? rateLimitOptions.keyGenerator(createContext(req, res))
               : req.ip || "unknown";
@@ -1149,10 +1180,11 @@ class HttpServer extends HttpMethodBuilder {
                 res.setHeader("X-RateLimit-Remaining", "0");
                 res.setHeader("X-RateLimit-Reset", String(Math.ceil(record.resetTime / 1000)));
 
-                return res.status(429).json({
+                res.status(429).json({
                   error: "Too Many Requests",
                   retryAfter: Math.ceil((record.resetTime - now) / 1000),
                 });
+                return;
               }
             }
 
