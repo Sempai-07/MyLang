@@ -79,7 +79,7 @@ interface RequestContext {
   url: string;
   path: string;
   query: Record<string, string | string[]>;
-  params: Record<string, string | string[]>;
+  params: Record<string, string>;
   headers: http.IncomingHttpHeaders;
   body: any;
   rawBody?: ReturnType<Bytes["call"]>;
@@ -522,6 +522,16 @@ class HttpServer extends HttpMethodBuilder {
 
       let currentStatus = 200;
 
+      const normalizedParams: Record<string, string> = {};
+
+      Object.entries(req.params).forEach(([key, value]) => {
+        if (typeof value === "string") {
+          normalizedParams[key] = value;
+        } else if (Array.isArray(value)) {
+          normalizedParams[key] = value[0] || "";
+        }
+      });
+
       const ctx: RequestContext = {
         req: reqCtx,
         res: resCtx,
@@ -529,7 +539,7 @@ class HttpServer extends HttpMethodBuilder {
         url: req.url || "/",
         path: req.path,
         query: req.query as Record<string, string | string[]>,
-        params: req.params as Record<string, string | string[]>,
+        params: normalizedParams,
         headers: req.headers,
         body: req.body,
         ...(ip && { ip }),
