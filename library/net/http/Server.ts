@@ -181,7 +181,6 @@ class HttpServer extends HttpMethodBuilder {
 
     this.validateOptions(options);
 
-    // Local helper functions
     const validatePath = (pathStr: string): string => {
       if (!pathStr || typeof pathStr !== "string") {
         throw this.throwErrorFormatters(new Error("Path must be a non-empty string"));
@@ -225,12 +224,10 @@ class HttpServer extends HttpMethodBuilder {
 
     ensureStaticDirectory(staticOptions.root);
 
-    // Setup Express middleware
     if (options.trustProxy) {
       app.set("trust proxy", true);
     }
 
-    // Connection tracking
     app.use((req: Request, res: Response, next: NextFunction) => {
       connectionCount++;
       activeConnections.add(req);
@@ -255,7 +252,6 @@ class HttpServer extends HttpMethodBuilder {
       return next();
     });
 
-    // Security headers
     if (options.security) {
       app.use((_req: Request, res: Response, next: NextFunction) => {
         if (options.security?.helmet !== false) {
@@ -267,7 +263,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     }
 
-    // CORS
     if (options.cors) {
       app.use((req: Request, res: Response, next: NextFunction) => {
         const origin = req.headers.origin;
@@ -310,7 +305,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     }
 
-    // Compression
     if (options.compression) {
       const zlib = require("zlib");
       app.use((req: Request, res: Response, next: NextFunction) => {
@@ -344,14 +338,12 @@ class HttpServer extends HttpMethodBuilder {
       });
     }
 
-    // Body parsing (перед cookie parser)
     const bodyLimit = options.bodyLimit || 2000000;
     app.use(express.json({ limit: bodyLimit }));
     app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
     app.use(express.raw({ limit: bodyLimit }));
     app.use(express.text({ limit: bodyLimit }));
 
-    // Cookie parser
     app.use((req: Request, _res: Response, next: NextFunction) => {
       req.cookies = {};
       const cookieHeader = req.headers.cookie;
@@ -370,7 +362,6 @@ class HttpServer extends HttpMethodBuilder {
       next();
     });
 
-    // Routes и middlewares хранилища
     const routes: RouteEntry[] = [];
     const middlewares: Middleware[] = [];
 
@@ -429,7 +420,6 @@ class HttpServer extends HttpMethodBuilder {
       method: string,
       pathname: string,
     ): { handler: Handler; params: Record<string, string> } | null => {
-      // Обрабатываем роуты в обратном порядке (последний зарегистрированный имеет приоритет)
       for (let i = routes.length - 1; i >= 0; i--) {
         const route = routes[i]!;
         if (route.method !== method && route.method !== "ALL") continue;
@@ -453,7 +443,6 @@ class HttpServer extends HttpMethodBuilder {
       return null;
     };
 
-    // Helper functions
     const generateETag = (content: Buffer | string): string => {
       const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content);
       const hash = crypto.createHash("sha1").update(buffer).digest("hex");
@@ -572,7 +561,6 @@ class HttpServer extends HttpMethodBuilder {
               filePathOrBuffer = filePathOrBuffer?.[Environment.SymbolBuffer];
             }
 
-            // Если это Buffer
             if (Buffer.isBuffer(filePathOrBuffer)) {
               if (options && typeof options === "object" && options.headers) {
                 Object.entries(options.headers).forEach(([key, value]) => {
@@ -619,9 +607,7 @@ class HttpServer extends HttpMethodBuilder {
                   this.executeCallback(callback, [err]);
                 }
               }
-            }
-            // Если это путь к файлу (string)
-            else if (typeof filePathOrBuffer === "string") {
+            } else if (typeof filePathOrBuffer === "string") {
               res.sendFile(filePathOrBuffer, options, (err) => {
                 if (err && !res.headersSent) {
                   res.status((err as unknown as { status: number }).status ?? 500).json({
@@ -704,12 +690,10 @@ class HttpServer extends HttpMethodBuilder {
       return ctx;
     };
 
-    // Главный middleware для обработки роутов
     app.use(async (req: Request, res: Response, next: NextFunction) => {
       try {
         const ctx = createContext(req, res);
 
-        // Выполняем все middlewares последовательно
         let middlewareIndex = 0;
         const executeNextMiddleware = async (): Promise<void> => {
           if (middlewareIndex >= middlewares.length) {
@@ -732,25 +716,19 @@ class HttpServer extends HttpMethodBuilder {
 
         await executeNextMiddleware();
 
-        // Ищем подходящий роут
         const match = matchRoute(ctx.method, ctx.path);
 
         if (!match) {
-          // Если роут не найден, передаём управление следующему middleware (например, статическим файлам)
           return next();
         }
 
-        // Устанавливаем параметры роута
         ctx.params = match.params;
 
-        // Выполняем обработчик роута
         const result = await this.executeCallback(match.handler, [ctx]);
 
-        // Если ответ ещё не отправлен и есть результат
         if (!res.headersSent && result !== undefined && result !== null) {
           let finalResult = result;
 
-          // Разворачиваем SymbolBuffer если есть
           if (finalResult?.[Environment.SymbolBuffer]) {
             finalResult = finalResult[Environment.SymbolBuffer];
           }
@@ -770,7 +748,6 @@ class HttpServer extends HttpMethodBuilder {
       }
     });
 
-    // Cache options
     const cacheOptions = {
       enabled: options.cache?.enabled ?? true,
       maxSize: options.cache?.maxSize ?? 1000,
@@ -780,7 +757,6 @@ class HttpServer extends HttpMethodBuilder {
       ...options.cache,
     };
 
-    // Static file handler with caching
     if (options.static) {
       app.use(async (req: Request, res: Response, next: NextFunction) => {
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -812,7 +788,6 @@ class HttpServer extends HttpMethodBuilder {
             await fs.promises.access(targetPath);
           }
 
-          // Cache check
           const cacheKey = `file:${targetPath}`;
           const cached = HttpServer.cache.get(cacheKey);
 
@@ -899,7 +874,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     }
 
-    // Cache cleanup
     if (cacheOptions.enabled) {
       const cacheCleanupInterval = setInterval(() => {
         this.pruneExpiredCache(cacheOptions.ttl);
@@ -915,7 +889,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     }
 
-    // Error handler (должен быть последним)
     app.use((err: any, __: Request, res: Response, next: NextFunction) => {
       console.error("Error:", err);
 
@@ -929,7 +902,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     });
 
-    // Graceful shutdown
     const setupGracefulShutdown = () => {
       const gracefulShutdown = () => {
         if (shuttingDown) return;
@@ -976,7 +948,6 @@ class HttpServer extends HttpMethodBuilder {
       });
     };
 
-    // Validation functions
     const validateRoute = (pattern: string): void => {
       if (!pattern || typeof pattern !== "string") {
         throw this.throwErrorFormatters(new Error("Route pattern must be a non-empty string"));
