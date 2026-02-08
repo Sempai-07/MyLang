@@ -135,7 +135,6 @@ User ID: 42
 Hello, World! Your status: Guest. Sum: 3
 ```
 
-
 ### **Variables and Constants**
 
 MyLang2 provides sophisticated variable declaration and management capabilities:
@@ -698,6 +697,7 @@ Comprehensive try-catch-finally blocks with detailed error information:
 
 ```mylang2
 import "coreio";
+import "strings";
 import "fs";
 
 // Basic error handling
@@ -716,11 +716,45 @@ func readConfig(filename) {
 // Throwing errors
 func validateAge(age) {
   if (age < 0) {
-    throw "Age cannot be negative";
+    throw "Age cannot be negative" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { age },
+    };
   }
   if (age > 150) {
-    throw "Age seems unrealistic";
+    throw "Age seems unrealistic" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { age },
+    }
   }
+  return true;
+}
+
+struct ValidatedError {
+  var code = 409;
+  var cause = { "name": "unknown error" };
+  var name = "ValidatedError",
+}
+
+func validateName(name) {
+  if (typeof(name) !== "string") {
+    throw "Name must be a string" as ValidatedError(400, { name });
+  }
+
+  if (!strings.trim(name)) {
+    throw "Name cannot be empty" as ValidatedError;
+  }
+
+  if (length(name) > 64) {
+    throw "Name is too long" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { name },
+    };
+  }
+
   return true;
 }
 
@@ -816,11 +850,24 @@ import (
   "objects"
 );
 
+// Imports destructuring
+import "coreio" as { print, input };
+
 // Named imports with aliases
-import {
-  Server as HttpServer,
-  Client as HttpClient
-} from "net/http";
+import (
+  utilName: "./utils.ml"
+);
+
+// Not working
+import (
+  "net/http" as { Server },
+);
+import (
+  utilName: "./utils.ml" as { Server }
+);
+import (
+  utilName: "./utils.ml",
+) as { Server }
 
 // Relative imports
 import "./utils/helpers.ml";
@@ -1186,114 +1233,6 @@ list.remove(1);
 list.display();
 ```
 
----
-
-## What's New in v2.1.0
-
-### **Complete Parser Rewrite with Pratt Algorithm**
-
-MyLang2 v2.1.0 features a complete parser rewrite using the industry-standard Pratt parsing algorithm, fixing over 130 bugs and significantly improving code quality.
-
-#### **Fixed: Operator Precedence**
-
-Mathematical expressions now evaluate correctly according to standard precedence rules:
-
-```mylang2
-// Before v2.1.0 (WRONG)
-var x = 2 + 3 * 4;  // Evaluated as: (2 + 3) * 4 = 20 ❌
-
-// v2.1.0+ (CORRECT)
-var x = 2 + 3 * 4;  // Evaluated as: 2 + (3 * 4) = 14 ✅
-
-// More examples:
-10 - 2 * 3           // Now: 4 ✅ (was: 24)
-1 + 2 * 3 ** 2       // Now: 19 ✅ (was: 27)
-(5 + 3) * 2 - 4 / 2  // Now: 14 ✅ (parentheses work correctly)
-```
-
-#### **Fixed: Ternary Operator**
-
-The ternary operator now works correctly in all contexts:
-
-```mylang2
-// Before v2.1.0 (BROKEN)
-var result = y > 2 ? x * 2 : 4 + b;
-// Parsed incorrectly, often returned true/false
-
-// v2.1.0+ (CORRECT)
-var result = y > 2 ? x * 2 : 4 + b;  // ✅ Works perfectly!
-
-// Complex ternary expressions
-var grade = score >= 90 ? "A" : score >= 80 ? "B" : "C";  // ✅ Nested ternary works!
-var arr = [1, 2, x > 5 ? 100 : 200];  // ✅ Ternary in arrays works!
-```
-
-#### **Fixed: Break and Continue**
-
-Break and continue statements no longer cause infinite loops:
-
-```mylang2
-// Before v2.1.0 (INFINITE LOOP)
-for (var i = 0; i < 10; i++) {
-  if (i == 5) {
-    break;  // 🔥 Parser got stuck!
-  }
-}
-
-// v2.1.0+ (WORKS CORRECTLY)
-for (var i = 0; i < 10; i++) {
-  if (i == 5) {
-    break;  // ✅ Works as expected!
-  }
-}
-```
-
-#### **Performance Improvements**
-
-- **O(1) operator lookups**: Set-based operator checks (previously O(n))
-- **75% less code**: Eliminated duplicate precedence checks
-- **155 lines removed**: Dead code and redundancies cleaned up
-
----
-
-## Migration from v2.0 to v2.1
-
-### **Breaking Changes**
-
-**None!** All fixes are backward compatible.
-
-### **Code That Now Works**
-
-If you wrote workarounds for bugs in v2.0, you can now simplify your code:
-
-```mylang2
-// OLD WORKAROUND (v2.0)
-var x = (2 + 3) * 4;  // Had to use parentheses for wrong reason
-
-// NEW (v2.1.0)
-var x = 2 + 3 * 4;  // Now naturally gives 14, no workarounds needed
-
-// OLD: Avoided break/continue
-var shouldBreak = false;
-for (var i = 0; i < 10; i++) {
-  if (i == 5) {
-    shouldBreak = true;
-  }
-  if (shouldBreak) {
-    // ...
-  }
-}
-
-// NEW: Use break/continue normally
-for (var i = 0; i < 10; i++) {
-  if (i == 5) {
-    break;  // Works now!
-  }
-}
-```
-
----
-
 ## 🤝 Contributing
 
 We welcome contributions to MyLang2! Please see our contributing guidelines for more information.
@@ -1301,15 +1240,3 @@ We welcome contributions to MyLang2! Please see our contributing guidelines for 
 ## 📄 License
 
 MyLang2 is released under the MIT License. See LICENSE file for details.
-
-## 🔗 Links
-
-- [Documentation](https://mylang2.dev/docs)
-- [Examples Repository](https://github.com/mylang2/examples)
-- [Package Registry](https://mylang2.dev/packages)
-- [Community Forum](https://community.mylang2.dev)
-- [Changelog](PARSER_CHANGELOG.md)
-
----
-
-_MyLang2 v2.1.0 - Expressive, Reliable, Correct_
