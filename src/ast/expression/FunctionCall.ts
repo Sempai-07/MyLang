@@ -1,11 +1,8 @@
-import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
-import { FunctionDeclaration } from "../declaration/FunctionDeclaration";
+import { StmtType, type ITextOptions } from "../StmtType";
+import { type Position } from "../../lexer/token/Position";
 import { IdentifierLiteral } from "../types/IdentifierLiteral";
-import { FunctionExpression } from "../expression/FunctionExpression";
 import { Environment } from "../../Environment";
-import { BaseError } from "../../errors/BaseError";
-import { runtime } from "../../runtime/Runtime";
+import { FunctionCallError, FunctionCallCodeError } from "../../errors/runtime/FunctionCallError";
 
 class FunctionCall extends StmtType {
   public readonly name: string;
@@ -22,53 +19,57 @@ class FunctionCall extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
       const func = score.get(this.name);
 
-      if (
-        func instanceof FunctionDeclaration ||
-        func instanceof FunctionExpression
-      ) {
-        runtime.markFunctionCallPosition();
-
+      if (super.isNodeFunction(func)) {
         const combinedScore = score.combine(func.parentEnv);
+        const argument = [];
+        for (const arg of this.argument) {
+          const result = await arg.evaluate(combinedScore);
 
-        return func.call(
-          this.argument.map((arg) => {
-            const result = arg.evaluate(combinedScore);
-            if (arg instanceof IdentifierLiteral) {
-              const variableOpts = combinedScore.optionsVar[arg.value];
-              return {
-                ...(variableOpts && { options: variableOpts }),
-                value: result,
-              };
-            }
-            return { value: result };
-          }),
-        );
-      }
+          if (arg instanceof IdentifierLiteral) {
+            const variableOpts = combinedScore.optionsVar[arg.value];
 
-      if (typeof func === "function") {
-        return func(
-          this.argument.map((arg) => arg.evaluate(score)),
-          score,
-        );
-      }
-
-      return null;
-    } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `${this.name} (${file}:${this.position.line}:${this.position.column})`;
+            argument.push({
+              ...(variableOpts && { options: variableOpts }),
+              value: result,
+            });
+          } else {
+            argument.push({ value: result });
           }
-          return file;
-        });
+        }
+
+        return func.call(argument);
       }
-      throw err;
+
+      if (super.isBuildModuleFunction(func)) {
+        const argument = [];
+        for (const arg of this.argument) {
+          argument.push(await arg.evaluate(score));
+        }
+
+        return new func(argument, this.argument, score).call();
+      }
+
+      if (super.isStructData(func)) {
+        const argument = [];
+        for (const arg of this.argument) {
+          argument.push(await arg.evaluate(score));
+        }
+
+        return func.call(argument);
+      }
+
+      throw new FunctionCallError(FunctionCallCodeError.FunctionCallUnknown, {
+        name: this.name,
+        files: score.get("import").paths,
+      });
+    } catch (err) {
+      throw super.throwErrorFormatters(err, score, ({ file, position }: ITextOptions) => {
+        return `${this.name} (${file}:${position.line}:${position.column})`;
+      });
     }
   }
 }

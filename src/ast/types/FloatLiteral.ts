@@ -1,5 +1,5 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 
 class FloatLiteral extends StmtType {
   public readonly value: string;
@@ -14,7 +14,7 @@ class FloatLiteral extends StmtType {
   }
 
   evaluate() {
-    return parseFloat(this.value);
+    return parseFloat(this.value.replace(/_/g, ""));
   }
 }
 

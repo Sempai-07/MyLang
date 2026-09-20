@@ -1,5 +1,5 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 
 class DeferDeclaration extends StmtType {
@@ -14,8 +14,12 @@ class DeferDeclaration extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
-    return this.value.evaluate(score);
+  async evaluate(score: Environment) {
+    try {
+      await this.value.evaluate(score);
+    } catch (err) {
+      throw super.throwErrorFormatters(err, score);
+    }
   }
 }
 

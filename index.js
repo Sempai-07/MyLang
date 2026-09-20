@@ -1,25 +1,17 @@
-const fs = require("node:fs");
-const path = require("node:path");
+const fs = require("fs");
+const path = require("path");
 const { run } = require("./dist/src/utils/utils");
 
-const { base } = path.parse(process.cwd());
+const mainFileDir = path.join(__dirname, "test");
+const mainFilePath = path.join(__dirname, "test", "index.ml");
+const mainFileContent = fs.readFileSync(mainFilePath, "utf-8");
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-});
-
-try {
-  fs.readdirSync("./examples/").forEach((value) => {
-    if (!value.endsWith(".ml")) return;
-
-    run(
-      fs.readFileSync(path.join(process.cwd(), "/examples/", value)).toString(),
-      {
-        base: process.cwd(),
-        main: path.join(process.cwd(), "/examples/", value),
-      },
-    );
+(async () => {
+  await run(mainFileContent, {
+    main: mainFilePath,
+    base: mainFileDir,
+    onSuccess: (output) => {
+      console.log("\nSuccessfully executed the main file. Output:", output);
+    },
   });
-} catch (err) {
-  console.log(err);
-}
+})();

@@ -1,4 +1,4 @@
-export { Token } from "./Token";
 export { Lexer } from "./Lexer";
-export { Position } from "./Position";
-export { TokenType } from "./TokenType";
+export { Token } from "./token/Token";
+export { Position } from "./token/Position";
+export { TokenType } from "./token/TokenType";

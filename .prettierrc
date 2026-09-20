@@ -1,9 +1,24 @@
 {
+  "printWidth": 100,
   "tabWidth": 2,
+  "useTabs": false,
   "semi": true,
   "singleQuote": false,
-  "quoteProps": "consistent",
+  "quoteProps": "as-needed",
   "trailingComma": "all",
   "bracketSpacing": true,
-  "arrowParens": "always"
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "embeddedLanguageFormatting": "auto",
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css",
+  "overrides": [
+    {
+      "files": "*.ts",
+      "options": {
+        "parser": "typescript"
+      }
+    }
+  ]
 }

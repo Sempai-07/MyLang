@@ -1,8 +1,10 @@
 import { BaseError } from "../errors/BaseError";
-import { SyntaxError } from "../errors/SyntaxError";
-import { Lexer, Parser, Interpreter } from "../index";
+import { SyntaxError } from "../errors/lexer/SyntaxError";
+import { Lexer } from "../lexer/Lexer";
+import { Parser } from "../ast/Parser";
+import { Interpreter } from "../Interpreter";
 
-function run(
+async function run(
   code: string,
   options: {
     main: string;
@@ -10,8 +12,9 @@ function run(
     paths?: string[];
     cache?: Record<string, any>;
     options?: Record<string, any>;
+    onSuccess?: (result: any) => void;
   },
-): { result: any; interpreter: Interpreter } {
+): Promise<{ result: any; interpreter: Interpreter }> {
   const token = new Lexer(code).analyze();
 
   if (token.errors.length > 0) {
@@ -27,10 +30,14 @@ function run(
     const interpreter = new Interpreter(parse, [], {
       base: options.base,
       main: options.main,
-      options: options || {},
+      options: { ...(options || {}) },
     });
 
-    const result = interpreter.run();
+    const result = await interpreter.run();
+
+    if (options.onSuccess) {
+      options.onSuccess(result);
+    }
 
     return { result, interpreter };
   } catch (err) {

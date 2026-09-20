@@ -1,7 +1,6 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { type Environment } from "../../Environment";
-import { BaseError } from "../../errors/BaseError";
 
 class ArrayExpression extends StmtType {
   public readonly elements: StmtType[];
@@ -15,26 +14,20 @@ class ArrayExpression extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
-    try {
-      const result = [];
-      for (let element of this.elements) {
-        result.push(element.evaluate(score));
+  async evaluate(score: Environment) {
+    let index = 0;
+    const result = [];
+
+    for (const element of this.elements) {
+      try {
+        result.push(await element.evaluate(score));
+      } catch (err) {
+        throw super.throwErrorFormatters(err, score, { index });
       }
-      return result;
-    } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `Array(${file}:${this.position.line}:${this.position.column})`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      index++;
     }
+
+    return result;
   }
 }
 

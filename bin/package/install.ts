@@ -37,10 +37,9 @@ function installPackage(name?: string) {
     const modulePath = path.join(".module", owner, packageName);
 
     if (!fs.existsSync(modulePath)) {
-      execSync(
-        `git clone --quiet https://github.com/${owner}/${packageName} ${modulePath}`,
-        { stdio: "ignore" },
-      );
+      execSync(`git clone --quiet https://github.com/${owner}/${packageName} ${modulePath}`, {
+        stdio: "ignore",
+      });
     }
 
     if (isDev) {

@@ -1,8 +1,7 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 import { DeferDeclaration } from "../declaration/DeferDeclaration";
-import { PromiseCustom } from "../../native/lib/promises/symbol";
 import { runtime } from "../../runtime/Runtime";
 
 class BlockStatement extends StmtType {
@@ -17,8 +16,8 @@ class BlockStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
-    const deferenceCall: Array<[Environment, DeferDeclaration]> = [];
+  async evaluate(score: Environment) {
+    const deferenceCall: Array<[Environment, DeferDeclaration] | [Environment, Function]> = [];
 
     try {
       for (let i = 0; i < this.body.length; i++) {
@@ -33,49 +32,40 @@ class BlockStatement extends StmtType {
             deferenceCall.push([score, blockStatement]);
             continue;
           }
+
           deferenceCall.push([score.clone(), blockStatement]);
         } else {
           runtime.callStack.add(score, blockStatement);
 
           if (!runtime.isContinue) {
-            runtime.resume();
+            await runtime.resume();
+            if (score.deferenceCall.length) {
+              for (const [env, deferredCall] of score.deferenceCall) {
+                deferenceCall.push([env, deferredCall]);
+              }
+              score.deferenceCall.length = 0;
+            }
           } else {
             runtime.resetContinue();
             continue;
           }
         }
       }
-    } catch (err) {
-      throw err;
     } finally {
       const _isBreak = runtime.isBreak;
       const _isReturn = runtime.isReturn;
       const _isContinue = runtime.isContinue;
-      const result = runtime.getLastFunctionExecutionResult();
-
-      for (const task of runtime.taskQueue) {
-        // @ts-expect-error
-        runtime._isBreak = false;
-        // @ts-expect-error
-        runtime._isReturn = false;
-        // @ts-expect-error
-        runtime._isContinue = false;
-
-        if (!task[PromiseCustom].isAlertRunning()) {
-          task[PromiseCustom].start();
-        }
-      }
+      const result = runtime.getLastExecutionResult();
 
       if (deferenceCall.length) {
-        for (const [score, defer] of deferenceCall) {
-          // @ts-expect-error
-          runtime._isBreak = false;
-          // @ts-expect-error
-          runtime._isReturn = false;
-          // @ts-expect-error
-          runtime._isContinue = false;
+        for (const [score, deferredCall] of deferenceCall) {
+          runtime.resetAll();
 
-          defer.evaluate(score);
+          if (deferredCall instanceof DeferDeclaration) {
+            await deferredCall.evaluate(score);
+          } else {
+            await deferredCall(score);
+          }
         }
       }
 
@@ -86,7 +76,7 @@ class BlockStatement extends StmtType {
       // @ts-expect-error
       runtime._isContinue = _isContinue;
       // @ts-expect-error
-      runtime._lastFunctionExecutionResult = result;
+      runtime._lastExecutionResult = result;
     }
   }
 }

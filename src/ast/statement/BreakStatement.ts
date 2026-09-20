@@ -1,5 +1,5 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 
 class BreakStatement extends StmtType {
   public readonly position: Position;

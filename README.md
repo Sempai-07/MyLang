@@ -1,515 +1,1309 @@
-# MyLang
+# 👻 MyLang2 Programming Language
 
-Welcome to **MyLang**, a modern programming language designed for flexibility, simplicity, and power. This documentation provides an extensive set of examples and explanations for all key features of MyLang to help you master its capabilities.
-
----
-
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Getting Started](#getting-started)
-3. [Core Features](#core-features)
-   - [Functions](#functions)
-   - [Variables](#variables)
-   - [Objects](#objects)
-   - [Control Structures](#control-structures)
-   - [Error Handling](#error-handling)
-4. [Import System](#import-system)
-5. [Operators](#operators)
-6. [Examples](#examples)
-7. [CLI Commands](#cli-commands)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.1.0-green.svg)]()
+[![Build](https://img.shields.io/badge/build-stable-success.svg)]()
 
 ---
 
-## Introduction
+## 🔓 Overview
 
-**MyLang** is a dynamically typed, versatile programming language built to be developer-friendly and performant. It supports advanced constructs like pipeline operations, modular imports, flexible functions, and much more.
+**MyLang2** is a powerful, expressive programming language that harmoniously combines simplicity with advanced features. Designed for modern development needs, it offers a rich ecosystem of built-in libraries, flexible syntax patterns, and contemporary programming constructs that enable developers to build robust applications efficiently.
 
----
-
-## Getting Started
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/Sempai-07/mylang.git
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Link the CLI tool:
-   ```bash
-   npm link
-   ```
-
-### Running a File
-
-Execute a MyLang file using the CLI:
-
-```bash
-mylang <your-file.ml>
-```
+> ✨ **New in v2.1.0**: Complete parser rewrite with industry-standard Pratt algorithm! All operator precedence issues have been fixed, ternary operators now work correctly, and mathematical expressions evaluate as expected.
 
 ---
 
 ## Core Features
 
-### Functions
+### **Rich Standard Library**
 
-#### Basic Function
+Comprehensive built-in modules covering common development tasks from I/O operations to network communications.
 
-```mylang
-func add(a, b) {
-  return a + b;
-}
+### **Flexible Variable System**
 
-coreio.print("Sum:", add(5, 10)); // Sum: 15
-```
+Advanced support for constants, readonly variables, and optional chaining with intelligent error prevention.
 
-#### Function with Default Parameters
+### **Advanced Control Flow**
 
-```mylang
-func greet(name = "Guest") {
-  return "Hello, " + name;
-}
+Sophisticated pattern matching capabilities, iterator support, and comprehensive loop constructs for complex logic handling.
 
-coreio.print(greet());           // Hello, Guest
-coreio.print(greet("Alice"));    // Hello, Alice
-```
+### **Modern Functions**
 
-#### Using `arguments`
+Contemporary function features including rest parameters, default arguments, and multiple return values for enhanced code expressiveness.
 
-```mylang
-import "arrays";
+### **Object-Oriented Features**
 
-func concatStrings() {
-  return arraya.join(arguments, " ");
-}
+Well-designed structs with constructors, enums with methods, and proper encapsulation mechanisms for clean architecture.
 
-coreio.print(concatStrings("My", "Lang", "is", "awesome")); // My Lang is awesome
-```
+### **Module System**
 
----
+Flexible import/export capabilities with intelligent caching and remote loading support for scalable applications.
 
-### Variables
+### **Error Handling**
 
-#### Declaring Variables
+Comprehensive try-catch-finally blocks with detailed error information and graceful failure management.
 
-```mylang
-var x = 10;
-var y;
+### **Concurrency with spawn/wait**
 
-coreio.print(x, y); // 10, nil
-```
+Clean asynchronous function execution with intuitive syntax for concurrent operations.
 
-#### Modifying Variables
+### **Memory Management**
 
-```mylang
-var counter = 0;
+Defer statements for automatic cleanup operations and resource management.
 
-counter += 1;
-counter--;
+### **Correct Operator Precedence**
 
-coreio.print(counter); // 0
-```
+Mathematical and logical expressions now evaluate correctly following standard precedence rules thanks to Pratt parsing algorithm.
 
 ---
 
-#### Constant Variables (`as const`)
+## Built-in Libraries
 
-Using `as const`, you can declare variables or objects that cannot be reassigned. This ensures immutability for the variable itself but allows modification of its inner elements if it's an array or object.
+MyLang2 provides an extensive standard library ecosystem designed to handle diverse development scenarios:
 
-```mylang
-var constant = 10 as const;
-
-// constant = 5; // Error: Cannot reassign a constant variable
-
-var arr = [] as const; // Declaring an immutable array
-arr[0] = 100; // Allowed: Modifying elements of the array
-
-// arr = {}; // Error: Cannot reassign the array
-```
-
-#### Readonly Variables (`as readonly`)
-
-Using `as readonly`, you can declare variables where neither the variable itself nor its elements can be modified.
-
-```mylang
-var arr1 = [1, 2, 3] as readonly; // Declaring a fully immutable array
-
-// arr1 = {};      // Error: Cannot reassign a readonly variable
-// arr1[0] = 0;    // Error: Cannot modify elements of a readonly array
-```
-
-This behavior also works for objects:
-
-```mylang
-var obj = { a: 1, b: 2 } as readonly;
-
-// obj.a = 10;  // Error: Cannot modify properties of a readonly object
-// obj = {};    // Error: Cannot reassign a readonly object
-```
-
-#### Using `as const` and `as readonly`
-
-```mylang
-var config = {
-  appName: "MyLang",
-  version: "1.0.0"
-} as const;
-
-config.appName = "NewName"; // Allowed: Modifying propertie of the object
-
-var data = [10, 20, 30] as readonly;
-
-// data[0] = 100; // Error: Cannot modify elements of a readonly array
-```
+| **Library**      | **Purpose**                  | **Key Features**                               |
+| ---------------- | ---------------------------- | ---------------------------------------------- |
+| `coreio`         | Core input/output operations | Print, read, write operations                  |
+| `syncbox`        | Synchronization primitives   | Channels, mutexes, wait groups                 |
+| `strings`        | String manipulation          | Split, join, trim, search functions            |
+| `arrays`         | Array processing             | Map, filter, reduce operations                 |
+| `objects`        | Object processing            | Filter, find, groupBy operations               |
+| `random`         | Random number generation     | Secure random, distributions                   |
+| `path`           | File system path operations  | Join, resolve, normalize paths                 |
+| `os`             | Operating system interface   | Environment, process management                |
+| `os/system`      | Operating system interface   | Environment, processe system (nodejs, mylang2) |
+| `uuid`           | UUID generation utilities    | V4, V1, custom UUID generation                 |
+| `iter`           | Iterator patterns            | Custom iterators, lazy evaluation              |
+| `collections`    | Data structures              | Set, Map, advanced collections                 |
+| `net/http`       | HTTP functionality           | Client, server, middleware                     |
+| `net/url`        | URL parsing                  | Parse, build, manipulate URLs                  |
+| `utils/colors`   | Color utilities              | Terminal colors, formatting                    |
+| `bytes`          | Binary data manipulation     | Buffer operations, encoding                    |
+| `fs`             | File system operations       | Read, write, directory management              |
+| `fs/stream`      | File streaming               | Efficient large file handling                  |
+| `events`         | Event handling               | Event emitters, listeners                      |
+| `runtime`        | Runtime introspection        | Reflection, system information                 |
+| `time`           | Time and date operations     | Formatting, parsing, calculations              |
+| `numbers`        | Numeric operations           | Math functions, conversions                    |
+| `numbers/bigint` | Big integer arithmetic       | Large number calculations                      |
 
 ---
 
-### Objects
+## Installation & Quick Start
 
-#### Object Declaration
+### **Basic Usage**
 
-```mylang
-var person = {
+Create your first MyLang2 program by saving the following code in a file with the `.ml` extension:
+
+```mylang2
+import "coreio";
+
+coreio.print("Hello, MyLang2!");
+```
+
+This simple example demonstrates the clean import syntax and straightforward function calling convention that characterizes MyLang2.
+
+---
+
+## Language Syntax Guide
+
+### **Interpolated Strings (`$"..."`)**
+
+Interpolated strings let you embed expressions directly inside strings using `${...}`.
+Each expression is evaluated at runtime and replaced with its result.
+
+```mylang2
+import "coreio";
+
+var name = "World";
+
+var user = {
+  greet: func greet(id) {
+    coreio.print("User ID:", id);
+    return "Guest";
+  }
+}
+
+coreio.print($"Hello, {name}! Your status: {user.greet(42)}. Sum: {1 + 2}");
+```
+
+**Output:**
+
+```
+User ID: 42
+Hello, World! Your status: Guest. Sum: 3
+```
+
+### **Variables and Constants**
+
+MyLang2 provides sophisticated variable declaration and management capabilities:
+
+```mylang2
+import "coreio";
+
+// Basic variable declarations with automatic type inference
+var username;
+var userAge = nil;
+
+coreio.print(username, userAge); // Output: nil, nil
+
+// Assignment operations with various operators
+username = "Alice";
+userAge = 25;
+
+// Compound assignment operators for efficient updates
+userAge -= 5;   // Now 20
+userAge += 10;  // Now 30
+userAge /= 10;  // Now 3
+userAge *= 10;  // Now 30
+userAge **= 2;  // Now 900
+userAge %= 8;   // Now 4
+userAge++;      // Now 5
+
+// Bitwise operations for advanced manipulation
+var a = 6;
+a |= 3;      // Now 7
+
+var b = 6;
+b &= 3;      // Now 2
+
+var c = 6;
+c ^= 3;      // Now 5
+
+// Bit shifting operations
+var n = 3;
+n <<= 2;      // Now 12
+
+var m = -16;
+m >>= 2;      // Now -4
+
+var l = -16;
+l >>>= 2;     // Now 1073741820
+
+// Constant declarations for immutable values
+var maxConnections = 100 as const;
+// maxConnections = 200; // Error: Assignment to constant variable
+
+// Readonly collections allow content modification but prevent reassignment
+var shoppingCart = [] as const;
+shoppingCart[0] = "laptop"; // Permitted - modifying contents
+// shoppingCart = ["phone"]; // Error: Cannot reassign constant variable
+
+var priceList = [99, 199, 299] as readonly;
+// priceList[0] = 50; // Error: Cannot modify readonly array
+
+// Multi-variable declarations for efficient initialization
+var (
+  firstName,
+  lastName = "Doe",
+  birthYear = 1990 as readonly,
+  userId = firstName as const
+);
+
+// Lazy operator variable
+
+// The file is not loaded immediately.
+// It will only be loaded when `photo` is actually used.
+var photo = import("photo.png") as lazy;
+
+// Ask the user what they want to do.
+var input = +coreio.input("Photo or text? 1/2");
+
+if (input == 1) {
+  // `photo` is used here, so the lazy import is evaluated.
+  fs.writeFile("newFile", photo);
+} else {
+  // `photo` is never used, so "photo.png" is never loaded.
+  coreio.print("Hello World");
+}
+```
+
+### **Optional Chaining**
+
+Optional chaining provides safe property access without runtime errors:
+
+```mylang2
+var userProfile = {
   name: "John",
-  age: 30,
-  greet: func() {
-    return "Hi, I'm " + this.name;
+  settings: {
+    theme: "dark"
   }
 };
 
-coreio.print(person.greet()); // Hi, I'm John
+// Safe property access prevents errors when properties don't exist
+var profilePicture = userProfile?.avatar?.url; // Returns nil safely
+var currentTheme = userProfile?.settings?.theme; // Returns "dark"
 ```
 
-#### Nested Objects
+### **Data Types and Operations**
 
-```mylang
-var nested = {
-  outer: {
-    inner: {
-      value: 42
+MyLang2 supports comprehensive data manipulation with intuitive operators and **correct precedence**:
+
+```mylang2
+import "coreio";
+
+// Arithmetic operations with CORRECT precedence (v2.1.0+)
+coreio.print(2 + 3 * 4);        // 14 (not 20!) - multiplication first
+coreio.print(10 - 2 * 3);       // 4 (not 24!) - multiplication first
+coreio.print(1 + 2 * 3 ** 2);   // 19 - exponentiation, then multiplication, then addition
+
+// Arithmetic and comparison operations
+var price = 50;
+var discount = 10;
+
+coreio.print(
+  "Calculator demonstration:",
+  price + discount,     // 60 (addition)
+  price - discount,     // 40 (subtraction)
+  price * 2,           // 100 (multiplication)
+  price / 2,           // 25 (division)
+  price % 7,           // 1 (modulo)
+  price == 50,         // true (equality)
+  price != discount,   // true (inequality)
+  { userId: 123 } == { userId: 123 }, // true (deep comparison)
+  price > discount,    // true (greater than)
+  price < 100,         // true (less than)
+  price >= 50,         // true (greater than or equal)
+  price <= 60,         // true (less than or equal)
+  6 ^ 3,               // 5 (bitwise XOR)
+  3 << 2,              // 12 (left bit shift)
+  -16 >> 2,            // -4 (right bit shift)
+  -16 >>> 2,           // 1073741820 (unsigned right shift)
+  5 & 3,               // 1 (bitwise AND)
+  true && "hello",     // "hello" (logical AND)
+  5 | 3,               // 7 (bitwise OR)
+  false || "default"   // "default" (logical OR)
+);
+
+// Unary operators for type conversion and negation
+coreio.print(
+  "Type conversion examples:",
+  !true,        // false (logical NOT)
+  !false,       // true (logical NOT)
+  +"123",       // 123 (string to number conversion)
+  -"456"        // -456 (string to negative number conversion)
+);
+
+// Reflector operator (typeof)
+import "numbers";
+
+enum TypeOfStatus {}
+
+struct TypeOfAction {}
+
+function typeOfFunc() {}
+
+var typeOfErr = nil;
+
+try {
+  throw "Error";
+} catch(err) {
+  typeOfErr = err;
+}
+
+coreio.print(
+  typeof TypeOfStatus, // enum
+  typeof TypeOfAction, // struct,
+  typeof struct Action {}, // struct
+  typeof typeOfFunc, // func
+  typeof func() {}, // func
+  typeof true, // boolean
+  typeof nil, // nil
+  typeof {}, // object
+  typeof [], // array
+  typeof 124, // int
+  typeof 123.0, // float
+  typeof 123n, // bigint
+  typeof "string", // string
+  typeof typeOfErr // error
+);
+```
+
+### **Operator Precedence Guide**
+
+MyLang2 follows standard mathematical operator precedence (v2.1.0+):
+
+```mylang2
+// Precedence from highest to lowest:
+// 1. Exponentiation (**)
+// 2. Multiplication (*), Division (/), Modulo (%)
+// 3. Addition (+), Subtraction (-)
+// 4. Bitwise shifts (<<, >>, >>>)
+// 5. Comparison (<, >, <=, >=)
+// 6. Equality (==, !=)
+// 7. Bitwise AND (&)
+// 8. Bitwise XOR (^)
+// 9. Bitwise OR (|)
+// 10. Logical AND (&&)
+// 11. Logical OR (||)
+// 12. Ternary (?:)
+// 13. Assignment (=, +=, -=, etc.)
+
+// Examples:
+var a = 2 + 3 * 4;           // 14 (multiplication first)
+var b = 10 - 2 * 3;          // 4 (multiplication first)
+var c = 2 ** 3 + 1;          // 9 (exponentiation first)
+var d = (5 + 3) * 2 - 4 / 2; // 14 (parentheses override precedence)
+```
+
+### **Arrays and Objects**
+
+Collections with intuitive syntax and powerful manipulation capabilities:
+
+```mylang2
+import "coreio";
+
+// Arrays with proper expression parsing (v2.1.0+)
+var numbers = [1 + 1, 2 * 2, 3 ** 2]; // [2, 4, 9] - expressions work correctly!
+var mixed = ["text", 42, true, nil, [1, 2, 3]];
+
+// Array access and modification
+coreio.print(numbers[0]);    // 2
+numbers[1] = 100;
+
+// Array destructuring
+var [first, second, ...rest] = numbers;
+
+// Objects with method shorthand
+var calculator = {
+  value: 0,
+  add: func(n) {
+    this.value += n;
+    return this;
+  },
+  multiply: func(n) {
+    this.value *= n;
+    return this;
+  },
+  // Property shorthand
+  result() {
+    return this.value;
+  }
+};
+
+// Method chaining
+calculator.add(5).multiply(2); // value = 10
+
+// Object destructuring
+var { value, add } = calculator;
+
+// Computed property names
+var key = "dynamicKey";
+var obj = {
+  [key]: "value",
+  [1 + 2]: "computed"
+};
+```
+
+### **Control Flow**
+
+#### **Conditional Statements**
+
+```mylang2
+import "coreio";
+
+var score = 85;
+
+// If-else with proper expression parsing (v2.1.0+)
+if (score >= 90 && score <= 100) {
+  coreio.print("Grade: A");
+} else if (score >= 80 && score < 90) {
+  coreio.print("Grade: B");
+} else if (score >= 70) {
+  coreio.print("Grade: C");
+} else {
+  coreio.print("Grade: F");
+}
+
+// Ternary operator - NOW WORKS CORRECTLY! (v2.1.0+)
+var grade = score >= 90 ? "A" : score >= 80 ? "B" : "C";
+
+// Complex ternary expressions
+var y = 5;
+var x = 10;
+var b = 3;
+var result = y > 2 ? x * 2 : 4 + b; // 20 - full expressions work!
+
+// Ternary in arrays
+var arr = [1, 2, x > 5 ? 100 : 200]; // [1, 2, 100] - correct evaluation!
+```
+
+#### **Match Statement (Pattern Matching)**
+
+```mylang2
+import "coreio";
+
+var value = 42;
+
+match (value * 2) { // Expressions work correctly in match (v2.1.0+)
+  case 42: {
+    coreio.print("The answer");
+  }
+  case 84: {
+    coreio.print("Double the answer");
+  }
+  default: {
+    coreio.print("Something else");
+  }
+}
+
+// Match with complex patterns
+match (user.role) {
+  case "admin": {
+    grantFullAccess();
+  }
+  case "moderator": {
+    grantModeratorAccess();
+  }
+  case "user": {
+    grantUserAccess();
+  }
+  default: {
+    denyAccess();
+  }
+}
+
+var object = {
+  admin: true,
+  moderator: true,
+  user: true,
+}
+
+// Match wint object value
+match (object) {
+ case (.admin): {
+    grantFullAccess();
+  }
+  case (.moderator): {
+    grantModeratorAccess();
+  }
+  case (.user): {
+    grantUserAccess();
+  }
+  default: {
+    denyAccess();
+  }
+}
+```
+
+#### **Loops**
+
+```mylang2
+import "coreio";
+
+// For loop with break/continue - NOW WORKS! (v2.1.0+)
+for (var i = 0; i < 10; i++) {
+  if (i == 5) {
+    break; // No longer causes infinite loop!
+  }
+  if (i % 2 == 0) {
+    continue; // Works correctly!
+  }
+  coreio.print(i);
+}
+
+// While loop
+var counter = 0;
+while (counter < 5) {
+  coreio.print(counter);
+  counter++;
+}
+
+// For-in loop (iteration)
+var items = [10, 20, 30];
+for (var item in items) {
+  coreio.print(item);
+}
+
+// For-in with objects
+var person = { name: "Alice", age: 30 };
+for (var key in person) {
+  coreio.print(key, person[key]);
+}
+```
+
+### **Functions**
+
+MyLang2 offers flexible function definitions with modern features:
+
+```mylang2
+import "coreio";
+
+// Basic function declaration
+func greet(name) {
+  return $"Hello, {name}!";
+}
+
+// Function with default parameters
+func createUser(name, age = 18, role = "user") {
+  return { name: name, age: age, role: role };
+}
+
+// Function with rest parameters
+func sum(...numbers) {
+  var total = 0;
+  for (var num in numbers) {
+    total += num;
+  }
+  return total;
+}
+
+coreio.print(sum(1, 2, 3, 4, 5)); // 15
+
+// Multiple return values
+func getUserInfo() {
+  return ("Alice", 30, "admin");
+}
+
+var (username, age, role) = getUserInfo();
+
+// Higher-order functions
+func applyOperation(a, b, operation) {
+  return operation(a, b);
+}
+
+var result = applyOperation(10, 5, func(x, y) {
+  return x + y;
+});
+
+// Arrow-like anonymous functions
+var multiply = func(a, b) {
+  return a * b;
+};
+
+// Return with full expressions (v2.1.0+)
+func calculate(x, y) {
+  return x * 2 + y * 3; // Full expression returned correctly!
+}
+```
+
+### **Structs (Classes)**
+
+Structs provide object-oriented programming capabilities with optional constructors:
+
+```mylang2
+import "coreio";
+
+// Struct with constructor
+struct User {
+  var name;
+  var email;
+  var age;
+
+  // Constructor (optional but recommended)
+  func init(name, email, age = 18) {
+    this.name = name;
+    this.email = email;
+    this.age = age;
+  }
+
+  // Method
+  func greet() {
+    return $"Hello, I'm {this.name}!";
+  }
+
+  // Method with logic
+  func isAdult() {
+    return this.age >= 18;
+  }
+}
+
+// Creating instance with constructor
+var user1 = User("Alice", "alice@example.com", 25);
+coreio.print(user1.greet()); // "Hello, I'm Alice!"
+coreio.print(user1.isAdult()); // true
+
+// Struct without constructor (direct field assignment)
+struct Point {
+  var x;
+  var y;
+
+  func distance() {
+    return (this.x ** 2 + this.y ** 2) ** 0.5;
+  }
+}
+
+var point = Point();
+point.x = 3;
+point.y = 4;
+coreio.print(point.distance()); // 5
+
+// Struct with complex initialization
+struct BankAccount {
+  var accountNumber;
+  var balance;
+  var owner;
+
+  func init(owner, initialDeposit = 0) {
+    this.accountNumber = generateAccountNumber();
+    this.balance = initialDeposit;
+    this.owner = owner;
+  }
+
+  func deposit(amount) {
+    if (amount > 0) {
+      this.balance += amount;
+      return true;
+    }
+    return false;
+  }
+
+  func withdraw(amount) {
+    if (amount > 0 && amount <= this.balance) {
+      this.balance -= amount;
+      return true;
+    }
+    return false;
+  }
+
+  func getBalance() {
+    return this.balance;
+  }
+}
+
+var account = BankAccount("John Doe", 1000);
+account.deposit(500);
+account.withdraw(200);
+coreio.print(account.getBalance()); // 1300
+```
+
+### **Enums**
+
+Enumerations with associated methods and values:
+
+```mylang2
+import "coreio";
+
+// Basic enum
+enum Status {
+  Pending,
+  Active,
+  Completed,
+  Failed
+}
+
+var currentStatus = Status.Active;
+
+// Enum with custom values
+enum HttpStatus {
+  Ok = 200,
+  Created = 201,
+  BadRequest = 400,
+  Unauthorized = 401,
+  NotFound = 404,
+  ServerError = 500
+}
+
+// Enum with methods
+enum Color {
+  Red,
+  Green,
+  Blue,
+
+  func toHex() {
+    match (this) {
+      case Color.Red: return "#FF0000";
+      case Color.Green: return "#00FF00";
+      case Color.Blue: return "#0000FF";
     }
   }
-};
+}
 
-coreio.print(nested.outer.inner.value); // 42
-```
+var favoriteColor = Color.Blue;
+coreio.print(favoriteColor.toHex()); // "#0000FF"
 
----
-
-### Control Structures
-
-#### If-Else
-
-```mylang
-var x = 10;
-
-if (x > 5) {
-  coreio.print("x is greater than 5");
-} else {
-  coreio.print("x is less than or equal to 5");
+// Enum in match statement
+match (currentStatus) {
+  case Status.Pending: {
+    coreio.print("Waiting...");
+  }
+  case Status.Active: {
+    coreio.print("In progress");
+  }
+  case Status.Completed: {
+    coreio.print("Done!");
+  }
+  case Status.Failed: {
+    coreio.print("Error occurred");
+  }
 }
 ```
 
-#### While Loop
+### **Error Handling**
 
-```mylang
-var count = 5;
+Comprehensive try-catch-finally blocks with detailed error information:
 
-while (count > 0) {
-  coreio.print("Countdown:", count);
-  count--;
-}
-```
+```mylang2
+import "coreio";
+import "strings";
+import "fs";
 
-#### For Loop
-
-```mylang
-for (var i = 0; i < 3; i++) {
-  coreio.print("Iteration:", i);
-}
-```
-
-#### For in
-
-```mylang
-var obj = {
-  key1: 1,
-  key2: 2,
-  key3: 3,
+// Basic error handling
+func readConfig(filename) {
+  try {
+    var content = fs.readFile(filename, "utf8");
+    return content;
+  } catch(error) {
+    coreio.print("Error reading file:", error);
+    return nil;
+  } finally {
+    coreio.print("File operation completed");
+  }
 }
 
-for (var k in obj) {
-  coreio.print(k, obj[k]); // key1 - 1, key2 - 2, key3 - 3
+// Error expression
+var readConfig = try fs.readFile("path", "utf8") else {
+  coreio.print("Error reading file:", this.error);
+  return nil;
 }
 
-var arr = [10, 20, 30];
-
-for (var i in arr) {
-  coreio.print(i); // 10, 20, 30
+var readConfig = try fs.readFile("path", "utf8") catch(error) {
+  coreio.print("Error reading file:", error);
+  return nil;
 }
 
-var hash = ds.Hash();
+// finally not used
 
-hash.set("key1", 600);
-hash.set("key2", 6000);
-hash.set("key3", 60000);
 
-for (var key in hash) {
-  coreio.print(key); // key1, key2, key3
+// Throwing errors
+func validateAge(age) {
+  if (age < 0) {
+    throw "Age cannot be negative" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { age },
+    };
+  }
+  if (age > 150) {
+    throw "Age seems unrealistic" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { age },
+    }
+  }
+  return true;
 }
-```
 
----
+struct ValidatedError {
+  var code = 409;
+  var cause = { "name": "unknown error" };
+  var name = "ValidatedError",
+}
 
-### Error Handling
+func validateName(name) {
+  if (typeof(name) !== "string") {
+    throw "Name must be a string" as ValidatedError(400, { name });
+  }
 
-#### Try-Catch
+  if (!strings.trim(name)) {
+    throw "Name cannot be empty" as ValidatedError;
+  }
 
-```mylang
+  if (length(name) > 64) {
+    throw "Name is too long" as {
+      name: "ValidatedError",
+      code: 409,
+      cause: { name },
+    };
+  }
+
+  return true;
+}
+
+// Nested error handling
+func processData(data) {
+  try {
+    try {
+      validateAge(data.age);
+    } catch(validationError) {
+      coreio.print("Validation failed:", validationError);
+      throw "Data processing aborted";
+    }
+  } catch(error) {
+    coreio.print("Processing error:", error);
+    return nil;
+  }
+}
+
+// Error with full expressions (v2.1.0+)
 try {
-  var result = import("nonexistent");
-} catch (err) {
-  coreio.print("Error:", err);
+  var result = riskyOperation();
+  throw "Failed with value: " + result * 2; // Full expression works!
+} catch(err) {
+  coreio.print(err);
 }
 ```
 
-#### Finally
+### **Concurrency**
 
-```mylang
-try {
-  coreio.print("Try block");
-} finally {
-  coreio.print("Finally block");
+Asynchronous programming with spawn and wait:
+
+```mylang2
+import "coreio";
+import "time";
+
+// Spawn asynchronous task
+func fetchData(url) {
+  return spawn {
+    time.sleep(1000); // Simulate delay
+    return $"Data from {url}";
+  };
 }
+
+// Wait for result
+var promise = fetchData("https://api.example.com");
+var data = wait promise;
+coreio.print(data);
+
+// Multiple concurrent operations
+func parallelFetch() {
+  var promise1 = spawn { return "Task 1 completed"; };
+  var promise2 = spawn { return "Task 2 completed"; };
+  var promise3 = spawn { return "Task 3 completed"; };
+
+  var result1 = wait promise1;
+  var result2 = wait promise2;
+  var result3 = wait promise3;
+
+  coreio.print(result1, result2, result3);
+}
+
+// Async function pattern
+func asyncCalculation() {
+  return spawn {
+    var result = 0;
+    for (var i = 0; i < 1000; i++) {
+      result += i;
+    }
+    return result;
+  };
+}
+
+var calculationPromise = asyncCalculation();
+coreio.print("Calculating...");
+var finalResult = wait calculationPromise;
+coreio.print("Result:", finalResult);
 ```
 
----
+### **Module System**
 
-## Import System
+#### **Importing Modules**
 
-MyLang supports importing modules from local files or URLs.
+```mylang2
+import "coreio";
 
-#### Local Import
+// Single import
+import "fs";
 
-```mylang
-import "./utils.ml";
+// Multiple imports
+import (
+  "strings",
+  "arrays",
+  "objects"
+);
+
+// Imports destructuring
+import "coreio" as { print, input };
+
+// Named imports with aliases
 import (
   utilName: "./utils.ml"
 );
 
-coreio.print(utils.add(5, 15), utilName.add); // 20, function
-```
-
-#### HTTP Import
-
-```mylang
-import("http://example.com/module.ml");
-```
-
-#### Import Details
-
-```mylang
-coreio.print(import.base); // Project root directory
-coreio.print(import.cache); // Cached modules
-coreio.print(import.resolve("module.ml")); // Resolve file path
-```
-
----
-
-## Operators
-
-### Arithmetic Operators
-
-```mylang
-coreio.print(5 + 3, 5 - 3, 5 * 3, 5 / 3, 5 % 3);
-// 8, 2, 15, 1.6666666666666667, 2
-```
-
-### Comparison Operators
-
-```mylang
-coreio.print(5 > 3, 5 == 3, 5 != 3);
-// true, false, true
-```
-
-### Logical Operators
-
-```mylang
-coreio.print(true && false, true || false, !true);
-// false, true, false
-```
-
----
-
-## Examples
-
-### Object with Methods
-
-```mylang
-var car = {
-  make: "Toyota",
-  model: "Corolla",
-  getDetails: func() {
-    return this.make + " " + this.model;
-  }
-};
-
-coreio.print(car.getDetails()); // Toyota Corolla
-```
-
-### Array Iteration
-
-```mylang
-var fruits = ["Apple", "Banana", "Orange"];
-
-for (var i = 0; i < fruits.length; i++) {
-  coreio.print(fruits[i]);
-}
-```
-
-#### Enum Methods
-
-```mylang
-coreio.print(Status.getByName("Offline")); // ["Offline", { value: 1, description: "Offline status user" }]
-coreio.print(Status.getByName("NonExistent")); // nil
-```
-
-#### Enum with Mixed Content
-
-```mylang
-enum Action {
-  SempaiJS = 7;
-  Angel = {};
-  Mz = func main() {};
-}
-
-// Action = "Invalid"; // Error: Enums are immutable
-coreio.print(Action.SempaiJS); // 7
-coreio.print(Action.Angel);    // {}
-```
-
-#### Auto-Incrementing Enums
-
-```mylang
-enum Number {
-  One = 1;
-  Two;    // 2
-  Three;  // 3
-}
-
-coreio.print(Number.One, Number.Two, Number.Three); // 1, 2, 3
-```
-
----
-
-### Pattern Matching (`match`)
-
-MyLang provides a powerful `match` expression for pattern matching, similar to a `switch` statement in other languages.
-
-```mylang
-func findInt(number) {
-  match(number) {
-    case (1): return "One";
-    case (2): return "Two";
-    case (3):
-    case (4):
-    case (5): return "3, 4 and 5";
-    default: return "unknown";
-  }
-}
-
-coreio.print(
-  findInt(1), // One
-  findInt(2), // Two
-  findInt(3), // 3, 4 and 5
-  findInt(6)  // unknown
+// Not working
+import (
+  "net/http" as { Server },
 );
+import (
+  utilName: "./utils.ml" as { Server }
+);
+import (
+  utilName: "./utils.ml",
+) as { Server }
+
+// Relative imports
+import "./utils/helpers.ml";
+import "../config.ml";
+
+// Remote import from URL
+import "https://example.com/library.ml";
+
+// Import metadata and utilities
+coreio.print(import.base);    // Main directory path
+coreio.print(import.main);    // Main file path
+coreio.print(import.cache);   // Import cache information
+coreio.print(import.paths);   // All imported paths
+
+// Import path resolution
+coreio.print(import.resolve("./file.ml"));
+
+// Import with type specification
+coreio.print(import.as("data.txt", "json"));
+coreio.print(import.as("binary.dat", "buffer"));
 ```
 
-### Using Enums and Match Together
+### **Exporting from Modules**
 
-```mylang
-func getStatusDescription(status) {
-  match(status) {
-    case (Status.Online): return Status.Online.description;
-    case (Status.Offline): return Status.Offline.description;
-    default: return "Unknown status";
+```mylang2
+// math.ml - Example module with exports
+func add(a, b) {
+  return a + b;
+}
+
+func subtract(a, b) {
+  return a - b;
+}
+
+var PI = 3.14159;
+
+// Export specified functions and variables
+export(add, subtract, PI);
+```
+
+### **Creating Custom Extensions**
+
+MyLang2 allows extending the language with JavaScript for enhanced functionality:
+
+```javascript
+// index.js - JavaScript extension
+import { FunctionBuilder } from "mylang2";
+
+abstract class CoreIOMethodBuilder extends FunctionBuilder {
+  constructor(args, astArgs, environment) {
+    super(args, astArgs, environment);
+  }
+
+  get pkgInfo() {
+    return {
+      name: "custom",
+      path: __dirname,
+    };
+  }
+
+  call() {
+    throw new Error("Call is not implemented");
   }
 }
 
-coreio.print(
-  getStatusDescription(Status.Online),  // Online status
-  getStatusDescription(Status.Offline), // Offline status user
-  getStatusDescription(nil)             // Unknown status
-);
+class Print extends CoreIOMethodBuilder {
+  override call() {
+    console.log(...this.args);
+  }
+}
+
+module.exports = { print: Print };
+```
+
+```mylang2
+// index.ml - Using the custom extension
+import "./index.js";
+
+index.print("Hello from custom function!");
 ```
 
 ---
 
-### Enums
+## Security Features
 
-**Enums** in MyLang allow you to define a set of named constants and associated values or methods. Enums can contain simple values, objects, or even functions.
+MyLang2 incorporates multiple security mechanisms to protect applications:
 
-#### Declaring an Enum
+- **Property Protection**: Properties prefixed with `__` are automatically protected from external access
+- **Prototype Protection**: Direct access to `.prototype` on JavaScript functions is prevented
+- **Safe Property Access**: Optional chaining prevents runtime errors when accessing null or undefined properties
+- **Controlled Environment**: Sandboxed execution environment for untrusted code
 
-```mylang
-enum Status {
-  Online = { value: 0, description: "Online status" };
-  Offline = { value: 1, description: "Offline status user" };
+---
 
-  func getByName(val) {
-    var allStatus = objects.entries(this);
-    for (var i = 0; i < arrays.count(allStatus) - 1; i++) {
-      if (allStatus[i][0] == val) {
-        return allStatus[i];
+## Advanced Features
+
+### **Global Functions**
+
+MyLang2 provides universal functions that work across all data types:
+
+#### **length function**
+
+```mylang2
+import "coreio";
+
+// Universal length function with intelligent type handling
+coreio.print(length("Hello"));     // 5 (string character count)
+coreio.print(length([1, 2, 3]));   // 3 (array element count)
+coreio.print(length({a: 1, b: 2})); // 2 (object property count)
+coreio.print(length(123.45));      // 5 (string representation length)
+coreio.print(length(12345n));      // 5 (string representation length)
+coreio.print(length(true));      // 1
+coreio.print(length(false));      // 1
+coreio.print(length(nil));      // 0
+coreio.print(length(func test(args1, args2) {})); // 2 (param length)
+coreio.print(length(struct Test{
+  var fields;
+
+  func setFields(fields = 0) {
+    return this.fields = fields;
+  }
+})); // 2 (fields count + func count) also for enum
+```
+
+#### **process variable**
+
+```mylang2
+import "coreio";
+import "os/system";
+
+coreio.print(process.nodejs.version); // Current NodeJS version
+coreio.print(process.version); // Current mylang2 version
+coreio.print(process == system); // true
+```
+
+### **Memory Management**
+
+Automatic resource management with defer statements:
+
+```mylang2
+func resourceManagement() {
+  var resource = openResource();
+
+  defer closeResource(resource); // Always executes on function exit
+
+  // Resource utilization
+  processResource(resource);
+
+  if (someCondition) {
+    return; // defer still executes before return
+  }
+
+  // Additional processing operations
+}
+
+// Defer expression
+func readConfig(file) {
+  var fd = fs.open(file, "r");
+
+  return {
+    content: fs.read(fd, bytes.Bytes(2048), 0, 2048, 0),
+    [symbol.dispose]: func() {
+      fs.close(fd);
+    }
+  }
+}
+
+var readFile = defer readConfig("./package.json");
+
+coreio.print('File content:', readFile.content.buffer.toString());
+```
+
+---
+
+## Practical Examples
+
+### **Web Server Implementation**
+
+```mylang2
+import (
+  "coreio",
+  "net/http",
+  "fs",
+);
+
+var server = http.Server();
+
+// Configure CORS for cross-origin requests
+server.cors({
+  origin: "*",
+  methods: ["GET"],
+});
+
+// Serve static HTML content
+server.get("/", func(ctx) {
+  return ctx.send(fs.readFile("./index.html"), 200, { "Content-Type": "text/html; charset=utf-8" });
+});
+
+// Dynamic route with parameters
+server.get("/user/:id", func (ctx) {
+  return ctx.send({ userId: ctx.params.id });
+});
+
+// JSON API endpoint
+server.get("/api", func (ctx) {
+   return ctx.send(
+       { status: "ok", message: "JSON works!" },
+       200,
+       { "Content-Type": "application/json" }
+    );
+});
+
+// Echo endpoint for POST requests
+server.post("/echo", func (ctx) {
+    return ctx.send(
+       { you_sent: ctx.body },
+       200,
+       { "Content-Type": "application/json" }
+    );
+});
+
+// Data processing endpoint
+server.post("/data", func (ctx) {
+  return ctx.send({ got: ctx.body });
+});
+
+// Rate limiting configuration
+server.rateLimit({
+  windowMs: 1000,
+  max: 100
+});
+
+// Start server with callback
+server.listen(3000, func() {
+   coreio.print("Server running on http://localhost:3000");
+});
+```
+
+### **Data Processing Pipeline**
+
+```mylang2
+import "fs";
+import "strings";
+import "arrays";
+
+func processData(filename) {
+  try {
+    var content = fs.readFile(filename, "utf8").toString();
+    var lines = strings.split(content, "\n");
+    var processed = arrays.map(lines, func(line) {
+      return strings.trim(line);
+    });
+    return processed;
+  } catch(err) {
+    coreio.print("Error processing file:", err);
+    return [];
+  } finally {
+    coreio.print("Processing completed");
+  }
+}
+```
+
+### **Custom Iterator**
+
+```mylang2
+func Range(start, endA) {
+  return {
+   [symbol.iter]: func() {
+      var current = start;
+      var end = endA;
+
+      return {
+        next: func() {
+          if (current >= end) {
+            return { done: true, value: nil };
+          }
+          var value = current;
+          current++;
+          return { done: false, value: value };
+        }
+      };
+    }
+  }
+}
+
+var range = Range(0, 5);
+for (var num in range) {
+  coreio.print(num); // 0, 1, 2, 3, 4
+}
+```
+
+### **Complete Example: Todo List Manager**
+
+```mylang2
+import "coreio";
+
+struct Todo {
+  var id;
+  var title;
+  var completed;
+
+  func init(id, title) {
+    this.id = id;
+    this.title = title;
+    this.completed = false;
+  }
+
+  func toggle() {
+    this.completed = !this.completed;
+  }
+
+  func display() {
+    var status = this.completed ? "✓" : "○";
+    return $"{status} {this.title}";
+  }
+}
+
+struct TodoList {
+  var todos;
+  var nextId;
+
+  func init() {
+    this.todos = [];
+    this.nextId = 1;
+  }
+
+  func add(title) {
+    var todo = Todo(this.nextId, title);
+    this.todos[length(this.todos)] = todo;
+    this.nextId++;
+    return todo;
+  }
+
+  func remove(id) {
+    var newTodos = [];
+    for (var todo in this.todos) {
+      if (todo.id != id) {
+        newTodos[length(newTodos)] = todo;
       }
     }
-    return nil;
-  };
+    this.todos = newTodos;
+  }
+
+  func toggle(id) {
+    for (var todo in this.todos) {
+      if (todo.id == id) {
+        todo.toggle();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  func display() {
+    coreio.print("\n=== Todo List ===");
+    if (length(this.todos) == 0) {
+      coreio.print("No todos yet!");
+      return;
+    }
+    for (var todo in this.todos) {
+      coreio.print($"{todo.id}. {todo.display()}");
+    }
+  }
 }
+
+// Usage
+var list = TodoList();
+list.add("Buy groceries");
+list.add("Write code");
+list.add("Exercise");
+list.display();
+
+list.toggle(2);
+list.display();
+
+list.remove(1);
+list.display();
 ```
 
-#### Accessing Enum Values
+## 🤝 Contributing
 
-```mylang
-coreio.print(Status.Online); // { value: 0, description: "Online status" }
-coreio.print(Status.Offline); // { value: 1, description: "Offline status user" }
-```
+We welcome contributions to MyLang2! Please see our contributing guidelines for more information.
 
----
+## 📄 License
 
-## CLI Commands
-
-### Command Overview
-
-- **Run a File**
-  ```bash
-  mylang <file.ml>
-  ```
-- **Initialize Project**
-  ```bash
-  mylang init
-  ```
-- **Start REPL**
-  ```bash
-  mylang repl
-  ```
-- **Version**
-  ```bash
-  mylang version
-  ```
-
----
-
-## Contributing
-
-We welcome contributions!
+MyLang2 is released under the MIT License. See LICENSE file for details.

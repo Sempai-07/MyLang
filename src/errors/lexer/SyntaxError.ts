@@ -1,0 +1,68 @@
+import { formatMessage } from "../utils";
+import { BaseError } from "../BaseError";
+
+enum SyntaxCodeError {
+  InvalidUnexpectedToken = "INVALID_UNEXPECTED_TOKEN",
+  MultipleConsecutiveQuotes = "MULTIPLE_CONSECUTIVE_QUOTES",
+  UnterminatedStringLiteral = "UNTERMINATED_STRING_LITERAL",
+  UnexpectedOperator = "UNEXPECTED_OPERATOR",
+  ExpectedToken = "EXPECTED_TOKEN",
+  Unexpected = "UNEXPECTED",
+  InvalidDynamicImportUsage = "INVALID_DYNAMIC_IMPORT_USAGE",
+  MissingCatchOrTry = "MISSING_CATCH_OR_TRY",
+  MissingCatchOrElse = "MISSING_CATCH_OR_ELSE",
+  ValidAwait = "VALID_AWAIT",
+  RestInvalid = "REST_INVALID",
+  AlreadyAsInvalid = "ALREADY_AS_INVALID",
+  StructValidFields = "STRUCT_VALUE_FIELDS",
+  UnclosedInterpolation = "UNCLOSED_INTERPOLATION",
+  InvalidEscapeSequence = "INVALID_ESCAPE_SEQUENCE",
+  InvalidUnicodeEscape = "INVALID_UNICODE_ESCAPE",
+  InvalidHexEscape = "INVALID_HEX_ESCAPE",
+}
+
+const SyntaxMessageError = {
+  [SyntaxCodeError.InvalidUnexpectedToken]: "Invalid or unexpected token at ${line}:${column}",
+  [SyntaxCodeError.MultipleConsecutiveQuotes]: "Multiple consecutive quotes at ${line}:${column}",
+  [SyntaxCodeError.UnterminatedStringLiteral]:
+    "Unterminated string literal starting at ${line}:${column}",
+  [SyntaxCodeError.UnexpectedOperator]: "Unexpected operator '${operator}' at ${line}:${column}",
+  [SyntaxCodeError.ExpectedToken]:
+    "Expected ${expectedTokenType} but found ${foundTokenType} at ${line}:${column}",
+  [SyntaxCodeError.Unexpected]: "Unexpected token '${value}' at ${line}:${column}",
+  [SyntaxCodeError.InvalidDynamicImportUsage]: "Invalid use of import() at ${line}:${column}",
+  [SyntaxCodeError.MissingCatchOrTry]: "Missing catch or finally after try at ${line}:${column}",
+  [SyntaxCodeError.MissingCatchOrElse]: "Missing catch or else after try at ${line}:${column}",
+  [SyntaxCodeError.ValidAwait]: "await is only valid in async functions at ${line}:${column}",
+  [SyntaxCodeError.RestInvalid]:
+    "Rest parameter must be last formal parameter at ${line}:${column}",
+  [SyntaxCodeError.AlreadyAsInvalid]:
+    "Cannot assign type ${currentAsType} because the variable '${name}' is already of type ${varType} at ${line}:${column}",
+  [SyntaxCodeError.StructValidFields]:
+    "The structure expects normal variable declaration for fields ${line}:${column}",
+  [SyntaxCodeError.UnclosedInterpolation]: "Unclosed interpolation at position ${line}:${column}",
+  [SyntaxCodeError.InvalidEscapeSequence]:
+    "Invalid escape sequence '\\${char}' at ${line}:${column}",
+  [SyntaxCodeError.InvalidUnicodeEscape]:
+    "Invalid Unicode escape sequence: expected 4 hexadecimal digits at ${line}:${column}",
+  [SyntaxCodeError.InvalidHexEscape]:
+    "Invalid hex escape sequence: expected 2 hexadecimal digits at ${line}:${column}",
+} as const;
+
+class SyntaxError extends BaseError {
+  public line: number;
+  public column: number;
+
+  constructor(code: SyntaxCodeError, format?: Record<string, any>) {
+    super(format ? formatMessage(SyntaxMessageError[code], format) : SyntaxMessageError[code], {
+      code,
+      name: "SyntaxError",
+    });
+
+    this.line = format?.line ?? 0;
+
+    this.column = format?.column ?? 0;
+  }
+}
+
+export { SyntaxError, SyntaxCodeError, SyntaxMessageError };

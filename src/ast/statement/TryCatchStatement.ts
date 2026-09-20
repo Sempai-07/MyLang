@@ -1,7 +1,7 @@
 import { StmtType } from "../StmtType";
 import { type BlockStatement } from "./BlockStatement";
 import { Environment } from "../../Environment";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 
 class TryCatchStatement extends StmtType {
   public readonly tryBlock: BlockStatement;
@@ -26,22 +26,22 @@ class TryCatchStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
       const callEnvironment = new Environment(score);
-      this.tryBlock.evaluate(callEnvironment);
+      await this.tryBlock.evaluate(callEnvironment);
     } catch (err) {
       if (this.catchBlock) {
         const callEnvironment = new Environment(score);
         if (this.catchBlock[0]) {
           callEnvironment.create(this.catchBlock[0], err);
-          this.catchBlock[1].evaluate(callEnvironment);
+          await this.catchBlock[1].evaluate(callEnvironment);
         } else this.catchBlock[1].evaluate(callEnvironment);
       }
     } finally {
       if (this.finallyBlock) {
         const callEnvironment = new Environment(score);
-        this.finallyBlock.evaluate(callEnvironment);
+        await this.finallyBlock.evaluate(callEnvironment);
       }
     }
   }

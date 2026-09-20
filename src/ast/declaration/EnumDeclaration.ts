@@ -1,8 +1,9 @@
-import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { StmtType, type ITextOptions } from "../StmtType";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
-import { BaseError } from "../../errors/BaseError";
 import { type FunctionDeclaration } from "./FunctionDeclaration";
+import { FunctionExpression } from "../expression/FunctionExpression";
+import { isTypeArgs } from "../../../library/utils/utils";
 import { IdentifierLiteral } from "../types/IdentifierLiteral";
 
 class EnumDeclaration extends StmtType {
@@ -30,7 +31,7 @@ class EnumDeclaration extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     try {
       score.create(this.name, {});
 
@@ -41,19 +42,25 @@ class EnumDeclaration extends StmtType {
 
       for (let i = 0; i < this.identifierList.length; i++) {
         const { value } = this.identifierList[i]!;
+
         if (value) {
-          const evaluatedValue = value.evaluate(enumEnvironment);
+          const evaluatedValue = await value.evaluate(enumEnvironment);
+
           if (typeof evaluatedValue === "number") {
             startIndex = evaluatedValue;
+
             if (i + 1 < this.identifierList.length) {
               const nextValue = this.identifierList[i + 1]?.value;
+
               if (nextValue) {
-                const nextEvaluatedValue = nextValue.evaluate(enumEnvironment);
+                const nextEvaluatedValue = await nextValue.evaluate(enumEnvironment);
+
                 if (typeof nextEvaluatedValue === "number") {
                   step = nextEvaluatedValue - startIndex;
                 }
               }
             }
+
             break;
           }
         }
@@ -61,14 +68,14 @@ class EnumDeclaration extends StmtType {
 
       let currentIndex = startIndex;
 
-      this.identifierList.forEach(({ name, value }) => {
+      for (const { name, value } of this.identifierList) {
         if (value) {
-          const fieldValue = value.evaluate(enumEnvironment);
+          const fieldValue = await value.evaluate(enumEnvironment);
+
           enumEnvironment.update(this.name, {
             ...enumEnvironment.get(this.name),
-            [String(fieldValue) === "[object Object]"
-              ? currentIndex
-              : String(fieldValue)]: name.value,
+            [String(fieldValue) === "[object Object]" ? currentIndex : String(fieldValue)]:
+              name.value,
             [name.value]: fieldValue,
           });
         } else {
@@ -78,22 +85,56 @@ class EnumDeclaration extends StmtType {
             [name.value]: currentIndex,
           });
         }
-        currentIndex += step;
-      });
 
-      this.functionsList.forEach((func) => {
+        currentIndex += step;
+      }
+
+      for (const func of this.functionsList) {
         enumEnvironment.update(this.name, {
           ...enumEnvironment.get(this.name),
-          [func.name]: func.evaluate(enumEnvironment),
+          [func.name]: await func.evaluate(enumEnvironment),
         });
-      });
+
+        const enumEnvironmentValues = enumEnvironment.get(this.name);
+
+        const enumNamedValues = Object.entries(enumEnvironmentValues).filter(
+          ([name, value]) => isNaN(Number(name)) && isTypeArgs(value) !== "function",
+        );
+
+        for (const [name, value] of enumNamedValues) {
+          const funcDefineProto = new FunctionExpression(
+            func.name,
+            func.params,
+            func.body,
+            func.position,
+          ).evaluate(new Environment(enumEnvironment));
+
+          funcDefineProto.parentEnv.create("this", {
+            ...Object.fromEntries(
+              enumNamedValues.filter(([key]) => key !== name).map(([key]) => [key, null]),
+            ),
+            [name]: isTypeArgs(value) !== "object" ? { value } : value,
+          });
+
+          enumEnvironmentValues[name] = Object.defineProperty(
+            isTypeArgs(value) !== "object" ? { value } : value,
+            funcDefineProto.name!,
+            {
+              value: funcDefineProto,
+              enumerable: false,
+            },
+          );
+        }
+
+        enumEnvironment.update(this.name, enumEnvironmentValues);
+      }
+
+      const enumNamed = this.name;
 
       const enumData = {
         ...enumEnvironment.get(this.name),
         *[Symbol.iterator]() {
-          for (const [key, value] of Object.entries(
-            enumEnvironment.get(this.name),
-          )) {
+          for (const [key, value] of Object.entries(enumEnvironment.get(enumNamed))) {
             yield [key, value];
           }
         },
@@ -108,17 +149,9 @@ class EnumDeclaration extends StmtType {
 
       return enumData;
     } catch (err) {
-      if (err instanceof BaseError) {
-        err.files = Array.from(
-          new Set([score.get("import").main, ...err.files]),
-        ).map((file) => {
-          if (file === score.get("import").main) {
-            return `${this.name} (${file}:${this.position.line}:${this.position.column})`;
-          }
-          return file;
-        });
-      }
-      throw err;
+      throw super.throwErrorFormatters(err, score, ({ file, position }: ITextOptions) => {
+        return `${this.name} (${file}:${position.line}:${position.column})`;
+      });
     }
   }
 }

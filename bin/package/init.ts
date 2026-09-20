@@ -76,18 +76,15 @@ function packageInt(options: { yes?: boolean }): void {
         );
 
         if (fs.existsSync(filePath)) {
-          rl.question(
-            'File "mylang.json" already exists. Overwrite? (y/n) ',
-            (response) => {
-              if (response.toLowerCase() === "y") {
-                fs.writeFileSync(filePath, project);
-                console.info('File "mylang.json" successfully overwritten!');
-              } else {
-                console.log("Operation cancelled.");
-              }
-              rl.close();
-            },
-          );
+          rl.question('File "mylang.json" already exists. Overwrite? (y/n) ', (response) => {
+            if (response.toLowerCase() === "y") {
+              fs.writeFileSync(filePath, project);
+              console.info('File "mylang.json" successfully overwritten!');
+            } else {
+              console.log("Operation cancelled.");
+            }
+            rl.close();
+          });
         } else {
           fs.writeFileSync(filePath, project);
           console.info('File "mylang.json" successfully created!');

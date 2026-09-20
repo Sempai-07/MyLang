@@ -1,5 +1,5 @@
 import { StmtType } from "../StmtType";
-import { type Position } from "../../lexer/Position";
+import { type Position } from "../../lexer/token/Position";
 import { Environment } from "../../Environment";
 
 class ReturnStatement extends StmtType {
@@ -14,12 +14,9 @@ class ReturnStatement extends StmtType {
     this.position = position;
   }
 
-  evaluate(score: Environment) {
+  async evaluate(score: Environment) {
     if (Array.isArray(this.body)) {
-      return this.body.map((value) => value.evaluate(score));
-    }
-    if (!(this.body instanceof StmtType)) {
-      return this.body;
+      return Promise.all(this.body.map((value) => value.evaluate(score)));
     }
     return this.body.evaluate(score);
   }

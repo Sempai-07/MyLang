@@ -11,10 +11,7 @@ import { run as runFile } from "../src/utils/utils";
 
 const program = new Command();
 
-program
-  .name("mylang")
-  .description("CLI for mylang")
-  .version(require("../../package.json").version);
+program.name("mylang").description("CLI for mylang").version(require("../../package.json").version);
 
 program
   .command("version")
@@ -25,36 +22,33 @@ program
   .argument("<file>", "file to run")
   .option("--watch <file>", "watch the file and rerun on changes")
   .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
+  .option("--disableCache <bool>", "disable cache rerunning (default: 1000ms)", "false")
   .action((file, options) => {
     if (options.watch) {
       let timeout: NodeJS.Timeout | null = null;
       const delay = parseInt(options.delay, 10);
 
-      console.info(
-        `\x1b[32mWatching '${file}' with delay ${delay}ms...\x1b[0m`,
-      );
+      console.info(`\x1b[32mWatching '${file}' with delay ${delay}ms...\x1b[0m`);
 
-      chokidar
-        .watch(options.watch?.startsWith("--") ? "./" : options.watch)
-        .on("change", () => {
-          if (timeout) clearTimeout(timeout);
-          timeout = setTimeout(() => {
-            console.clear();
-            console.log(`\x1b[32mRestarting '${file}'\x1b[0m`);
+      chokidar.watch(options.watch?.startsWith("--") ? "./" : options.watch).on("change", () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          console.clear();
+          console.log(`\x1b[32mRestarting '${file}'\x1b[0m`);
 
-            try {
-              runFile(fs.readFileSync(file).toString(), {
-                base: process.cwd(),
-                main: path.join(process.cwd(), file),
-                options,
-              });
-              console.info(`\x1b[36mCompleted running '${file}'\x1b[0m`);
-            } catch (err) {
-              console.error(`${err}\n`);
-              console.log(`\x1b[31mFailed running '${file}'\x1b[0m`);
-            }
-          }, delay);
-        });
+          try {
+            runFile(fs.readFileSync(file).toString(), {
+              base: process.cwd(),
+              main: path.join(process.cwd(), file),
+              options,
+            });
+            console.info(`\x1b[36mCompleted running '${file}'\x1b[0m`);
+          } catch (err) {
+            console.error(`${err}\n`);
+            console.log(`\x1b[31mFailed running '${file}'\x1b[0m`);
+          }
+        }, delay);
+      });
     } else {
       try {
         runFile(fs.readFileSync(file).toString(), {
