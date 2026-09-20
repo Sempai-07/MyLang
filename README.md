@@ -316,7 +316,8 @@ coreio.print(
   typeof 123.0, // float
   typeof 123n, // bigint
   typeof "string", // string
-  typeof typeOfErr // error
+  typeof typeOfErr, // error
+  typeof symbol.iterator, // symbol
 );
 ```
 
