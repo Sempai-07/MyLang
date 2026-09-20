@@ -1188,7 +1188,7 @@ func processData(filename) {
 ```mylang2
 func Range(start, endA) {
   return {
-   [symbol.iter]: func() {
+   [symbol.iterator]: func() {
       var current = start;
       var end = endA;
 
