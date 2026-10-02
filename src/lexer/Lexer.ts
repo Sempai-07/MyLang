@@ -83,8 +83,86 @@ class Lexer {
     const startPosition = new Position(this.line, this.column);
     let token = "";
 
+    if (
+      quote === TokenList.QuoteDouble &&
+      this.current() === TokenList.QuoteDouble &&
+      this.current(1) === TokenList.QuoteDouble
+    ) {
+      this.next();
+      this.next();
+
+      while (!this.eof()) {
+        const char = this.current();
+
+        if (
+          char === TokenList.QuoteDouble &&
+          this.current(1) === TokenList.QuoteDouble &&
+          this.current(2) === TokenList.QuoteDouble
+        ) {
+          this.next();
+          this.next();
+          this.next();
+
+          const position = new Position(this.line, this.column);
+
+          this.tokenList.push(new Token(token, TokenType.String, position));
+
+          return;
+        }
+
+        if (char === "\\") {
+          const escapedChar = this.processEscapeSequence();
+          if (escapedChar !== null) {
+            token += escapedChar;
+          }
+          continue;
+        }
+
+        token += char;
+        this.next();
+      }
+    }
+
     if (quote === TokenList.Dollar && this.current() === TokenList.QuoteDouble) {
       this.next();
+
+      if (this.current() === TokenList.QuoteDouble && this.current(1) === TokenList.QuoteDouble) {
+        this.next();
+        this.next();
+
+        while (!this.eof()) {
+          const char = this.current();
+
+          if (char === "\\") {
+            const escapedChar = this.processEscapeSequence();
+            if (escapedChar !== null) {
+              token += escapedChar;
+            }
+            continue;
+          }
+
+          if (char === TokenList.QuoteDouble && this.current(1) === TokenList.QuoteDouble) {
+            this.next();
+            this.next();
+            if (this.current(2) === TokenList.QuoteDouble) {
+              this.addError(SyntaxCodeError.MultipleConsecutiveQuotes, {
+                line: this.line,
+                column: this.column,
+              });
+              return;
+            }
+
+            this.next();
+            const position = new Position(this.line, this.column);
+            this.tokenList.push(new Token(token, TokenType.InterpolatedString, position));
+            return;
+          }
+
+          token += char;
+          this.next();
+        }
+        return;
+      }
 
       while (!this.eof()) {
         const char = this.current();
