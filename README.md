@@ -1003,6 +1003,51 @@ import "./index.js";
 index.print("Hello from custom function!");
 ```
 
+### **Create global functions**
+#### **mylang.json**
+```mylang2
+{
+  "main": "index.ml",
+  "initScript": "initFunction.js",
+  "devDependencies": {
+    "console": "Sempai-07/console"
+  },
+  "dependencies": {
+    "console": "Sempai-07:console"
+  }
+}
+```
+
+### **initFunction.js**
+```mylang2
+const { FunctionBuilder } = require("mylang2");
+
+class CoreIOMethodBuilder extends FunctionBuilder {
+  constructor(args, astArgs, environment) {
+    super(args, astArgs, environment);
+  }
+
+  get pkgInfo() {
+    return {
+      name: "custom",
+      path: __dirname,
+    };
+  }
+
+  call() {
+    throw new Error("Call is not implemented");
+  }
+}
+
+class Print extends CoreIOMethodBuilder {
+  call() {
+    console.log(...this.args);
+  }
+}
+
+module.exports.init = { print: Print };
+```
+
 ---
 
 ## Security Features

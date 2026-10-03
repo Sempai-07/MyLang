@@ -58,6 +58,8 @@ class Interpreter {
 
     this.globalScore.create("process", process);
 
+    this.globalScore.create("global", {});
+
     const fullPathJSON = path.join(options.base, "mylang.json");
 
     if (fs.existsSync(fullPathJSON)) {
@@ -95,7 +97,10 @@ class Interpreter {
   }
 
   async run() {
-    const blockStmt = new BlockStatement(this.ast, new Position(0, 0));
+    const blockStmt = new BlockStatement(
+      this.ast,
+      new Position(0, this.ast.at(-1)!.position.column),
+    );
 
     await blockStmt.evaluate(this.globalScore);
 
@@ -108,7 +113,10 @@ class Interpreter {
 
       for (const name in initialize) {
         try {
-          this.globalScore.create(name, initialize[name]);
+          const globalObject = this.globalScore.get("global");
+          globalObject[name] = initialize[name];
+          console.log(globalObject);
+          this.globalScore.update("global", globalObject);
         } catch {
           throw new BaseError(`Invalid added "${name}"`);
         }

@@ -334,11 +334,19 @@ class ImportDeclaration extends StmtType {
       });
     }
 
+    const moduleMyLangJSON = JSON.parse(
+      (
+        await readFile(
+          joinPath(score.get("import").base, ".module", source.replace(":", "/"), "mylang.json"),
+        )
+      ).toString(),
+    );
+
     const runFileSource = joinPath(
       score.get("import").base,
       ".module",
       source.replace(":", "/"),
-      myLangJSON.main,
+      moduleMyLangJSON.main,
     );
 
     if (!(await fileExists(runFileSource))) {
@@ -405,7 +413,6 @@ class ImportDeclaration extends StmtType {
               files: score.get("import").paths,
             });
           }
-
           if (module[key]?.[Environment.SymbolExports]) {
             score.create(key, module[key].value, module[key].optionsVar);
           } else score.create(key, module[key]);
@@ -423,7 +430,7 @@ class ImportDeclaration extends StmtType {
           expModule[typeof Environment.SymbolFormatedText] = module[Environment.SymbolFormatedText];
         }
 
-        score.create(name, expModule);
+        score.create(name, expModule, { constant: true });
 
         return expModule;
       }
@@ -515,6 +522,9 @@ class ImportDeclaration extends StmtType {
         } else {
           packages[packageName] = await this.resolveBuildInModule(name, score);
         }
+      } else if (packageName.includes(":")) {
+        const [_, name] = packageName.split(":");
+        packages[name!] = await this.resolvePackageModule(packageName, score);
       } else if (ext === ".ml" || ext === ".js") {
         if (packageName !== name) {
           packages[packageName] = await this.resolveFileModule(resolvePath, score);
@@ -541,6 +551,9 @@ class ImportDeclaration extends StmtType {
         } else {
           score.create(name, packages[name]);
         }
+      } else if (packageName.includes(":")) {
+        const variableName = packageName.split(":").at(-1)!;
+        score.create(variableName, packages[variableName]);
       } else if (packageName.includes("/")) {
         const variableName = packageName.split("/").at(-1)!;
         score.create(variableName, packages[packageName]);
