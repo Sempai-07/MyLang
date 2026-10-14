@@ -108,7 +108,11 @@ class ImportDeclaration extends StmtType {
   }
 
   async resolveHTTPModule(url: string, score: Environment) {
-    if (!this.destructuring && score.get("import").cache[url] && !score.get("#options").disableCache) {
+    if (
+      !this.destructuring &&
+      score.get("import").cache[url] &&
+      !score.get("#options").disableCache
+    ) {
       return score.get("import").cache[url];
     }
 
@@ -234,7 +238,11 @@ class ImportDeclaration extends StmtType {
   async resolveFileModule(source: string, score: Environment) {
     const fullPath = joinPath(score.get("import").base, source);
 
-    if (!this.destructuring && score.get("import").cache[fullPath] && !score.get("#options").disableCache) {
+    if (
+      !this.destructuring &&
+      score.get("import").cache[fullPath] &&
+      !score.get("#options").disableCache
+    ) {
       return score.get("import").cache[fullPath];
     }
 
@@ -316,7 +324,11 @@ class ImportDeclaration extends StmtType {
   }
 
   async resolvePackageModule(source: string, score: Environment) {
-    if (!this.destructuring && score.get("import").cache[source] && !score.get("#options").disableCache) {
+    if (
+      !this.destructuring &&
+      score.get("import").cache[source] &&
+      !score.get("#options").disableCache
+    ) {
       return score.get("import").cache[source];
     }
 
