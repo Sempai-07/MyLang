@@ -6,12 +6,6 @@ import cliProgress from "cli-progress";
 
 const execAsync = promisify(exec);
 
-interface MyLangJSON {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  [key: string]: any;
-}
-
 interface InstallOptions {
   dev?: boolean;
   concurrency?: number;

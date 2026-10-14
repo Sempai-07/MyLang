@@ -38,5 +38,5 @@
     "useDefineForClassFields": true
   },
   "exclude": ["node_modules"],
-  "include": ["./src", "./library", "./bin"]
+  "include": ["./src", "./library", "./bin", "./types"]
 }

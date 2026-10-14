@@ -1,12 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-interface MyLangJSON {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  [key: string]: any;
-}
-
 const MODULES_DIR = ".module";
 const BUCKETS = ["dependencies", "devDependencies"] as const;
 const SAFE_NAME = /^[\w.-]+$/;

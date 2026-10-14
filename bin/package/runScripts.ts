@@ -2,11 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
-interface MyLangJSON {
-  scripts?: Record<string, string>;
-  [key: string]: any;
-}
-
 async function readConfig(root: string): Promise<MyLangJSON> {
   const filePath = path.join(root, "mylang.json");
   let raw: string;
