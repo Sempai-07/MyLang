@@ -4,7 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import chokidar from "chokidar";
 import { packageInt } from "./package/init";
-import { packageScripts } from "./package/scripts";
+import { packageScripts } from "./package/runScripts";
 import { replMyLang } from "./package/replMyLang";
 import { installPackage } from "./package/install";
 import { uninstallPackage } from "./package/uninstall";
@@ -110,7 +110,8 @@ program
 program
   .command("run")
   .description("run a .ml file, or a named script from mylang.json")
-  .argument("<target>", "file path or script name")
+  .argument("[target]", "file path or script name (omit to list scripts)")
+  .argument("[args...]", "arguments passed to the script (use -- before them)")
   .option(
     "--watch [path]",
     "re-run on file changes (watches the file itself unless a path is given)",
@@ -118,16 +119,16 @@ program
   .option("--delay <ms>", "debounce delay in ms before re-running", "1000")
   .option("--no-cache", "disable execution cache")
   .option("--verbose", "print full error stacks")
-  .action((target, options) => {
-    if (fs.existsSync(target)) {
-      runTarget(target, options);
-      return;
-    }
+  .action(async (target, args, options) => {
     try {
-      packageScripts(target);
+      if (target && fs.existsSync(target) && fs.statSync(target).isFile()) {
+        runTarget(target, options);
+        return;
+      }
+      await packageScripts(target, args);
     } catch (err) {
       logError(err, options.verbose);
-      process.exitCode = 1;
+      process.exitCode = process.exitCode || 1;
     }
   });
 
