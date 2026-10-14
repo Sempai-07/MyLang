@@ -104,7 +104,7 @@ class Interpreter {
 
     await blockStmt.evaluate(this.globalScore);
 
-    return runtime.getLastExecutionResult();
+    return runtime.getLastRuntimeExecutionResult();
   }
 
   addCustomFunction(fileInit: string) {

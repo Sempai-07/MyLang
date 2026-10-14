@@ -136,9 +136,9 @@ program
 program
   .command("repl")
   .description("start an interactive MyLang REPL")
-  .action(() => {
+  .action(async () => {
     try {
-      replMyLang();
+      await replMyLang(pkg.version);
     } catch (err) {
       logError(err, false);
       process.exitCode = 1;

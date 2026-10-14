@@ -16,7 +16,7 @@ class DeferDeclaration extends StmtType {
 
   async evaluate(score: Environment) {
     try {
-      await this.value.evaluate(score);
+      return await this.value.evaluate(score);
     } catch (err) {
       throw super.throwErrorFormatters(err, score);
     }

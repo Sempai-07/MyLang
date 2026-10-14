@@ -68,60 +68,44 @@ class AssignmentExpression extends StmtType {
             }
 
             if (this.right instanceof IdentifierLiteral) {
-              score.update(this.left.value, rightValue, {
+              return score.update(this.left.value, rightValue, {
                 ...score.optionsVar[this.right.value],
                 constant: false,
               });
-              break;
             }
 
-            score.update(this.left.value, rightValue, {
+            return score.update(this.left.value, rightValue, {
               constant: false,
               readonly: false,
             });
-            break;
           case TokenType.OperatorAssignPlus:
-            score.update(this.left.value, leftValue + rightValue);
-            break;
+            return score.update(this.left.value, leftValue + rightValue);
           case TokenType.OperatorAssignMinus:
-            score.update(this.left.value, leftValue - rightValue);
-            break;
+            return score.update(this.left.value, leftValue - rightValue);
           case TokenType.OperatorAssignMultiply:
-            score.update(this.left.value, leftValue * rightValue);
-            break;
+            return score.update(this.left.value, leftValue * rightValue);
           case TokenType.OperatorAssignDivide:
-            score.update(this.left.value, leftValue / rightValue);
-            break;
+            return score.update(this.left.value, leftValue / rightValue);
           case TokenType.OperatorAssignModule:
-            score.update(this.left.value, leftValue % rightValue);
-            break;
+            return score.update(this.left.value, leftValue % rightValue);
           case TokenType.OperatorAssignPow:
-            score.update(this.left.value, leftValue ** rightValue);
-            break;
+            return score.update(this.left.value, leftValue ** rightValue);
           case TokenType.OperatorAndAssign:
-            score.update(this.left.value, leftValue && rightValue);
-            break;
+            return score.update(this.left.value, leftValue && rightValue);
           case TokenType.OperatorOrAssign:
-            score.update(this.left.value, leftValue || rightValue);
-            break;
+            return score.update(this.left.value, leftValue || rightValue);
           case TokenType.OperatorBitAndAssign:
-            score.update(this.left.value, leftValue & rightValue);
-            break;
+            return score.update(this.left.value, leftValue & rightValue);
           case TokenType.OperatorBitOrAssign:
-            score.update(this.left.value, leftValue | rightValue);
-            break;
+            return score.update(this.left.value, leftValue | rightValue);
           case TokenType.OperatorBitXorAssign:
-            score.update(this.left.value, leftValue ^ rightValue);
-            break;
+            return score.update(this.left.value, leftValue ^ rightValue);
           case TokenType.OperatorShiftLeftAssign:
-            score.update(this.left.value, leftValue << rightValue);
-            break;
+            return score.update(this.left.value, leftValue << rightValue);
           case TokenType.OperatorShiftRightAssign:
-            score.update(this.left.value, leftValue >> rightValue);
-            break;
+            return score.update(this.left.value, leftValue >> rightValue);
           case TokenType.OperatorShiftRightZeroFillAssign:
-            score.update(this.left.value, leftValue >>> rightValue);
-            break;
+            return score.update(this.left.value, leftValue >>> rightValue);
           default:
             throw new AssignmentError(AssignmentCodeError.AssignmentInvalidOperator, {
               assignType: this.assignType,
@@ -188,9 +172,7 @@ class AssignmentExpression extends StmtType {
           }
 
           // @ts-ignore
-          value[leftValue] = rightValue;
-
-          return;
+          return (value[leftValue] = rightValue);
         }
 
         try {
@@ -199,51 +181,36 @@ class AssignmentExpression extends StmtType {
 
           switch (this.assignType) {
             case TokenType.OperatorAssign: {
-              value[leftValue] = rightValue;
-              break;
+              return (value[leftValue] = rightValue);
             }
             case TokenType.OperatorAssignPlus:
-              value[leftValue] += rightValue;
-              break;
+              return (value[leftValue] += rightValue);
             case TokenType.OperatorAssignMinus:
-              value[leftValue] -= rightValue;
-              break;
+              return (value[leftValue] -= rightValue);
             case TokenType.OperatorAssignMultiply:
-              value[leftValue] *= rightValue;
-              break;
+              return (value[leftValue] *= rightValue);
             case TokenType.OperatorAssignDivide:
-              value[leftValue] /= rightValue;
-              break;
+              return (value[leftValue] /= rightValue);
             case TokenType.OperatorAssignModule:
-              value[leftValue] %= rightValue;
-              break;
+              return (value[leftValue] %= rightValue);
             case TokenType.OperatorAssignPow:
-              value[leftValue] **= rightValue;
-              break;
+              return (value[leftValue] **= rightValue);
             case TokenType.OperatorAndAssign:
-              value[leftValue] &&= rightValue;
-              break;
+              return (value[leftValue] &&= rightValue);
             case TokenType.OperatorOrAssign:
-              value[leftValue] ||= rightValue;
-              break;
+              return (value[leftValue] ||= rightValue);
             case TokenType.OperatorBitAndAssign:
-              value[leftValue] &= rightValue;
-              break;
+              return (value[leftValue] &= rightValue);
             case TokenType.OperatorBitOrAssign:
-              value[leftValue] |= rightValue;
-              break;
+              return (value[leftValue] |= rightValue);
             case TokenType.OperatorBitXorAssign:
-              value[leftValue] ^= rightValue;
-              break;
+              return (value[leftValue] ^= rightValue);
             case TokenType.OperatorShiftLeftAssign:
-              value[leftValue] <<= rightValue;
-              break;
+              return (value[leftValue] <<= rightValue);
             case TokenType.OperatorShiftRightAssign:
-              value[leftValue] >>= rightValue;
-              break;
+              return (value[leftValue] >>= rightValue);
             case TokenType.OperatorShiftRightZeroFillAssign:
-              value[leftValue] >>>= rightValue;
-              break;
+              return (value[leftValue] >>>= rightValue);
           }
         } catch (err) {
           throw new AssignmentError(AssignmentCodeError.AssignmentInvalid, {

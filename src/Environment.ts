@@ -33,19 +33,21 @@ class Environment {
     this.deferenceCall = [];
   }
 
-  create(key: string, value: any, options?: IOptionsVar): void {
+  create(key: string, value: any, options?: IOptionsVar): Record<string, any> {
     if (this.values.hasOwnProperty(key)) {
       throw new BaseError(`${key} has been initialized`, {
         files: this.values["import"]?.paths ?? this.parent?.values["import"]?.paths ?? [],
       });
     }
+
     if (options) {
       this.optionsVar[key] = options;
     }
-    this.values[key] = value;
+
+    return (this.values[key] = value);
   }
 
-  update(key: string, value: any, options?: IOptionsVar): void {
+  update(key: string, value: any, options?: IOptionsVar): Record<string, any> {
     const matchedEnvironment = this.getEnvironmentWithKey(key);
 
     if (!matchedEnvironment) {
@@ -53,13 +55,15 @@ class Environment {
         files: this.values["import"]?.paths ?? this.parent?.values["import"]?.paths ?? [],
       });
     }
+
     if (options) {
       matchedEnvironment.optionsVar[key] = options;
     }
-    matchedEnvironment.values = {
+
+    return (matchedEnvironment.values = {
       ...matchedEnvironment.values,
       [key]: value,
-    };
+    });
   }
 
   get(key: string): any {

@@ -15,6 +15,7 @@ class Runtime {
   private functionStack: number[] = [];
   private iterationStack: number[] = [];
   private _lastExecutionResult: any = null;
+  private _lastRuntimeResult: any = null;
 
   async resume() {
     if (this.callStack.isEmpty()) {
@@ -40,6 +41,8 @@ class Runtime {
     }
 
     const value = await statement.evaluate(environment);
+
+    this._lastRuntimeResult = value;
 
     if (statement instanceof ReturnStatement) {
       this._isReturn = true;
@@ -93,6 +96,10 @@ class Runtime {
 
   getLastExecutionResult(): any {
     return this._lastExecutionResult;
+  }
+
+  getLastRuntimeExecutionResult(): any {
+    return this._lastRuntimeResult;
   }
 
   resetLastExecutionResult() {

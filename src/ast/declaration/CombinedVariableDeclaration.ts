@@ -114,7 +114,7 @@ class CombinedVariableDeclaration extends StmtType {
         score.create(name, content, options);
       }
 
-      return;
+      return this.value.map(({ name }) => score.get(name));
     }
 
     for (const { name, value, options } of this.value) {
@@ -144,6 +144,8 @@ class CombinedVariableDeclaration extends StmtType {
       const content = await value.evaluate(score);
       score.create(name, content, options);
     }
+
+    return this.value.map(({ name }) => score.get(name));
   }
 }
 

@@ -29,19 +29,19 @@ class TryCatchStatement extends StmtType {
   async evaluate(score: Environment) {
     try {
       const callEnvironment = new Environment(score);
-      await this.tryBlock.evaluate(callEnvironment);
+      return await this.tryBlock.evaluate(callEnvironment);
     } catch (err) {
       if (this.catchBlock) {
         const callEnvironment = new Environment(score);
         if (this.catchBlock[0]) {
           callEnvironment.create(this.catchBlock[0], err);
-          await this.catchBlock[1].evaluate(callEnvironment);
-        } else this.catchBlock[1].evaluate(callEnvironment);
+          return await this.catchBlock[1].evaluate(callEnvironment);
+        } else return this.catchBlock[1].evaluate(callEnvironment);
       }
     } finally {
       if (this.finallyBlock) {
         const callEnvironment = new Environment(score);
-        await this.finallyBlock.evaluate(callEnvironment);
+        return await this.finallyBlock.evaluate(callEnvironment);
       }
     }
   }
