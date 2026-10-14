@@ -8,6 +8,7 @@ import { packageScripts } from "./package/runScripts";
 import { replMyLang } from "./package/replMyLang";
 import { installPackage } from "./package/install";
 import { uninstallPackage } from "./package/uninstall";
+import { showInfo } from "./package/info";
 import { run as runFile } from "../src/utils/utils";
 
 const pkg = require("../package.json");
@@ -24,19 +25,6 @@ function logError(err: unknown, verbose: boolean) {
     console.error(err.stack);
   } else {
     console.error(`\x1b[31m${err instanceof Error ? err.message : err}\x1b[0m`);
-  }
-}
-
-function readMylangJson(base: string): Record<string, any> | null {
-  const configPath = path.join(base, "mylang.json");
-  if (!fs.existsSync(configPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-  } catch (err) {
-    console.error(
-      `\x1b[31mFailed to parse mylang.json: ${err instanceof Error ? err.message : err}\x1b[0m`,
-    );
-    return null;
   }
 }
 
@@ -189,17 +177,15 @@ program
 program
   .command("info")
   .description("show info about the current project (from mylang.json)")
-  .action(() => {
-    const config = readMylangJson(process.cwd());
-    if (!config) {
-      console.log("No mylang.json found in the current directory.");
-      return;
+  .option("--json", "print as JSON")
+  .option("--verbose", "print full error stacks")
+  .action(async (options) => {
+    try {
+      await showInfo(pkg.version, options);
+    } catch (err) {
+      logError(err, options.verbose);
+      process.exitCode = 1;
     }
-    console.log(`Name:    ${config.name ?? "-"}`);
-    console.log(`Version: ${config.version ?? "-"}`);
-    console.log(`Entry:   ${config.main ?? config.entry ?? "-"}`);
-    const scripts = config.scripts ? Object.keys(config.scripts) : [];
-    console.log(`Scripts: ${scripts.length ? scripts.join(", ") : "-"}`);
   });
 
 const cache = program.command("cache").description("manage the local execution cache");
