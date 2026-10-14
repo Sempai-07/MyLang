@@ -7,91 +7,218 @@ import { packageInt } from "./package/init";
 import { packageScripts } from "./package/scripts";
 import { replMyLang } from "./package/replMyLang";
 import { installPackage } from "./package/install";
+import { uninstallPackage } from "./package/uninstall";
 import { run as runFile } from "../src/utils/utils";
+
+const pkg = require("../package.json");
 
 const program = new Command();
 
-program.name("mylang").description("CLI for mylang").version(require("../../package.json").version);
-
 program
-  .command("version")
-  .description("version MyLang")
-  .action(() => console.log(require("../../package.json").version));
+  .name("mylang")
+  .description("CLI for the MyLang programming language")
+  .version(pkg.version, "-v, --version", "print MyLang version");
 
-program
-  .argument("<file>", "file to run")
-  .option("--watch <file>", "watch the file and rerun on changes")
-  .option("--delay <ms>", "delay before rerunning (default: 1000ms)", "1000")
-  .option("--disableCache <bool>", "disable cache rerunning (default: 1000ms)", "false")
-  .action((file, options) => {
-    if (options.watch) {
-      let timeout: NodeJS.Timeout | null = null;
-      const delay = parseInt(options.delay, 10);
+function logError(err: unknown, verbose: boolean) {
+  if (verbose && err instanceof Error && err.stack) {
+    console.error(err.stack);
+  } else {
+    console.error(`\x1b[31m${err instanceof Error ? err.message : err}\x1b[0m`);
+  }
+}
 
-      console.info(`\x1b[32mWatching '${file}' with delay ${delay}ms...\x1b[0m`);
+function readMylangJson(base: string): Record<string, any> | null {
+  const configPath = path.join(base, "mylang.json");
+  if (!fs.existsSync(configPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+  } catch (err) {
+    console.error(
+      `\x1b[31mFailed to parse mylang.json: ${err instanceof Error ? err.message : err}\x1b[0m`,
+    );
+    return null;
+  }
+}
 
-      chokidar.watch(options.watch?.startsWith("--") ? "./" : options.watch).on("change", () => {
-        if (timeout) clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          console.clear();
-          console.log(`\x1b[32mRestarting '${file}'\x1b[0m`);
+/** Runs a single execution pass of the given file, reporting success/failure. */
+function executeFile(file: string, options: Record<string, any>) {
+  runFile(fs.readFileSync(file).toString(), {
+    base: path.join(process.cwd(), path.parse(file).dir),
+    main: path.join(process.cwd(), file),
+    options,
+  });
+}
 
-          try {
-            runFile(fs.readFileSync(file).toString(), {
-              base: process.cwd(),
-              main: path.join(process.cwd(), file),
-              options,
-            });
-            console.info(`\x1b[36mCompleted running '${file}'\x1b[0m`);
-          } catch (err) {
-            console.error(`${err}\n`);
-            console.log(`\x1b[31mFailed running '${file}'\x1b[0m`);
-          }
-        }, delay);
-      });
-    } else {
+/**
+ * Shared implementation for both `mylang <file>` and `mylang run <target>`.
+ * Handles optional --watch and consistent error reporting.
+ */
+function runTarget(file: string, options: Record<string, any>) {
+  if (options.watch !== undefined && options.watch !== false) {
+    const watchPath =
+      typeof options.watch === "string" && options.watch.length > 0 ? options.watch : file;
+    const delay = parseInt(options.delay, 10);
+    let timeout: NodeJS.Timeout | null = null;
+
+    console.info(`\x1b[32mWatching '${watchPath}' (delay ${delay}ms)...\x1b[0m`);
+
+    const runOnce = () => {
+      console.clear();
+      console.log(`\x1b[32mRunning '${file}'\x1b[0m`);
       try {
-        runFile(fs.readFileSync(file).toString(), {
-          base: process.cwd(),
-          main: path.join(process.cwd(), file),
-          options,
-        });
+        executeFile(file, options);
+        console.info(`\x1b[36mDone.\x1b[0m`);
       } catch (err) {
-        console.error(`${err}`);
+        logError(err, options.verbose);
       }
+    };
+
+    runOnce();
+
+    chokidar.watch(watchPath).on("change", () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(runOnce, delay);
+    });
+    return;
+  }
+
+  try {
+    executeFile(file, options);
+  } catch (err) {
+    logError(err, options.verbose);
+    process.exitCode = 1;
+  }
+}
+
+program
+  .argument("[file]", "MyLang file to run (shorthand for `mylang run <file>`)")
+  .option(
+    "--watch [path]",
+    "re-run on file changes (watches the file itself unless a path is given)",
+  )
+  .option("--delay <ms>", "debounce delay in ms before re-running", "1000")
+  .option("--no-cache", "disable execution cache")
+  .option("--verbose", "print full error stacks")
+  .action((file, options) => {
+    if (!file) {
+      program.help();
+      return;
+    }
+    runTarget(file, options);
+  });
+
+program
+  .command("run")
+  .description("run a .ml file, or a named script from mylang.json")
+  .argument("<target>", "file path or script name")
+  .option(
+    "--watch [path]",
+    "re-run on file changes (watches the file itself unless a path is given)",
+  )
+  .option("--delay <ms>", "debounce delay in ms before re-running", "1000")
+  .option("--no-cache", "disable execution cache")
+  .option("--verbose", "print full error stacks")
+  .action((target, options) => {
+    if (fs.existsSync(target)) {
+      runTarget(target, options);
+      return;
+    }
+    try {
+      packageScripts(target);
+    } catch (err) {
+      logError(err, options.verbose);
+      process.exitCode = 1;
     }
   });
 
 program
   .command("init")
-  .description("initialize project")
-  .option("-y, --yes", "default settings")
-  .action((options) => packageInt(options));
-
-program
-  .command("run")
-  .description("run the script named")
-  .argument("<script>", "script named")
-  .action((script) => packageScripts(script));
+  .description("initialize a new MyLang project")
+  .option("-y, --yes", "accept default settings")
+  .action((options) => {
+    try {
+      packageInt(options);
+    } catch (err) {
+      logError(err, options.verbose);
+      process.exitCode = 1;
+    }
+  });
 
 program
   .command("repl")
-  .description("start a custom REPL session")
-  .action(() => replMyLang());
+  .description("start an interactive MyLang REPL")
+  .action(() => {
+    try {
+      replMyLang();
+    } catch (err) {
+      logError(err, false);
+      process.exitCode = 1;
+    }
+  });
 
 program
   .command("install")
-  .description("install a specific package")
-  .argument("[pkg]", "package to install")
-  .action((pkg) => installPackage(pkg));
+  .alias("i")
+  .description("install a package (omit name to install all dependencies)")
+  .argument("[pkg]", "package name")
+  .action(async (pkgName, options) => {
+    try {
+      await installPackage(pkgName);
+    } catch (err) {
+      logError(err, options.verbose);
+      process.exitCode = 1;
+    }
+  });
 
-// program
-//   .command("install")
-//   .description("install a specific package")
-//   .argument("<pkg>", "package to install")
-//   .option("--git", "force git installation")
-//   .option("--branch <char>", "force git a specific branch install")
-//   .option("--npm", "force npm installation")
-//   .action((pkg, options) => packageInstall(pkg, options));
+program
+  .command("uninstall")
+  .aliases(["remove", "rm"])
+  .description("remove an installed package")
+  .argument("<pkg>", "package (owner:repo or repo)")
+  .option("--verbose", "print full error stacks")
+  .action(async (pkgName, options) => {
+    try {
+      await uninstallPackage(pkgName);
+    } catch (err) {
+      logError(err, options.verbose);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command("info")
+  .description("show info about the current project (from mylang.json)")
+  .action(() => {
+    const config = readMylangJson(process.cwd());
+    if (!config) {
+      console.log("No mylang.json found in the current directory.");
+      return;
+    }
+    console.log(`Name:    ${config.name ?? "-"}`);
+    console.log(`Version: ${config.version ?? "-"}`);
+    console.log(`Entry:   ${config.main ?? config.entry ?? "-"}`);
+    const scripts = config.scripts ? Object.keys(config.scripts) : [];
+    console.log(`Scripts: ${scripts.length ? scripts.join(", ") : "-"}`);
+  });
+
+const cache = program.command("cache").description("manage the local execution cache");
+
+cache
+  .command("clear")
+  .description("remove cached execution data")
+  .action(() => {
+    const cacheDir = path.join(process.cwd(), ".mylang", "cache");
+    if (!fs.existsSync(cacheDir)) {
+      console.log("Cache is already empty.");
+      return;
+    }
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+    console.log(`\x1b[36mCache cleared (${cacheDir})\x1b[0m`);
+  });
+
+program
+  .command("version")
+  .description("print MyLang version")
+  .action(() => console.log(pkg.version));
 
 program.parse(process.argv);
