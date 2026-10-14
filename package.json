@@ -4,7 +4,7 @@
   "main": "./dist/src/index.js",
   "description": "The MyLang programming language",
   "scripts": {
-    "prettier": "npx prettier --write src/",
+    "prettier": "npx prettier --write src/ bin/",
     "testing": "node --test test/",
     "build:test": "npx tsc --project ./tsconfig.json",
     "build:release": "npm run prettier && npx tsc --project ./tsconfig.json"
@@ -29,9 +29,9 @@
   "author": "Sempai<zadmanthegreat@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "@types/express": "^5.0.6",
     "@types/chalk": "^0.4.31",
     "@types/cli-progress": "^3.11.6",
+    "@types/express": "^5.0.6",
     "@types/node": "^20.17.16",
     "@types/node-fetch": "^2.6.12",
     "@types/readline-sync": "^1.4.8",
