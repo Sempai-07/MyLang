@@ -1,6 +1,6 @@
 {
   "name": "mylang2",
-  "version": "2.0.0",
+  "version": "2.0.0-beta.1",
   "main": "./dist/src/index.js",
   "description": "The MyLang programming language",
   "scripts": {

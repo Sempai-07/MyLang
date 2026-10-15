@@ -6,14 +6,7 @@ import { inspect } from "node:util";
 import { formattersText } from "../../library/coreio/formatters";
 import { Environment } from "../../src/Environment";
 import { Lexer, Parser, Interpreter } from "../../src/index";
-
-const useColor = !process.env.NO_COLOR;
-const paint = (code: number) => (text: string) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text);
-const cyan = paint(36);
-const green = paint(32);
-const yellow = paint(33);
-const red = paint(31);
-const dim = paint(90);
+import { useColor, cyan, green, yellow, red, dim } from "./utils/utils";
 
 const PROMPT = cyan("> ");
 const CONTINUATION_PROMPT = dim("... ");

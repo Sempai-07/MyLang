@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { cyan, green, yellow, red, dim } from "./utils/utils";
 
 interface InfoOptions {
   json?: boolean;
@@ -7,14 +8,6 @@ interface InfoOptions {
 
 const MODULES_DIR = ".module";
 const CACHE_DIR = path.join(".mylang", "cache");
-const useColor = !process.env.NO_COLOR;
-const paint = (code: number) => (text: string) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text);
-const cyan = paint(36);
-const green = paint(32);
-const yellow = paint(33);
-const red = paint(31);
-const dim = paint(90);
-
 const LABEL_WIDTH = 13;
 const row = (label: string, value: string) => `  ${cyan(label.padEnd(LABEL_WIDTH))} ${value}`;
 const missing = dim("-");

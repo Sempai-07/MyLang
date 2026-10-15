@@ -3,6 +3,7 @@ import path from "node:path";
 import readline from "node:readline/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { cyan, green, yellow, red, dim } from "./utils/utils";
 
 const execFileAsync = promisify(execFile);
 
@@ -25,14 +26,6 @@ interface PreviousConfig {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
 }
-
-const useColor = !process.env.NO_COLOR;
-const paint = (code: number) => (text: string) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : text);
-const cyan = paint(36);
-const green = paint(32);
-const yellow = paint(33);
-const red = paint(31);
-const dim = paint(90);
 
 const ENTRY_TEMPLATE = "";
 
